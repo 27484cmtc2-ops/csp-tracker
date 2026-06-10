@@ -169,7 +169,6 @@ export default function App() {
 
       <div style={{maxWidth:780,margin:"0 auto",padding:"24px 16px"}}>
 
-        {/* Header */}
         <div style={{marginBottom:20}}>
           <div style={{fontSize:9,letterSpacing:".3em",color:"#3a6e3a",marginBottom:5}}>{"// CASH SECURED PUTS"}</div>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:10}}>
@@ -181,7 +180,6 @@ export default function App() {
           </div>
         </div>
 
-        {/* Progress */}
         <div className="csp-panel" style={{padding:"14px 18px",marginBottom:16}}>
           <div style={{display:"flex",justifyContent:"space-between",marginBottom:10,flexWrap:"wrap",gap:8}}>
             <div>
@@ -208,7 +206,6 @@ export default function App() {
           </div>
         </div>
 
-        {/* Tabs */}
         <div style={{display:"flex",gap:7,marginBottom:16}}>
           {["tracker","screener","strikes"].map(t=>(
             <button key={t} className={`tab-btn${tab===t?" active":""}`} onClick={()=>setTab(t)}>
@@ -217,7 +214,6 @@ export default function App() {
           ))}
         </div>
 
-        {/* TRACKER TAB */}
         {tab==="tracker" && (
           <div>
             <div className="csp-panel" style={{padding:14,marginBottom:14}}>
@@ -235,7 +231,6 @@ export default function App() {
               <button className="csp-btn" onClick={addTrade}>+ ADD TRADE</button>
             </div>
 
-            {/* Open positions */}
             <div className="csp-panel" style={{marginBottom:12}}>
               <div style={{padding:"10px 14px",borderBottom:"1px solid #1a2e1a",fontSize:9,color:"#4a6a4a",letterSpacing:".12em"}}>
                 OPEN POSITIONS <span style={{color:"#2a5a2a"}}>({openTrades.length})</span>
@@ -281,7 +276,6 @@ export default function App() {
               )}
             </div>
 
-            {/* Closed positions */}
             {closedTrades.length>0 && (
               <div className="csp-panel">
                 <div style={{padding:"10px 14px",borderBottom:"1px solid #1a2e1a",fontSize:9,color:"#4a6a4a",letterSpacing:".12em"}}>
@@ -324,7 +318,6 @@ export default function App() {
           </div>
         )}
 
-        {/* SCREENER TAB */}
         {tab==="screener" && (
           <div className="csp-panel">
             <div style={{padding:"10px 14px",borderBottom:"1px solid #1a2e1a",fontSize:9,color:"#4a6a4a",letterSpacing:".12em"}}>
@@ -363,7 +356,6 @@ export default function App() {
           </div>
         )}
 
-        {/* STRIKES TAB */}
         {tab==="strikes" && (
           <div>
             <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:12}}>
@@ -408,7 +400,6 @@ export default function App() {
           </div>
         )}
 
-        {/* CLOSE MODAL */}
         {closeModal && (()=>{
           const t = trades.find(x=>x.id===closeModal.id);
           const col = t?(t.creditTotal??(t.premium*t.contracts*100)):0;
@@ -447,4 +438,4 @@ export default function App() {
       </div>
     </div>
   );
-}open -a TextEdit src/App.js
+}
