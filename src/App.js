@@ -80,6 +80,27 @@ function daysLabel(d) {
   return `${d}d`;
 }
 
+function daysBetween(start, end) {
+  if (!start || !end) return null;
+  const a = new Date(start + "T00:00:00");
+  const b = new Date(end + "T00:00:00");
+  return Math.round((b - a) / 86400000);
+}
+
+function getCollateral(t) {
+  if (t.longStrike != null) return Math.abs(t.strike - t.longStrike) * 100 * t.contracts;
+  return t.strike * 100 * t.contracts;
+}
+
+function annualizedReturn(t) {
+  const collateral = getCollateral(t);
+  if (!collateral) return null;
+  const collected = t.creditTotal ?? (t.premium * t.contracts * 100);
+  const dur = daysBetween(t.opened, t.expiry);
+  if (!dur || dur <= 0) return null;
+  return (collected / collateral) * (365 / dur) * 100;
+}
+
 const DEFAULT_TRADES = [
   { id:1, ticker:"BAC",  strike:48,  longStrike:null, expiry:"2026-06-26", premium:0.50, contracts:2, status:"closed", opened:"2026-05-27", type:"CSP",            costToClose:27,  pnl:73,  creditTotal:null },
   { id:2, ticker:"MCD",  strike:270, longStrike:null, expiry:"2026-06-26", premium:3.35, contracts:1, status:"closed", opened:"2026-05-28", type:"CSP",            costToClose:174, pnl:161, creditTotal:null },
@@ -190,6 +211,30 @@ export default function App() {
   const openTrades  = trades.filter(t => t.status==="open");
   const closedTrades= trades.filter(t => t.status==="closed");
 
+  const [sortBy, setSortBy] = useState("expiry");
+  const [sortDir, setSortDir] = useState("asc");
+
+  const toggleSort = (key) => {
+    if (sortBy===key) setSortDir(d=>d==="asc"?"desc":"asc");
+    else { setSortBy(key); setSortDir("asc"); }
+  };
+
+  const sortedOpenTrades = useMemo(() => {
+    const arr = [...openTrades];
+    arr.sort((a,b) => {
+      let av, bv;
+      if (sortBy==="strike") { av=a.strike; bv=b.strike; }
+      else if (sortBy==="premium") { av=a.creditTotal??(a.premium*a.contracts*100); bv=b.creditTotal??(b.premium*b.contracts*100); }
+      else if (sortBy==="annualized") { av=annualizedReturn(a)??-1; bv=annualizedReturn(b)??-1; }
+      else if (sortBy==="ticker") { av=a.ticker; bv=b.ticker; }
+      else { av=a.expiry; bv=b.expiry; }
+      if (av<bv) return sortDir==="asc"?-1:1;
+      if (av>bv) return sortDir==="asc"?1:-1;
+      return 0;
+    });
+    return arr;
+  }, [openTrades, sortBy, sortDir]);
+
   return (
     <div style={{minHeight:"100vh",background:"#080c10",fontFamily:"'IBM Plex Mono','Courier New',monospace",color:"#c8d8c0"}}>
       <style>{`
@@ -204,7 +249,11 @@ export default function App() {
         .tab-btn.active{background:#1a2e1a;border-color:#3a6e3a;color:#7aff7a;}
         .row-hover:hover{background:#0f1a0f!important;}
         .strike-row:hover{background:#0f1a0f!important;cursor:pointer;}
-        .csp-input{background:#080c10;border:1px solid #1a2a1a;border-radius:2px;padding:7px 10px;color:#c8d8c0;font-size:11px;outline:none;width:100%;}
+        .csp-input{background:#080c10;border:1px solid #1a2a1a;border-radius:2px;padding:7px 10px;color:#c8d8c0;font-size:11px;outline:none;width:100%;min-width:0;box-sizing:border-box;}
+        .csp-form-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;}
+        @media (max-width:640px){
+          .csp-form-grid{grid-template-columns:1fr 1fr;}
+        }
         .csp-input:focus{border-color:#3a6e3a;}
         .csp-panel{background:#0d1117;border:1px solid #1a2e1a;border-radius:4px;}
         .csp-btn{padding:7px 18px;background:#1a2e1a;border:1px solid #3a6e3a;border-radius:2px;color:#7aff7a;font-size:10px;letter-spacing:.1em;cursor:pointer;}
@@ -276,12 +325,12 @@ export default function App() {
           <div>
             <div className="csp-panel" style={{padding:14,marginBottom:14}}>
               <div style={{fontSize:9,color:"#4a6a4a",letterSpacing:".12em",marginBottom:10}}>LOG NEW TRADE</div>
-              <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:7,marginBottom:7}}>
+              <div className="csp-form-grid" style={{marginBottom:7}}>
                 <input className="csp-input" placeholder="TICKER" value={newTrade.ticker} onChange={e=>setNewTrade({...newTrade,ticker:e.target.value})} />
                 <input className="csp-input" placeholder="SHORT STRIKE" value={newTrade.strike} onChange={e=>setNewTrade({...newTrade,strike:e.target.value})} />
                 <input className="csp-input" placeholder="LONG STRIKE (opt)" value={newTrade.longStrike} onChange={e=>setNewTrade({...newTrade,longStrike:e.target.value})} />
               </div>
-              <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:7,marginBottom:10}}>
+              <div className="csp-form-grid" style={{marginBottom:10}}>
                 <input className="csp-input" placeholder="PREMIUM" value={newTrade.premium} onChange={e=>setNewTrade({...newTrade,premium:e.target.value})} />
                 <input className="csp-input" placeholder="CONTRACTS" value={newTrade.contracts} onChange={e=>setNewTrade({...newTrade,contracts:e.target.value})} />
                 <input className="csp-input" type="date" value={newTrade.expiry} onChange={e=>setNewTrade({...newTrade,expiry:e.target.value})} />
@@ -295,15 +344,26 @@ export default function App() {
               </div>
               {openTrades.length===0 && <div style={{padding:20,textAlign:"center",color:"#3a5a3a",fontSize:11}}>No open positions.</div>}
               {openTrades.length>0 && (
+                <div style={{display:"flex",gap:6,flexWrap:"wrap",padding:"10px 14px",borderBottom:"1px solid #1a2e1a"}}>
+                  <span style={{fontSize:9,color:"#3a6a3a",letterSpacing:".1em",alignSelf:"center"}}>SORT</span>
+                  {[["expiry","EXPIRY"],["strike","STRIKE"],["premium","PREMIUM"],["annualized","ANN%"],["ticker","TICKER"]].map(([key,label])=>(
+                    <button key={key} className="csp-btn-sm" onClick={()=>toggleSort(key)}
+                      style={{borderColor:sortBy===key?"#3a6e3a":"#2a4a2a",color:sortBy===key?"#7aff7a":"#5a7a5a"}}>
+                      {label}{sortBy===key?(sortDir==="asc"?" ↑":" ↓"):""}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {openTrades.length>0 && (
                 <div className="csp-table-wrap" style={{overflowX:"auto"}}>
                   <table style={{width:"100%",borderCollapse:"collapse",minWidth:560}}>
                     <thead><tr>
-                      {["TICKER","STRIKE","EXPIRY","DAYS","COLLECTED","CNTS",""].map(h=>(
+                      {["TICKER","STRIKE","EXPIRY","DAYS","COLLECTED","ANN%","CNTS",""].map(h=>(
                         <th key={h} style={{padding:"9px 12px",textAlign:"right",color:"#3a6a3a",fontWeight:400,fontSize:9,letterSpacing:".08em",borderBottom:"1px solid #1a2e1a"}}>{h}</th>
                       ))}
                     </tr></thead>
                     <tbody>
-                      {openTrades.map(t=>{
+                      {sortedOpenTrades.map(t=>{
                         const col = t.creditTotal??(t.premium*t.contracts*100);
                         const isSpread = t.type?.includes("Spread");
                         const d = daysUntil(t.expiry);
@@ -320,6 +380,7 @@ export default function App() {
                             <td style={{padding:"9px 12px",textAlign:"right",color:"#8aaa8a"}}>{t.expiry}</td>
                             <td style={{padding:"9px 12px",textAlign:"right",color:daysColor(d),fontWeight:600}}>{daysLabel(d)}</td>
                             <td style={{padding:"9px 12px",textAlign:"right",color:"#c8d8c0"}}>{fmt(col)}</td>
+                            <td style={{padding:"9px 12px",textAlign:"right",color:"#a0c8a0"}}>{annualizedReturn(t)!=null?annualizedReturn(t).toFixed(0)+"%":"—"}</td>
                             <td style={{padding:"9px 12px",textAlign:"right",color:"#c8d8c0"}}>{t.contracts}×</td>
                             <td style={{padding:"9px 12px",textAlign:"right"}}>
                               <div style={{display:"flex",gap:5,justifyContent:"flex-end"}}>
@@ -337,7 +398,7 @@ export default function App() {
               )}
               {openTrades.length>0 && (
                 <div className="csp-cards" style={{padding:"10px 12px"}}>
-                  {openTrades.map(t=>{
+                  {sortedOpenTrades.map(t=>{
                     const col = t.creditTotal??(t.premium*t.contracts*100);
                     const isSpread = t.type?.includes("Spread");
                     const d = daysUntil(t.expiry);
@@ -361,6 +422,10 @@ export default function App() {
                         <div className="csp-card-row">
                           <span className="csp-card-label">COLLECTED</span>
                           <span style={{color:"#c8d8c0"}}>{fmt(col)} ({t.contracts}×)</span>
+                        </div>
+                        <div className="csp-card-row">
+                          <span className="csp-card-label">ANNUALIZED</span>
+                          <span style={{color:"#a0c8a0"}}>{annualizedReturn(t)!=null?annualizedReturn(t).toFixed(0)+"%":"—"}</span>
                         </div>
                         <div style={{display:"flex",gap:5,justifyContent:"flex-end",marginTop:8}}>
                           <button className="csp-btn-sm csp-btn-blue" onClick={()=>openEditModal(t)}>EDIT</button>
