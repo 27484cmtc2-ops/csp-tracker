@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { bsPut, getDelta } from "./utils/calculations";
+import { saveCloudData } from "./cloudStorage";
 const USD_CAD = 1.391;
 
 const fmt = (n) =>
@@ -21,7 +21,7 @@ const SAMPLE_TICKERS = [
   { ticker: "MU",   price: 1054, iv: 42 },
 ];
 
-
+function normCDF(x) {
   const a1=0.254829592,a2=-0.284496736,a3=1.421413741,a4=-1.453152027,a5=1.061405429,p=0.3275911;
   const sign = x < 0 ? -1 : 1;
   x = Math.abs(x) / Math.sqrt(2);
@@ -30,11 +30,13 @@ const SAMPLE_TICKERS = [
   return 0.5 * (1 + sign * y);
 }
 
+function bsPut(S, K, T, r, sigma) {
   const d1 = (Math.log(S/K) + (r + 0.5*sigma*sigma)*T) / (sigma*Math.sqrt(T));
   const d2 = d1 - sigma*Math.sqrt(T);
   return K*Math.exp(-r*T)*normCDF(-d2) - S*normCDF(-d1);
 }
 
+function getDelta(S, K, T, r, sigma) {
   const d1 = (Math.log(S/K) + (r + 0.5*sigma*sigma)*T) / (sigma*Math.sqrt(T));
   return Math.abs(normCDF(-d1));
 }
@@ -96,7 +98,20 @@ export default function App() {
 
   const setTrades = (t) => { setTradesRaw(t); saveData(t, target); };
   const setTarget = (v) => { setTargetRaw(v); saveData(trades, v); };
+const uploadLocalToCloud = async () => {
+  const confirmed = window.confirm(
+    `Upload this device's ${trades.length} trades to the cloud?`
+  );
 
+  if (!confirmed) return;
+
+  try {
+    await saveCloudData(trades, target);
+    window.alert("Cloud upload successful.");
+  } catch (error) {
+    window.alert(`Cloud upload failed: ${error.message}`);
+  }
+};
   const targetUSD = target / USD_CAD;
 
   const realized = useMemo(() => trades.filter(t=>t.status==="closed").reduce((s,t)=>s+(t.pnl??0),0), [trades]);
@@ -203,7 +218,11 @@ export default function App() {
             <span style={{fontSize:9,color:"#4a6a4a"}}><span style={{color:"#a0c8a0"}}>{fmtShort(openPremium)}</span> open</span>
           </div>
         </div>
-
+<div style={{marginBottom:12}}>
+  <button className="csp-btn" onClick={uploadLocalToCloud}>
+    UPLOAD THIS DEVICE TO CLOUD
+  </button>
+</div>
         <div style={{display:"flex",gap:7,marginBottom:16}}>
           {["tracker","screener","strikes"].map(t=>(
             <button key={t} className={`tab-btn${tab===t?" active":""}`} onClick={()=>setTab(t)}>
