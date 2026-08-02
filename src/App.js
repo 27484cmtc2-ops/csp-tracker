@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-
+import { saveCloudData } from "./cloudStorage";
 const USD_CAD = 1.391;
 
 const fmt = (n) =>
@@ -142,7 +142,20 @@ export default function App() {
 
   const setTrades = (t) => { setTradesRaw(t); saveData(t, target); };
   const setTarget = (v) => { setTargetRaw(v); saveData(trades, v); };
+const uploadLocalToCloud = async () => {
+  const confirmed = window.confirm(
+    `Upload this device's ${trades.length} trades to the cloud?`
+  );
 
+  if (!confirmed) return;
+
+  try {
+    await saveCloudData(trades, target);
+    window.alert("Cloud upload successful.");
+  } catch (error) {
+    window.alert(`Cloud upload failed: ${error.message}`);
+  }
+};
   const targetUSD = target / USD_CAD;
 
   const realized = useMemo(() => trades.filter(t=>t.status==="closed").reduce((s,t)=>s+(t.pnl??0),0), [trades]);
@@ -312,7 +325,11 @@ export default function App() {
             <span style={{fontSize:9,color:"#4a6a4a"}}><span style={{color:"#a0c8a0"}}>{fmtShort(openPremium)}</span> open</span>
           </div>
         </div>
-
+<div style={{marginBottom:12}}>
+  <button className="csp-btn" onClick={uploadLocalToCloud}>
+    UPLOAD THIS DEVICE TO CLOUD
+  </button>
+</div>
         <div style={{display:"flex",gap:7,marginBottom:16}}>
           {["tracker","screener","strikes"].map(t=>(
             <button key={t} className={`tab-btn${tab===t?" active":""}`} onClick={()=>setTab(t)}>
