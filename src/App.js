@@ -684,6 +684,9 @@ export default function App() {
             sortBy={sortBy}
             sortDir={sortDir}
             onSort={toggleSort}
+            newTrade={newTrade}
+            onNewTradeChange={setNewTrade}
+            onAddTrade={addTrade}
             onEdit={openEditModal}
             onRoll={openRollModal}
             onAssign={openAssignModal}

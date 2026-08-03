@@ -38,7 +38,7 @@ input, button { font-family: inherit; }
   .desktop-interface { display: none; }
   .mobile-interface { display: block; }
   .app-content { max-width: none !important; padding: 0 !important; }
-  .mobile-shell { min-height: 100vh; background: #0b0f14; padding-bottom: calc(24px + env(safe-area-inset-bottom)); }
+  .mobile-shell { min-height: 100vh; background: #0b0f14; padding-bottom: calc(92px + env(safe-area-inset-bottom)); }
   .mobile-app-header { position: sticky; top: 0; z-index: 20; padding: calc(12px + env(safe-area-inset-top)) 14px 10px; background: rgba(11, 15, 20, .96); border-bottom: 1px solid #223044; backdrop-filter: blur(10px); }
   .mobile-brand { margin-bottom: 10px; color: #d7e0ea; font-size: 14px; font-weight: 600; letter-spacing: .12em; }
   .mobile-nav { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
@@ -73,9 +73,12 @@ input, button { font-family: inherit; }
   .mobile-position-metrics { display: grid; grid-template-columns: 1.45fr 1fr .75fr; gap: 8px; margin: 15px 0 13px; padding: 12px 0; border-top: 1px solid #1c2735; border-bottom: 1px solid #1c2735; }
   .mobile-position-metrics span { display: block; margin-bottom: 5px; color: #71839a; font-size: 8px; letter-spacing: .08em; }
   .mobile-position-metrics strong { color: #d7e0ea; font-size: 12px; }
-  .mobile-position-actions { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+  .mobile-position-actions { display: grid; grid-template-columns: 1fr 58px; gap: 6px; }
   .mobile-position-actions button, .mobile-history-actions button { min-height: 44px; padding: 7px 5px; border: 1px solid #30445b; border-radius: 5px; background: transparent; color: #8796aa; font-size: 9px; letter-spacing: .04em; }
-  .mobile-position-actions .mobile-primary-action { grid-column: 1 / -1; border-color: #4d82b8; background: #18283a; color: #5aa9ff; font-size: 10px; }
+  .mobile-position-actions .mobile-primary-action { border-color: #4d82b8; background: #18283a; color: #5aa9ff; font-size: 10px; }
+  .mobile-position-actions .mobile-more-action { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; color: #a6b3c2; }
+  .mobile-position-actions .mobile-more-action span:first-child { font-size: 13px; line-height: 8px; letter-spacing: 1px; }
+  .mobile-position-actions .mobile-more-action span:last-child { font-size: 7px; letter-spacing: .08em; }
   .mobile-position-actions .mobile-roll-action { border-color: #7a4a1a; color: #f59e0b; }
   .mobile-position-actions .mobile-assign-action { border-color: #5a3a7a; color: #c084fc; }
   .mobile-position-actions .mobile-delete-action, .mobile-history-actions .mobile-delete-action { border-color: #4a2222; color: #ff7b7b; }
@@ -93,4 +96,29 @@ input, button { font-family: inherit; }
   .mobile-empty-state { padding: 22px 10px; color: #607086; font-size: 11px; text-align: center; }
   .mobile-deferred-view { margin: 14px; padding: 28px 18px; border: 1px solid #223044; border-radius: 8px; background: #111821; color: #8796aa; text-align: center; }
   .mobile-deferred-view p { margin: 10px 0 0; font-size: 11px; line-height: 1.6; }
+  .mobile-add-trade-button { position: fixed; right: 16px; bottom: calc(14px + env(safe-area-inset-bottom)); z-index: 30; min-width: 148px; min-height: 52px; padding: 0 20px; border: 1px solid #4d82b8; border-radius: 999px; background: #223e5a; box-shadow: 0 8px 28px rgba(0, 0, 0, .45); color: #e0efff; font-size: 11px; font-weight: 600; letter-spacing: .08em; }
+  .mobile-add-trade-button span { margin-right: 5px; color: #5aa9ff; font-size: 18px; vertical-align: -1px; }
+  .mobile-sheet-layer { position: fixed; inset: 0; z-index: 80; display: flex; align-items: flex-end; justify-content: center; padding-top: env(safe-area-inset-top); }
+  .mobile-sheet-backdrop { position: absolute; inset: 0; width: 100%; height: 100%; padding: 0; border: 0; background: rgba(0, 0, 0, .78); }
+  .mobile-sheet { position: relative; z-index: 1; width: 100%; max-height: calc(100dvh - env(safe-area-inset-top) - 12px); overflow-y: auto; padding: 10px 16px calc(16px + env(safe-area-inset-bottom)); border: 1px solid #30445b; border-bottom: 0; border-radius: 14px 14px 0 0; background: #111821; box-shadow: 0 -12px 40px rgba(0, 0, 0, .5); }
+  .mobile-sheet-handle { width: 42px; height: 4px; margin: 0 auto 14px; border-radius: 999px; background: #30445b; }
+  .mobile-sheet-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
+  .mobile-sheet-header h2, .mobile-action-heading h2 { margin: 4px 0 0; color: #d7e0ea; font-size: 19px; font-weight: 600; }
+  .mobile-sheet-header h2 small, .mobile-action-heading h2 small { color: #71839a; font-size: 11px; font-weight: 400; }
+  .mobile-sheet-close { width: 44px; height: 44px; padding: 0; border: 1px solid #30445b; border-radius: 50%; background: transparent; color: #a6b3c2; font-size: 22px; }
+  .mobile-trade-form { display: grid; gap: 13px; }
+  .mobile-trade-form label > span { display: block; margin-bottom: 6px; color: #a6b3c2; font-size: 10px; letter-spacing: .04em; }
+  .mobile-trade-form label > span small { color: #607086; font-size: 8px; }
+  .mobile-trade-form input { width: 100%; height: 48px; padding: 0 12px; border: 1px solid #30445b; border-radius: 6px; background: #0b0f14; color: #d7e0ea; font-family: inherit; font-size: 16px; outline: none; }
+  .mobile-trade-form input:focus { border-color: #4d82b8; }
+  .mobile-field-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+  .mobile-sheet-submit { position: sticky; bottom: calc(-16px - env(safe-area-inset-bottom)); margin: 18px -16px calc(-16px - env(safe-area-inset-bottom)); padding: 12px 16px calc(16px + env(safe-area-inset-bottom)); border-top: 1px solid #223044; background: #111821; }
+  .mobile-sheet-submit button { width: 100%; min-height: 50px; border: 1px solid #4d82b8; border-radius: 7px; background: #223e5a; color: #e0efff; font-size: 11px; font-weight: 600; letter-spacing: .08em; }
+  .mobile-action-sheet { padding-bottom: calc(12px + env(safe-area-inset-bottom)); }
+  .mobile-action-heading { margin-bottom: 14px; }
+  .mobile-action-list { display: grid; gap: 7px; }
+  .mobile-action-list button { width: 100%; min-height: 50px; padding: 0 14px; border: 1px solid #30445b; border-radius: 6px; background: #0e141c; color: #a6b3c2; font-size: 10px; letter-spacing: .07em; text-align: left; }
+  .mobile-action-list .mobile-roll-action { border-color: #7a4a1a; color: #f59e0b; }
+  .mobile-action-list .mobile-assign-action { border-color: #5a3a7a; color: #c084fc; }
+  .mobile-action-list .mobile-delete-action { border-color: #4a2222; color: #ff7b7b; }
 }

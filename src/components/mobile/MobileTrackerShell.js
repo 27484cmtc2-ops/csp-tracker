@@ -40,11 +40,8 @@ function MobilePortfolioSummary({
 
 function MobileOpenPositionCard({
   trade,
-  onEdit,
-  onRoll,
-  onAssign,
   onClose,
-  onDelete,
+  onMoreActions,
 }) {
   const days = daysUntil(trade.expiry);
   const annualized = annualizedReturn(trade);
@@ -85,12 +82,96 @@ function MobileOpenPositionCard({
 
       <div className="mobile-position-actions">
         <button className="mobile-primary-action" onClick={() => onClose(trade)}>CLOSE POSITION</button>
-        <button onClick={() => onEdit(trade)}>EDIT</button>
-        <button className="mobile-roll-action" onClick={() => onRoll(trade)}>ROLL</button>
-        <button className="mobile-assign-action" onClick={() => onAssign(trade)}>ASSIGN</button>
-        <button className="mobile-delete-action" onClick={() => onDelete(trade.id)}>DELETE</button>
+        <button className="mobile-more-action" onClick={() => onMoreActions(trade)} aria-label={`More actions for ${trade.ticker}`}>
+          <span aria-hidden="true">•••</span>
+          <span>MORE</span>
+        </button>
       </div>
     </article>
+  );
+}
+
+function MobileNewTradeSheet({ value, onChange, onSubmit, onClose }) {
+  const update = (field) => (event) => {
+    onChange({ ...value, [field]: event.target.value });
+  };
+
+  return (
+    <div className="mobile-sheet-layer" role="dialog" aria-modal="true" aria-labelledby="mobile-add-trade-title">
+      <button className="mobile-sheet-backdrop" onClick={onClose} aria-label="Dismiss add trade form" />
+      <section className="mobile-sheet mobile-trade-form-sheet">
+        <div className="mobile-sheet-handle" aria-hidden="true" />
+        <div className="mobile-sheet-header">
+          <div>
+            <span className="mobile-eyebrow">NEW POSITION</span>
+            <h2 id="mobile-add-trade-title">Add trade</h2>
+          </div>
+          <button className="mobile-sheet-close" onClick={onClose} aria-label="Close add trade form">×</button>
+        </div>
+
+        <div className="mobile-trade-form">
+          <label>
+            <span>Ticker</span>
+            <input type="text" inputMode="text" autoCapitalize="characters" autoComplete="off" value={value.ticker} onChange={update("ticker")} />
+          </label>
+          <div className="mobile-field-pair">
+            <label>
+              <span>Short strike</span>
+              <input type="number" inputMode="decimal" step="any" value={value.strike} onChange={update("strike")} />
+            </label>
+            <label>
+              <span>Long strike <small>optional</small></span>
+              <input type="number" inputMode="decimal" step="any" value={value.longStrike} onChange={update("longStrike")} />
+            </label>
+          </div>
+          <div className="mobile-field-pair">
+            <label>
+              <span>Premium per share</span>
+              <input type="number" inputMode="decimal" step="any" value={value.premium} onChange={update("premium")} />
+            </label>
+            <label>
+              <span>Contracts</span>
+              <input type="number" inputMode="numeric" step="1" value={value.contracts} onChange={update("contracts")} />
+            </label>
+          </div>
+          <label>
+            <span>Expiry</span>
+            <input type="date" value={value.expiry} onChange={update("expiry")} />
+          </label>
+        </div>
+
+        <div className="mobile-sheet-submit">
+          <button onClick={onSubmit}>+ ADD TRADE</button>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function MobileTradeActionSheet({ trade, onEdit, onRoll, onAssign, onDelete, onClose }) {
+  const perform = (callback) => {
+    callback();
+    onClose();
+  };
+
+  return (
+    <div className="mobile-sheet-layer" role="dialog" aria-modal="true" aria-labelledby="mobile-actions-title">
+      <button className="mobile-sheet-backdrop" onClick={onClose} aria-label="Dismiss trade actions" />
+      <section className="mobile-sheet mobile-action-sheet">
+        <div className="mobile-sheet-handle" aria-hidden="true" />
+        <div className="mobile-action-heading">
+          <span className="mobile-eyebrow">POSITION ACTIONS</span>
+          <h2 id="mobile-actions-title">{trade.ticker} <small>${trade.strike}</small></h2>
+        </div>
+        <div className="mobile-action-list">
+          <button onClick={() => perform(() => onEdit(trade))}>EDIT TRADE</button>
+          <button className="mobile-roll-action" onClick={() => perform(() => onRoll(trade))}>ROLL POSITION</button>
+          <button className="mobile-assign-action" onClick={() => perform(() => onAssign(trade))}>RECORD ASSIGNMENT</button>
+          <button className="mobile-delete-action" onClick={() => perform(() => onDelete(trade.id))}>DELETE TRADE</button>
+          <button onClick={onClose}>CANCEL</button>
+        </div>
+      </section>
+    </div>
   );
 }
 
@@ -155,6 +236,9 @@ export default function MobileTrackerShell({
   sortBy,
   sortDir,
   onSort,
+  newTrade,
+  onNewTradeChange,
+  onAddTrade,
   onEdit,
   onRoll,
   onAssign,
@@ -164,6 +248,8 @@ export default function MobileTrackerShell({
 }) {
   const [assignedOpen, setAssignedOpen] = useState(false);
   const [closedOpen, setClosedOpen] = useState(false);
+  const [addTradeOpen, setAddTradeOpen] = useState(false);
+  const [actionTrade, setActionTrade] = useState(null);
 
   return (
     <div className="mobile-shell">
@@ -217,11 +303,8 @@ export default function MobileTrackerShell({
               <MobileOpenPositionCard
                 key={trade.id}
                 trade={trade}
-                onEdit={onEdit}
-                onRoll={onRoll}
-                onAssign={onAssign}
                 onClose={onClose}
-                onDelete={onDelete}
+                onMoreActions={setActionTrade}
               />
             ))}
           </section>
@@ -237,12 +320,36 @@ export default function MobileTrackerShell({
               ? <div className="mobile-empty-state">No closed positions.</div>
               : closedTrades.map((trade) => <MobileClosedCard key={trade.id} trade={trade} onReopen={onReopen} onDelete={onDelete} />)}
           </CollapsibleSection>
+
+          <button className="mobile-add-trade-button" onClick={() => setAddTradeOpen(true)} aria-label="Open add trade form">
+            <span aria-hidden="true">+</span> ADD TRADE
+          </button>
         </main>
       ) : (
         <main className="mobile-deferred-view">
           <span className="mobile-eyebrow">{tab.toUpperCase()}</span>
           <p>Mobile {tab} view is scheduled for a later phase.</p>
         </main>
+      )}
+
+      {addTradeOpen && (
+        <MobileNewTradeSheet
+          value={newTrade}
+          onChange={onNewTradeChange}
+          onSubmit={onAddTrade}
+          onClose={() => setAddTradeOpen(false)}
+        />
+      )}
+
+      {actionTrade && (
+        <MobileTradeActionSheet
+          trade={actionTrade}
+          onEdit={onEdit}
+          onRoll={onRoll}
+          onAssign={onAssign}
+          onDelete={onDelete}
+          onClose={() => setActionTrade(null)}
+        />
       )}
     </div>
   );
