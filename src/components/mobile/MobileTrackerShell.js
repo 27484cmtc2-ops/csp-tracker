@@ -1,4 +1,5 @@
 import { useState } from "react";
+import CloudSyncControls from "../CloudSyncControls";
 import { fmt, fmtShort } from "../../utils/formatters";
 import {
   annualizedReturn,
@@ -243,6 +244,11 @@ export default function MobileTrackerShell({
   onClose,
   onReopen,
   onDelete,
+  syncStatus,
+  hasConflict,
+  onSyncNow,
+  onUseCloud,
+  onKeepLocal,
 }) {
   const [assignedOpen, setAssignedOpen] = useState(false);
   const [closedOpen, setClosedOpen] = useState(false);
@@ -258,6 +264,14 @@ export default function MobileTrackerShell({
             winRate={winRate}
             winningTrades={winningTrades}
             closedTradeCount={closedTrades.length}
+          />
+          <CloudSyncControls
+            status={syncStatus}
+            hasConflict={hasConflict}
+            onSyncNow={onSyncNow}
+            onUseCloud={onUseCloud}
+            onKeepLocal={onKeepLocal}
+            compact
           />
 
           <section className="mobile-open-section">

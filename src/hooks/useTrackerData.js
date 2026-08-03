@@ -1,6 +1,17 @@
-import { useState } from "react";
-import { loadCloudData, saveCloudData } from "../cloudStorage";
+import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  CloudConflictError,
+  loadCloudData,
+  saveCloudData,
+} from "../cloudStorage";
 import { DEFAULT_TRADES } from "../data/trackerData";
+
+const SYNC_META_KEY = "csp_sync_meta";
+const UPLOAD_DEBOUNCE_MS = 1000;
+
+function serializeData(trades, target) {
+  return JSON.stringify({ trades, target });
+}
 
 function loadLocalData() {
   try {
@@ -9,9 +20,10 @@ function loadLocalData() {
     return {
       trades: savedTrades ? JSON.parse(savedTrades) : DEFAULT_TRADES,
       target: savedTarget ? parseFloat(savedTarget) : 500,
+      hasLocalData: savedTrades != null || savedTarget != null,
     };
   } catch {
-    return { trades: DEFAULT_TRADES, target: 500 };
+    return { trades: DEFAULT_TRADES, target: 500, hasLocalData: false };
   }
 }
 
@@ -22,57 +34,323 @@ function saveLocalData(trades, target) {
   } catch {}
 }
 
+function loadSyncMetadata() {
+  try {
+    const saved = localStorage.getItem(SYNC_META_KEY);
+    return saved ? JSON.parse(saved) : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveSyncMetadata(cloudVersion, syncedSnapshot) {
+  try {
+    localStorage.setItem(
+      SYNC_META_KEY,
+      JSON.stringify({ cloudVersion, syncedSnapshot })
+    );
+  } catch {}
+}
+
+function failureStatus() {
+  return typeof navigator !== "undefined" && navigator.onLine === false
+    ? "offline"
+    : "error";
+}
+
 export default function useTrackerData() {
   const [initialData] = useState(loadLocalData);
   const [trades, setTradesRaw] = useState(initialData.trades);
   const [target, setTargetRaw] = useState(initialData.target);
+  const [syncStatus, setSyncStatus] = useState("initializing");
+  const [syncReady, setSyncReady] = useState(false);
+  const [hasConflict, setHasConflict] = useState(false);
 
-  const setTrades = (nextTrades) => {
-    setTradesRaw(nextTrades);
-    saveLocalData(nextTrades, target);
-  };
+  const mountedRef = useRef(false);
+  const initializedRef = useRef(false);
+  const conflictRef = useRef(false);
+  const applyingCloudRef = useRef(false);
+  const cloudVersionRef = useRef(null);
+  const lastSyncedSnapshotRef = useRef(null);
+  const latestDataRef = useRef(initialData);
+  const hadLocalDataRef = useRef(initialData.hasLocalData);
+  const uploadInFlightRef = useRef(false);
+  const queuedUploadRef = useRef(false);
+  const debounceTimerRef = useRef(null);
+  const initializationRunRef = useRef(0);
 
-  const uploadLocalToCloud = async () => {
-    const confirmed = window.confirm(
-      `Upload this device's ${trades.length} trades to the cloud?`
+  latestDataRef.current = { trades, target };
+
+  const markConflict = useCallback(() => {
+    conflictRef.current = true;
+    setHasConflict(true);
+    setSyncStatus("conflict");
+  }, []);
+
+  const markSynchronized = useCallback((version, snapshot) => {
+    cloudVersionRef.current = version;
+    lastSyncedSnapshotRef.current = snapshot;
+    saveSyncMetadata(version, snapshot);
+  }, []);
+
+  const applyCloudData = useCallback((cloudData) => {
+    const snapshot = serializeData(cloudData.trades, cloudData.target);
+    applyingCloudRef.current = true;
+    markSynchronized(cloudData.updatedAt, snapshot);
+    latestDataRef.current = {
+      trades: cloudData.trades,
+      target: cloudData.target,
+    };
+    setTradesRaw(cloudData.trades);
+    setTargetRaw(cloudData.target);
+    saveLocalData(cloudData.trades, cloudData.target);
+    applyingCloudRef.current = false;
+  }, [markSynchronized]);
+
+  const performUploadRef = useRef(null);
+  const scheduleUploadRef = useRef(null);
+
+  const scheduleUpload = useCallback((delay = UPLOAD_DEBOUNCE_MS) => {
+    if (
+      !mountedRef.current ||
+      !initializedRef.current ||
+      conflictRef.current ||
+      applyingCloudRef.current
+    ) return;
+
+    clearTimeout(debounceTimerRef.current);
+    setSyncStatus("syncing");
+    debounceTimerRef.current = setTimeout(() => {
+      if (mountedRef.current) performUploadRef.current?.();
+    }, delay);
+  }, []);
+  scheduleUploadRef.current = scheduleUpload;
+
+  const performUpload = useCallback(async ({ force = false } = {}) => {
+    if (!mountedRef.current || (!initializedRef.current && !force)) return;
+
+    if (uploadInFlightRef.current) {
+      queuedUploadRef.current = true;
+      return;
+    }
+
+    const dataToUpload = latestDataRef.current;
+    const uploadedSnapshot = serializeData(
+      dataToUpload.trades,
+      dataToUpload.target
     );
-    if (!confirmed) return;
+
+    if (!force && uploadedSnapshot === lastSyncedSnapshotRef.current) {
+      setSyncStatus("saved");
+      return;
+    }
+
+    uploadInFlightRef.current = true;
+    queuedUploadRef.current = false;
+    setSyncStatus("syncing");
 
     try {
-      await saveCloudData(trades, target);
-      window.alert("Cloud upload successful.");
-    } catch (error) {
-      window.alert(`Cloud upload failed: ${error.message}`);
-    }
-  };
+      const result = await saveCloudData(
+        dataToUpload.trades,
+        dataToUpload.target,
+        {
+          expectedUpdatedAt: cloudVersionRef.current,
+          force,
+        }
+      );
 
-  const downloadCloudToThisDevice = async () => {
-    const confirmed = window.confirm(
-      "Replace this device's local data with the cloud data?"
-    );
-    if (!confirmed) return;
+      if (!mountedRef.current) return;
+      markSynchronized(result.updatedAt, uploadedSnapshot);
+      conflictRef.current = false;
+      setHasConflict(false);
+
+      const latestSnapshot = serializeData(
+        latestDataRef.current.trades,
+        latestDataRef.current.target
+      );
+      if (queuedUploadRef.current || latestSnapshot !== uploadedSnapshot) {
+        scheduleUploadRef.current?.();
+      } else {
+        setSyncStatus("saved");
+      }
+    } catch (error) {
+      if (!mountedRef.current) return;
+      if (error instanceof CloudConflictError || error?.name === "CloudConflictError") {
+        markConflict();
+      } else {
+        setSyncStatus(failureStatus());
+      }
+    } finally {
+      uploadInFlightRef.current = false;
+    }
+  }, [markConflict, markSynchronized]);
+  performUploadRef.current = performUpload;
+
+  const initializeSync = useCallback(async () => {
+    const run = ++initializationRunRef.current;
+    initializedRef.current = false;
+    setSyncReady(false);
+    setSyncStatus("initializing");
 
     try {
       const cloudData = await loadCloudData();
+      if (!mountedRef.current || run !== initializationRunRef.current) return;
+
+      const localData = latestDataRef.current;
+      const localSnapshot = serializeData(localData.trades, localData.target);
+      const metadata = loadSyncMetadata();
+
       if (!cloudData) {
-        window.alert("No cloud data found.");
+        cloudVersionRef.current = null;
+        lastSyncedSnapshotRef.current = null;
+        conflictRef.current = false;
+        setHasConflict(false);
+        initializedRef.current = true;
+        setSyncReady(true);
+        if (localSnapshot === lastSyncedSnapshotRef.current) {
+          setSyncStatus("saved");
+        } else {
+          scheduleUploadRef.current?.();
+        }
         return;
       }
 
-      setTradesRaw(cloudData.trades);
-      setTargetRaw(cloudData.target);
-      saveLocalData(cloudData.trades, cloudData.target);
-      window.alert("Cloud data downloaded successfully.");
-    } catch (error) {
-      window.alert(`Cloud download failed: ${error.message}`);
+      const cloudSnapshot = serializeData(cloudData.trades, cloudData.target);
+      if (!metadata) {
+        if (hadLocalDataRef.current && localSnapshot !== cloudSnapshot) {
+          cloudVersionRef.current = cloudData.updatedAt;
+          initializedRef.current = true;
+          setSyncReady(true);
+          markConflict();
+          return;
+        }
+        applyCloudData(cloudData);
+      } else {
+        const localChanged = localSnapshot !== metadata.syncedSnapshot;
+        const cloudChanged = cloudData.updatedAt !== metadata.cloudVersion;
+
+        if (localChanged && cloudChanged) {
+          cloudVersionRef.current = cloudData.updatedAt;
+          initializedRef.current = true;
+          setSyncReady(true);
+          markConflict();
+          return;
+        }
+
+        if (cloudChanged && !localChanged) {
+          applyCloudData(cloudData);
+        } else {
+          cloudVersionRef.current = cloudData.updatedAt;
+          lastSyncedSnapshotRef.current = metadata.syncedSnapshot;
+        }
+      }
+
+      conflictRef.current = false;
+      setHasConflict(false);
+      initializedRef.current = true;
+      setSyncReady(true);
+
+      const currentSnapshot = serializeData(
+        latestDataRef.current.trades,
+        latestDataRef.current.target
+      );
+      if (currentSnapshot === lastSyncedSnapshotRef.current) {
+        setSyncStatus("saved");
+      } else {
+        scheduleUploadRef.current?.();
+      }
+    } catch {
+      if (!mountedRef.current || run !== initializationRunRef.current) return;
+      initializedRef.current = false;
+      setSyncReady(false);
+      setSyncStatus(failureStatus());
     }
-  };
+  }, [applyCloudData, markConflict]);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    initializeSync();
+    return () => {
+      mountedRef.current = false;
+      initializationRunRef.current += 1;
+      clearTimeout(debounceTimerRef.current);
+    };
+  }, [initializeSync]);
+
+  useEffect(() => {
+    if (
+      !syncReady ||
+      hasConflict ||
+      applyingCloudRef.current ||
+      !initializedRef.current
+    ) return;
+
+    const snapshot = serializeData(trades, target);
+    if (snapshot !== lastSyncedSnapshotRef.current) {
+      if (uploadInFlightRef.current) queuedUploadRef.current = true;
+      else scheduleUpload();
+    }
+  }, [trades, target, syncReady, hasConflict, scheduleUpload]);
+
+  const setTrades = useCallback((nextTrades) => {
+    setTradesRaw(nextTrades);
+    latestDataRef.current = {
+      trades: nextTrades,
+      target: latestDataRef.current.target,
+    };
+    saveLocalData(nextTrades, latestDataRef.current.target);
+  }, []);
+
+  const syncNow = useCallback(() => {
+    clearTimeout(debounceTimerRef.current);
+    if (!initializedRef.current) return initializeSync();
+    if (conflictRef.current) return;
+    const snapshot = serializeData(
+      latestDataRef.current.trades,
+      latestDataRef.current.target
+    );
+    if (snapshot !== lastSyncedSnapshotRef.current) {
+      return performUploadRef.current?.();
+    }
+    return initializeSync();
+  }, [initializeSync]);
+
+  const useCloudData = useCallback(async () => {
+    clearTimeout(debounceTimerRef.current);
+    setSyncStatus("syncing");
+    try {
+      const cloudData = await loadCloudData();
+      if (!mountedRef.current) return;
+      if (!cloudData) {
+        setSyncStatus("error");
+        return;
+      }
+      applyCloudData(cloudData);
+      conflictRef.current = false;
+      setHasConflict(false);
+      initializedRef.current = true;
+      setSyncReady(true);
+      setSyncStatus("saved");
+    } catch {
+      if (mountedRef.current) setSyncStatus(failureStatus());
+    }
+  }, [applyCloudData]);
+
+  const keepLocalData = useCallback(async () => {
+    clearTimeout(debounceTimerRef.current);
+    initializedRef.current = true;
+    setSyncReady(true);
+    await performUploadRef.current?.({ force: true });
+  }, []);
 
   return {
     trades,
     target,
     setTrades,
-    uploadLocalToCloud,
-    downloadCloudToThisDevice,
+    syncStatus,
+    hasConflict,
+    syncNow,
+    useCloudData,
+    keepLocalData,
   };
 }

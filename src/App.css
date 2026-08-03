@@ -32,6 +32,19 @@ input, button { font-family: inherit; }
 .table-heading { padding: 9px 12px; text-align: right; color: #71839a; font-weight: 400; font-size: 9px; letter-spacing: .08em; border-bottom: 1px solid #223044; }
 .numeric-cell { padding: 9px 12px; text-align: right; color: #d7e0ea; }
 .strikes-heading { padding: 10px 14px; border-bottom: 1px solid #223044; display: flex; justify-content: space-between; align-items: center; }
+.sync-control { margin-bottom: 12px; padding: 8px 10px; border: 1px solid #223044; border-radius: 5px; background: #111821; }
+.sync-control-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.sync-status { display: inline-flex; align-items: center; gap: 7px; color: #8796aa; font-size: 9px; letter-spacing: .04em; }
+.sync-status-dot { width: 7px; height: 7px; border-radius: 50%; background: #71839a; }
+.sync-status-saved .sync-status-dot { background: #6fdc8c; }
+.sync-status-syncing .sync-status-dot, .sync-status-initializing .sync-status-dot { background: #5aa9ff; }
+.sync-status-offline .sync-status-dot { background: #f59e0b; }
+.sync-status-error .sync-status-dot, .sync-status-conflict .sync-status-dot { background: #ff7b7b; }
+.sync-now-button { min-height: 30px; padding: 0 10px; border: 1px solid #30445b; border-radius: 4px; background: transparent; color: #5aa9ff; font-size: 9px; cursor: pointer; }
+.sync-now-button:disabled { color: #607086; cursor: default; }
+.sync-conflict-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 9px; padding-top: 9px; border-top: 1px solid #223044; }
+.sync-conflict-actions button { min-height: 32px; padding: 0 9px; border: 1px solid #30445b; border-radius: 4px; background: transparent; color: #a6b3c2; font-size: 8px; cursor: pointer; }
+.sync-conflict-actions .sync-keep-local { border-color: #7a4a1a; color: #f59e0b; }
 .mobile-interface { display: none; }
 
 @media (max-width: 640px) {
@@ -48,6 +61,10 @@ input, button { font-family: inherit; }
   .mobile-summary-secondary > div + div { border-left: 1px solid #223044; }
   .mobile-summary-secondary strong { display: block; margin-top: 5px; color: #d7e0ea; font-size: 17px; }
   .mobile-summary-secondary small { display: block; margin-top: 3px; color: #71839a; font-size: 9px; }
+  .sync-control-compact { margin: -12px 0 18px; border-radius: 7px; }
+  .sync-control-compact .sync-now-button { min-height: 38px; }
+  .sync-control-compact .sync-conflict-actions { display: grid; grid-template-columns: 1fr; }
+  .sync-control-compact .sync-conflict-actions button { min-height: 42px; }
   .mobile-eyebrow { display: block; color: #71839a; font-size: 9px; letter-spacing: .12em; }
   .mobile-positive { color: #6fdc8c !important; }
   .mobile-negative { color: #ff7b7b !important; }

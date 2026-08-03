@@ -1,14 +1,17 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 
 jest.mock("./cloudStorage", () => ({
+  CloudConflictError: class CloudConflictError extends Error {},
   saveCloudData: jest.fn(),
-  loadCloudData: jest.fn(),
+  loadCloudData: jest.fn(() => new Promise(() => {})),
 }));
 
 import App from "./App";
+import { loadCloudData } from "./cloudStorage";
 
 beforeEach(() => {
   localStorage.clear();
+  loadCloudData.mockImplementation(() => new Promise(() => {}));
 });
 
 test("renders the tracker and its default portfolio data", () => {

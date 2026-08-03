@@ -18,8 +18,11 @@ export default function App() {
     trades,
     target,
     setTrades,
-    uploadLocalToCloud,
-    downloadCloudToThisDevice,
+    syncStatus,
+    hasConflict,
+    syncNow,
+    useCloudData,
+    keepLocalData,
   } = useTrackerData();
   const [selectedTicker, setSelectedTicker] = useState(SAMPLE_TICKERS[4]);
   const [newTrade, setNewTrade] = useState(EMPTY_NEW_TRADE);
@@ -283,8 +286,11 @@ export default function App() {
           closedTradeCount={closedTrades.length}
         />
         <CloudSyncControls
-          onUpload={uploadLocalToCloud}
-          onDownload={downloadCloudToThisDevice}
+          status={syncStatus}
+          hasConflict={hasConflict}
+          onSyncNow={syncNow}
+          onUseCloud={useCloudData}
+          onKeepLocal={keepLocalData}
         />
         
 
@@ -691,6 +697,11 @@ export default function App() {
             onClose={(trade) => setCloseModal({id:trade.id,costToClose:""})}
             onReopen={reopenTrade}
             onDelete={deleteTrade}
+            syncStatus={syncStatus}
+            hasConflict={hasConflict}
+            onSyncNow={syncNow}
+            onUseCloud={useCloudData}
+            onKeepLocal={keepLocalData}
           />
         </div>
 
