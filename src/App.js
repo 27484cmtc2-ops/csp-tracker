@@ -402,11 +402,6 @@ const downloadCloudToThisDevice = async () => {
     ? (winningTrades / closedTrades.length) * 100
     : 0;
 
-  const currentCollateral = openTrades.reduce(
-    (sum, trade) => sum + getCollateral(trade),
-    0
-  );
-
   const [sortBy, setSortBy] = useState("expiry");
   const [sortDir, setSortDir] = useState("asc");
 
@@ -506,15 +501,6 @@ const downloadCloudToThisDevice = async () => {
                 {winningTrades}/{closedTrades.length} profitable
               </div>
             </div>
-
-            <div>
-              <div style={{fontSize:9,color:"#7f8ea3",letterSpacing:".12em",marginBottom:5}}>
-                CURRENT COLLATERAL
-              </div>
-              <div style={{fontSize:18,color:"#f59e0b",fontWeight:600}}>
-                {fmtShort(currentCollateral)}
-              </div>
-            </div>
           </div>
         </div>
 <div style={{marginBottom:12}}>
@@ -528,13 +514,7 @@ const downloadCloudToThisDevice = async () => {
   DOWNLOAD CLOUD TO THIS DEVICE
 </button>
 </div>
-        <div style={{display:"flex",gap:7,marginBottom:16}}>
-          {["tracker","screener","strikes"].map(t=>(
-            <button key={t} className={`tab-btn${tab===t?" active":""}`} onClick={()=>setTab(t)}>
-              {t==="tracker"?"My Trades":t==="screener"?"Screener":"Strike Finder"}
-            </button>
-          ))}
-        </div>
+        
 
         {tab==="tracker" && (
           <div>
