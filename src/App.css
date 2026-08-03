@@ -39,11 +39,6 @@ input, button { font-family: inherit; }
   .mobile-interface { display: block; }
   .app-content { max-width: none !important; padding: 0 !important; }
   .mobile-shell { min-height: 100vh; background: #0b0f14; padding-bottom: calc(92px + env(safe-area-inset-bottom)); }
-  .mobile-app-header { position: sticky; top: 0; z-index: 20; padding: calc(12px + env(safe-area-inset-top)) 14px 10px; background: rgba(11, 15, 20, .96); border-bottom: 1px solid #223044; backdrop-filter: blur(10px); }
-  .mobile-brand { margin-bottom: 10px; color: #d7e0ea; font-size: 14px; font-weight: 600; letter-spacing: .12em; }
-  .mobile-nav { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
-  .mobile-nav button { min-height: 40px; border: 1px solid #223044; border-radius: 6px; background: #111821; color: #71839a; font-size: 10px; letter-spacing: .08em; text-transform: uppercase; }
-  .mobile-nav button.active { border-color: #4d82b8; background: #18283a; color: #5aa9ff; }
   .mobile-main { padding: 14px; }
   .mobile-summary { margin-bottom: 22px; overflow: hidden; border: 1px solid #223044; border-radius: 8px; background: #111821; }
   .mobile-summary-primary { display: flex; align-items: flex-end; justify-content: space-between; padding: 16px; border-bottom: 1px solid #223044; }
@@ -94,8 +89,6 @@ input, button { font-family: inherit; }
   .mobile-detail-row strong { color: #d7e0ea; font-weight: 500; }
   .mobile-history-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 10px; }
   .mobile-empty-state { padding: 22px 10px; color: #607086; font-size: 11px; text-align: center; }
-  .mobile-deferred-view { margin: 14px; padding: 28px 18px; border: 1px solid #223044; border-radius: 8px; background: #111821; color: #8796aa; text-align: center; }
-  .mobile-deferred-view p { margin: 10px 0 0; font-size: 11px; line-height: 1.6; }
   .mobile-add-trade-button { position: fixed; right: 16px; bottom: calc(14px + env(safe-area-inset-bottom)); z-index: 30; min-width: 148px; min-height: 52px; padding: 0 20px; border: 1px solid #4d82b8; border-radius: 999px; background: #223e5a; box-shadow: 0 8px 28px rgba(0, 0, 0, .45); color: #e0efff; font-size: 11px; font-weight: 600; letter-spacing: .08em; }
   .mobile-add-trade-button span { margin-right: 5px; color: #5aa9ff; font-size: 18px; vertical-align: -1px; }
   .mobile-sheet-layer { position: fixed; inset: 0; z-index: 80; display: flex; align-items: flex-end; justify-content: center; padding-top: env(safe-area-inset-top); }

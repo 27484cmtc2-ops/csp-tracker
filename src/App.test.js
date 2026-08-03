@@ -18,7 +18,8 @@ test("renders the tracker and its default portfolio data", () => {
   expect(screen.getByText(/OPEN POSITIONS/)).toBeInTheDocument();
   expect(screen.getAllByText(/CLOSED POSITIONS/)).toHaveLength(2);
   expect(screen.getByRole("button", { name: "Open add trade form" })).toBeInTheDocument();
-  expect(screen.getByRole("button", { name: "tracker" })).toBeInTheDocument();
+  expect(screen.queryByText("CSP TRACKER")).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "tracker" })).not.toBeInTheDocument();
   expect(screen.getByRole("button", { name: /assigned shares/i })).toHaveAttribute("aria-expanded", "false");
   expect(screen.getByRole("button", { name: /closed positions/i })).toHaveAttribute("aria-expanded", "false");
 });

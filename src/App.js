@@ -672,8 +672,6 @@ export default function App() {
 
         <div className="mobile-interface">
           <MobileTrackerShell
-            tab={tab}
-            onTabChange={setTab}
             realized={realized}
             openPremium={openPremium}
             winRate={winRate}

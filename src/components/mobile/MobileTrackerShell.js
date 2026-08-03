@@ -224,8 +224,6 @@ function CollapsibleSection({ title, count, open, onToggle, children }) {
 }
 
 export default function MobileTrackerShell({
-  tab,
-  onTabChange,
   realized,
   openPremium,
   winRate,
@@ -253,19 +251,7 @@ export default function MobileTrackerShell({
 
   return (
     <div className="mobile-shell">
-      <header className="mobile-app-header">
-        <div className="mobile-brand">CSP TRACKER</div>
-        <nav className="mobile-nav" aria-label="Primary">
-          {["tracker", "screener", "strikes"].map((item) => (
-            <button key={item} className={tab === item ? "active" : ""} onClick={() => onTabChange(item)}>
-              {item}
-            </button>
-          ))}
-        </nav>
-      </header>
-
-      {tab === "tracker" ? (
-        <main className="mobile-main">
+      <main className="mobile-main">
           <MobilePortfolioSummary
             realized={realized}
             openPremium={openPremium}
@@ -324,13 +310,7 @@ export default function MobileTrackerShell({
           <button className="mobile-add-trade-button" onClick={() => setAddTradeOpen(true)} aria-label="Open add trade form">
             <span aria-hidden="true">+</span> ADD TRADE
           </button>
-        </main>
-      ) : (
-        <main className="mobile-deferred-view">
-          <span className="mobile-eyebrow">{tab.toUpperCase()}</span>
-          <p>Mobile {tab} view is scheduled for a later phase.</p>
-        </main>
-      )}
+      </main>
 
       {addTradeOpen && (
         <MobileNewTradeSheet
