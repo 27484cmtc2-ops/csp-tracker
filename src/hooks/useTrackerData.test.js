@@ -42,6 +42,19 @@ function seedLocal(data, metadata = null) {
   }
 }
 
+function createDeviceStorage(data, metadata) {
+  const values = new Map([
+    ["csp_trades", JSON.stringify(data.trades)],
+    ["csp_target", String(data.target)],
+    ["csp_sync_meta", JSON.stringify(metadata)],
+  ]);
+  return {
+    getItem: (key) => values.get(key) ?? null,
+    setItem: (key, value) => values.set(key, String(value)),
+    removeItem: (key) => values.delete(key),
+  };
+}
+
 async function flushAsync() {
   await act(async () => {
     await Promise.resolve();
@@ -398,6 +411,61 @@ test("Device B applies Device A's uploaded data on resume even when version meta
   expect(saveCloudData).not.toHaveBeenCalled();
 });
 
+test("a suspended mobile check is followed by a fresh check after an independent web device uploads", async () => {
+  const metadata = {
+    cloudVersion: "version-1",
+    syncedSnapshot: snapshot(baseData),
+  };
+  const deviceAData = {
+    trades: [{ id: 10, ticker: "WEB UPDATE", status: "open" }],
+    target: 925,
+  };
+  const mobileStorage = createDeviceStorage(baseData, metadata);
+  const webStorage = createDeviceStorage(deviceAData, metadata);
+  let cloudRow = cloudData(baseData, "version-1");
+  let resolveSuspendedCheck;
+  let loadCount = 0;
+
+  loadCloudData.mockImplementation(() => {
+    loadCount += 1;
+    if (loadCount === 2) {
+      return new Promise((resolve) => { resolveSuspendedCheck = resolve; });
+    }
+    return Promise.resolve(cloudRow);
+  });
+  saveCloudData.mockImplementation(async (trades, target) => {
+    cloudRow = cloudData({ trades, target }, "version-2");
+    return { updatedAt: cloudRow.updatedAt };
+  });
+
+  const mobile = renderHook(() => useTrackerData({ storage: mobileStorage }));
+  await flushAsync();
+  act(() => window.dispatchEvent(new Event("focus")));
+  expect(mobile.result.current.syncStatus).toBe("syncing");
+
+  const web = renderHook(() => useTrackerData({ storage: webStorage }));
+  await flushAsync();
+  await advanceDebounce();
+  expect(cloudRow.trades).toEqual(deviceAData.trades);
+  expect(cloudRow.target).toBe(deviceAData.target);
+  web.unmount();
+
+  act(() => window.dispatchEvent(new Event("pageshow")));
+  await act(async () => {
+    resolveSuspendedCheck(cloudData(baseData, "version-1"));
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+  });
+
+  expect(loadCloudData).toHaveBeenCalledTimes(4);
+  expect(mobile.result.current.trades).toEqual(deviceAData.trades);
+  expect(mobile.result.current.target).toBe(deviceAData.target);
+  expect(mobile.result.current.hasConflict).toBe(false);
+  expect(JSON.parse(mobileStorage.getItem("csp_trades"))).toEqual(deviceAData.trades);
+  expect(mobileStorage.getItem("csp_target")).toBe(String(deviceAData.target));
+});
+
 test("leaves local state unchanged when a focus check finds the same cloud version", async () => {
   seedLocal(baseData, {
     cloudVersion: "version-1",
@@ -446,7 +514,8 @@ test("coalesces simultaneous resume events into one cloud check", async () => {
   let resolveCheck;
   loadCloudData
     .mockResolvedValueOnce(cloudData(baseData, "version-1"))
-    .mockImplementationOnce(() => new Promise((resolve) => { resolveCheck = resolve; }));
+    .mockImplementationOnce(() => new Promise((resolve) => { resolveCheck = resolve; }))
+    .mockResolvedValue(cloudData(baseData, "version-1"));
 
   renderHook(() => useTrackerData());
   await flushAsync();
@@ -460,7 +529,9 @@ test("coalesces simultaneous resume events into one cloud check", async () => {
   await act(async () => {
     resolveCheck(cloudData(baseData, "version-1"));
     await Promise.resolve();
+    await Promise.resolve();
   });
+  expect(loadCloudData).toHaveBeenCalledTimes(3);
 });
 
 test("a failed resume check preserves local data and reports failure", async () => {

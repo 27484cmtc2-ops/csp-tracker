@@ -13,10 +13,10 @@ function serializeData(trades, target) {
   return JSON.stringify({ trades, target });
 }
 
-function loadLocalData() {
+function loadLocalData(storage) {
   try {
-    const savedTrades = localStorage.getItem("csp_trades");
-    const savedTarget = localStorage.getItem("csp_target");
+    const savedTrades = storage.getItem("csp_trades");
+    const savedTarget = storage.getItem("csp_target");
     return {
       trades: savedTrades ? JSON.parse(savedTrades) : DEFAULT_TRADES,
       target: savedTarget ? parseFloat(savedTarget) : 500,
@@ -27,25 +27,25 @@ function loadLocalData() {
   }
 }
 
-function saveLocalData(trades, target) {
+function saveLocalData(trades, target, storage) {
   try {
-    localStorage.setItem("csp_trades", JSON.stringify(trades));
-    localStorage.setItem("csp_target", String(target));
+    storage.setItem("csp_trades", JSON.stringify(trades));
+    storage.setItem("csp_target", String(target));
   } catch {}
 }
 
-function loadSyncMetadata() {
+function loadSyncMetadata(storage) {
   try {
-    const saved = localStorage.getItem(SYNC_META_KEY);
+    const saved = storage.getItem(SYNC_META_KEY);
     return saved ? JSON.parse(saved) : null;
   } catch {
     return null;
   }
 }
 
-function saveSyncMetadata(cloudVersion, syncedSnapshot) {
+function saveSyncMetadata(cloudVersion, syncedSnapshot, storage) {
   try {
-    localStorage.setItem(
+    storage.setItem(
       SYNC_META_KEY,
       JSON.stringify({ cloudVersion, syncedSnapshot })
     );
@@ -58,8 +58,8 @@ function failureStatus() {
     : "error";
 }
 
-export default function useTrackerData() {
-  const [initialData] = useState(loadLocalData);
+export default function useTrackerData({ storage = localStorage } = {}) {
+  const [initialData] = useState(() => loadLocalData(storage));
   const [trades, setTradesRaw] = useState(initialData.trades);
   const [target, setTargetRaw] = useState(initialData.target);
   const [syncStatus, setSyncStatus] = useState("initializing");
@@ -93,8 +93,8 @@ export default function useTrackerData() {
   const markSynchronized = useCallback((version, snapshot) => {
     cloudVersionRef.current = version;
     lastSyncedSnapshotRef.current = snapshot;
-    saveSyncMetadata(version, snapshot);
-  }, []);
+    saveSyncMetadata(version, snapshot, storage);
+  }, [storage]);
 
   const applyCloudData = useCallback((cloudData) => {
     const snapshot = serializeData(cloudData.trades, cloudData.target);
@@ -106,9 +106,9 @@ export default function useTrackerData() {
     };
     setTradesRaw(cloudData.trades);
     setTargetRaw(cloudData.target);
-    saveLocalData(cloudData.trades, cloudData.target);
+    saveLocalData(cloudData.trades, cloudData.target, storage);
     applyingCloudRef.current = false;
-  }, [markSynchronized]);
+  }, [markSynchronized, storage]);
 
   const performUploadRef = useRef(null);
   const scheduleUploadRef = useRef(null);
@@ -214,7 +214,7 @@ export default function useTrackerData() {
 
       const localData = latestDataRef.current;
       const localSnapshot = serializeData(localData.trades, localData.target);
-      const metadata = loadSyncMetadata();
+      const metadata = loadSyncMetadata(storage);
 
       if (!cloudData) {
         cloudVersionRef.current = null;
@@ -281,15 +281,18 @@ export default function useTrackerData() {
       setSyncReady(false);
       setSyncStatus(failureStatus());
     }
-  }, [applyCloudData, markConflict]);
+  }, [applyCloudData, markConflict, storage]);
 
   const checkCloudVersion = useCallback(async () => {
     if (
       !mountedRef.current ||
       !initializedRef.current ||
-      conflictRef.current ||
-      versionCheckInFlightRef.current
+      conflictRef.current
     ) return;
+    if (versionCheckInFlightRef.current) {
+      versionCheckPendingRef.current = true;
+      return;
+    }
     if (uploadInFlightRef.current) {
       versionCheckPendingRef.current = true;
       return;
@@ -330,6 +333,8 @@ export default function useTrackerData() {
       if (mountedRef.current) setSyncStatus(failureStatus());
     } finally {
       versionCheckInFlightRef.current = false;
+      const shouldCheckAgain = versionCheckPendingRef.current;
+      versionCheckPendingRef.current = false;
       const latestSnapshot = serializeData(
         latestDataRef.current.trades,
         latestDataRef.current.target
@@ -343,6 +348,14 @@ export default function useTrackerData() {
         scheduleUploadRef.current?.();
       } else if (latestSnapshot === lastSyncedSnapshotRef.current) {
         queuedUploadRef.current = false;
+      }
+      if (
+        shouldCheckAgain &&
+        mountedRef.current &&
+        initializedRef.current &&
+        !conflictRef.current
+      ) {
+        checkCloudVersionRef.current?.();
       }
     }
   }, [applyCloudData, markConflict]);
@@ -395,8 +408,8 @@ export default function useTrackerData() {
       trades: nextTrades,
       target: latestDataRef.current.target,
     };
-    saveLocalData(nextTrades, latestDataRef.current.target);
-  }, []);
+    saveLocalData(nextTrades, latestDataRef.current.target, storage);
+  }, [storage]);
 
   const syncNow = useCallback(() => {
     clearTimeout(debounceTimerRef.current);
