@@ -296,10 +296,22 @@ export default function useTrackerData() {
     }
 
     versionCheckInFlightRef.current = true;
+    setSyncStatus("syncing");
     try {
       const cloudData = await loadCloudData();
-      if (!mountedRef.current || !initializedRef.current || !cloudData) return;
-      if (cloudData.updatedAt === cloudVersionRef.current) return;
+      if (!mountedRef.current || !initializedRef.current) return;
+      if (!cloudData) {
+        setSyncStatus("error");
+        return;
+      }
+
+      const cloudSnapshot = serializeData(cloudData.trades, cloudData.target);
+      const versionUnchanged = cloudData.updatedAt === cloudVersionRef.current;
+      const payloadUnchanged = cloudSnapshot === lastSyncedSnapshotRef.current;
+      if (versionUnchanged && payloadUnchanged) {
+        setSyncStatus("saved");
+        return;
+      }
 
       const localSnapshot = serializeData(
         latestDataRef.current.trades,

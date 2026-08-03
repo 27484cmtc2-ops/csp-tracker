@@ -349,13 +349,52 @@ test("checks for newer cloud data when the app becomes visible again", async () 
     configurable: true,
     value: "visible",
   });
-  window.dispatchEvent(new Event("visibilitychange"));
-  document.dispatchEvent(new Event("visibilitychange"));
+  act(() => {
+    window.dispatchEvent(new Event("visibilitychange"));
+    document.dispatchEvent(new Event("visibilitychange"));
+  });
   await flushAsync();
 
   expect(loadCloudData).toHaveBeenCalledTimes(2);
   expect(result.current.trades).toEqual(changedData.trades);
   expect(result.current.syncStatus).toBe("saved");
+  expect(saveCloudData).not.toHaveBeenCalled();
+});
+
+test("Device B applies Device A's uploaded data on resume even when version metadata matches", async () => {
+  seedLocal(baseData, {
+    cloudVersion: "version-2",
+    syncedSnapshot: snapshot(baseData),
+  });
+  const deviceAData = {
+    trades: [{ id: 9, ticker: "FROM DEVICE A", status: "open" }],
+    target: 850,
+  };
+  let resolveResumeCheck;
+  loadCloudData
+    .mockResolvedValueOnce(cloudData(baseData, "version-2"))
+    .mockImplementationOnce(
+      () => new Promise((resolve) => { resolveResumeCheck = resolve; })
+    );
+
+  const { result } = renderHook(() => useTrackerData());
+  await flushAsync();
+
+  act(() => window.dispatchEvent(new Event("pageshow")));
+  expect(result.current.syncStatus).toBe("syncing");
+
+  await act(async () => {
+    resolveResumeCheck(cloudData(deviceAData, "version-2"));
+    await Promise.resolve();
+    await Promise.resolve();
+  });
+
+  expect(result.current.trades).toEqual(deviceAData.trades);
+  expect(result.current.target).toBe(deviceAData.target);
+  expect(result.current.syncStatus).toBe("saved");
+  expect(result.current.hasConflict).toBe(false);
+  expect(JSON.parse(localStorage.getItem("csp_trades"))).toEqual(deviceAData.trades);
+  expect(localStorage.getItem("csp_target")).toBe(String(deviceAData.target));
   expect(saveCloudData).not.toHaveBeenCalled();
 });
 
@@ -368,7 +407,7 @@ test("leaves local state unchanged when a focus check finds the same cloud versi
 
   const { result } = renderHook(() => useTrackerData());
   await flushAsync();
-  window.dispatchEvent(new Event("focus"));
+  act(() => window.dispatchEvent(new Event("focus")));
   await flushAsync();
 
   expect(loadCloudData).toHaveBeenCalledTimes(2);
@@ -389,7 +428,7 @@ test("preserves dirty local data when a pageshow check finds newer cloud data", 
   const { result } = renderHook(() => useTrackerData());
   await flushAsync();
   act(() => result.current.setTrades(changedData.trades));
-  window.dispatchEvent(new Event("pageshow"));
+  act(() => window.dispatchEvent(new Event("pageshow")));
   await flushAsync();
   await advanceDebounce();
 
@@ -411,9 +450,11 @@ test("coalesces simultaneous resume events into one cloud check", async () => {
 
   renderHook(() => useTrackerData());
   await flushAsync();
-  window.dispatchEvent(new Event("focus"));
-  window.dispatchEvent(new Event("pageshow"));
-  document.dispatchEvent(new Event("visibilitychange"));
+  act(() => {
+    window.dispatchEvent(new Event("focus"));
+    window.dispatchEvent(new Event("pageshow"));
+    document.dispatchEvent(new Event("visibilitychange"));
+  });
 
   expect(loadCloudData).toHaveBeenCalledTimes(2);
   await act(async () => {
@@ -433,7 +474,7 @@ test("a failed resume check preserves local data and reports failure", async () 
 
   const { result } = renderHook(() => useTrackerData());
   await flushAsync();
-  window.dispatchEvent(new Event("focus"));
+  act(() => window.dispatchEvent(new Event("focus")));
   await flushAsync();
 
   expect(result.current.trades).toEqual(baseData.trades);
