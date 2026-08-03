@@ -626,6 +626,8 @@ const downloadCloudToThisDevice = async () => {
                         </div>
                         <div style={{display:"flex",gap:5,justifyContent:"flex-end",marginTop:8}}>
                           <button className="csp-btn-sm csp-btn-blue" onClick={()=>openEditModal(t)}>EDIT</button>
+                          <button className="csp-btn-sm" onClick={()=>openRollModal(t)} style={{borderColor:"#7a4a1a",color:"#f59e0b"}}>ROLL</button>
+                          <button className="csp-btn-sm" onClick={()=>openAssignModal(t)} style={{borderColor:"#5a3a7a",color:"#c084fc"}}>ASSIGN</button>
                           <button className="csp-btn-sm" onClick={()=>setCloseModal({id:t.id,costToClose:""})}>CLOSE</button>
                           <button className="csp-btn-sm csp-btn-danger" onClick={()=>deleteTrade(t.id)}>DEL</button>
                         </div>
