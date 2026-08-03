@@ -1,6 +1,5 @@
 import { useState, useMemo } from "react";
-import { saveCloudData } from "./cloudStorage";
-const USD_CAD = 1.391;
+import { saveCloudData, loadCloudData } from "./cloudStorage";const USD_CAD = 1.391;
 
 const fmt = (n) =>
   new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
@@ -142,7 +141,7 @@ export default function App() {
 
   const setTrades = (t) => { setTradesRaw(t); saveData(t, target); };
   const setTarget = (v) => { setTargetRaw(v); saveData(trades, v); };
-const uploadLocalToCloud = async () => {
+  const uploadLocalToCloud = async () => {
   const confirmed = window.confirm(
     `Upload this device's ${trades.length} trades to the cloud?`
   );
@@ -154,6 +153,31 @@ const uploadLocalToCloud = async () => {
     window.alert("Cloud upload successful.");
   } catch (error) {
     window.alert(`Cloud upload failed: ${error.message}`);
+  }
+};
+
+const downloadCloudToThisDevice = async () => {
+  const confirmed = window.confirm(
+    "Replace this device's local data with the cloud data?"
+  );
+
+  if (!confirmed) return;
+
+  try {
+    const cloudData = await loadCloudData();
+
+    if (!cloudData) {
+      window.alert("No cloud data found.");
+      return;
+    }
+
+    setTradesRaw(cloudData.trades);
+    setTargetRaw(cloudData.target);
+    saveData(cloudData.trades, cloudData.target);
+
+    window.alert("Cloud data downloaded successfully.");
+  } catch (error) {
+    window.alert(`Cloud download failed: ${error.message}`);
   }
 };
   const targetUSD = target / USD_CAD;
@@ -328,7 +352,13 @@ const uploadLocalToCloud = async () => {
 <div style={{marginBottom:12}}>
   <button className="csp-btn" onClick={uploadLocalToCloud}>
     UPLOAD THIS DEVICE TO CLOUD
-  </button>
+  </button><button
+  className="csp-btn"
+  onClick={downloadCloudToThisDevice}
+  style={{ marginLeft: 8 }}
+>
+  DOWNLOAD CLOUD TO THIS DEVICE
+</button>
 </div>
         <div style={{display:"flex",gap:7,marginBottom:16}}>
           {["tracker","screener","strikes"].map(t=>(
