@@ -1,191 +1,36 @@
 import { useState, useMemo } from "react";
-import { saveCloudData, loadCloudData } from "./cloudStorage";
-
-const USD_CAD = 1.391;
-
-const fmt = (n) =>
-  new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
-
-const fmtShort = (n) =>
-  new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(n);
-
-const SAMPLE_TICKERS = [
-  { ticker: "AAPL", price: 213, iv: 28 },
-  { ticker: "TSLA", price: 435, iv: 47 },
-  { ticker: "SPY",  price: 600, iv: 15 },
-  { ticker: "AMD",  price: 118, iv: 55 },
-  { ticker: "NVDA", price: 135, iv: 38 },
-  { ticker: "MSFT", price: 470, iv: 24 },
-  { ticker: "QQQ",  price: 530, iv: 18 },
-  { ticker: "COIN", price: 260, iv: 85 },
-  { ticker: "RDDT", price: 185, iv: 52 },
-  { ticker: "MU",   price: 1054, iv: 42 },
-];
-
-function normCDF(x) {
-  const a1=0.254829592,a2=-0.284496736,a3=1.421413741,a4=-1.453152027,a5=1.061405429,p=0.3275911;
-  const sign = x < 0 ? -1 : 1;
-  x = Math.abs(x) / Math.sqrt(2);
-  const t = 1 / (1 + p * x);
-  const y = 1 - ((((a5*t+a4)*t+a3)*t+a2)*t+a1)*t*Math.exp(-x*x);
-  return 0.5 * (1 + sign * y);
-}
-
-function bsPut(S, K, T, r, sigma) {
-  const d1 = (Math.log(S/K) + (r + 0.5*sigma*sigma)*T) / (sigma*Math.sqrt(T));
-  const d2 = d1 - sigma*Math.sqrt(T);
-  return K*Math.exp(-r*T)*normCDF(-d2) - S*normCDF(-d1);
-}
-
-function getDelta(S, K, T, r, sigma) {
-  const d1 = (Math.log(S/K) + (r + 0.5*sigma*sigma)*T) / (sigma*Math.sqrt(T));
-  return Math.abs(normCDF(-d1));
-}
-
-function generateStrikes(ticker, targetUSD) {
-  const S = ticker.price, sigma = ticker.iv/100, T = 30/365, r = 0.05;
-  return [0.97, 0.95, 0.92, 0.90, 0.85].map(pct => {
-    const K = Math.round(S * pct);
-    const premium = bsPut(S, K, T, r, sigma);
-    const delta = getDelta(S, K, T, r, sigma);
-    const contracts = premium > 0 ? Math.ceil(targetUSD / (premium * 100)) : null;
-    const collateral = contracts ? K * 100 * contracts : null;
-    return {
-      strike: K,
-      otmPct: Math.round((1 - K/S) * 100),
-      premium, delta, contracts, collateral,
-      premiumTotal: contracts ? premium * 100 * contracts : 0,
-    };
-  });
-}
-
-function daysUntil(dateStr) {
-  if (!dateStr) return null;
-  const today = new Date();
-  today.setHours(0,0,0,0);
-  const exp = new Date(dateStr + "T00:00:00");
-  return Math.round((exp - today) / 86400000);
-}
-
-function daysColor(d) {
-  if (d == null) return "#7f8ea3";
-  if (d <= 3) return "#ff6a6a";
-  if (d <= 10) return "#f59e0b";
-  return "#6a9a6a";
-}
-
-function daysLabel(d) {
-  if (d == null) return "—";
-  if (d < 0) return "EXPIRED";
-  if (d === 0) return "TODAY";
-  return `${d}d`;
-}
-
-function daysBetween(start, end) {
-  if (!start || !end) return null;
-  const a = new Date(start + "T00:00:00");
-  const b = new Date(end + "T00:00:00");
-  return Math.round((b - a) / 86400000);
-}
-
-function getCollateral(t) {
-  if (t.longStrike != null) return Math.abs(t.strike - t.longStrike) * 100 * t.contracts;
-  return t.strike * 100 * t.contracts;
-}
-
-function annualizedReturn(t) {
-  const collateral = getCollateral(t);
-  if (!collateral) return null;
-  const collected = t.creditTotal ?? (t.premium * t.contracts * 100);
-  const dur = daysBetween(t.opened, t.expiry);
-  if (!dur || dur <= 0) return null;
-  return (collected / collateral) * (365 / dur) * 100;
-}
-
-const DEFAULT_TRADES = [
-  { id:1, ticker:"BAC",  strike:48,  longStrike:null, expiry:"2026-06-26", premium:0.50, contracts:2, status:"closed", opened:"2026-05-27", type:"CSP",            costToClose:27,  pnl:73,  creditTotal:null },
-  { id:2, ticker:"MCD",  strike:270, longStrike:null, expiry:"2026-06-26", premium:3.35, contracts:1, status:"closed", opened:"2026-05-28", type:"CSP",            costToClose:174, pnl:161, creditTotal:null },
-  { id:3, ticker:"NVDA", strike:200, longStrike:null, expiry:"2026-07-17", premium:5.75, contracts:1, status:"open",   opened:"2026-05-29", type:"CSP",            costToClose:null,pnl:null,creditTotal:null },
-  { id:4, ticker:"TSLA", strike:385, longStrike:375,  expiry:"2026-06-26", premium:1.77, contracts:1, status:"open",   opened:"2026-06-01", type:"385/375 Spread", costToClose:null,pnl:null,creditTotal:null },
-  { id:5, ticker:"MU",   strike:880, longStrike:850,  expiry:"2026-07-02", premium:8.05, contracts:1, status:"open",   opened:"2026-06-03", type:"880/850 Spread", costToClose:null,pnl:null,creditTotal:805  },
-  { id:6, ticker:"IGV",  strike:95,  longStrike:null, expiry:"2026-07-17", premium:2.65, contracts:1, status:"open",   opened:"2026-06-03", type:"CSP",            costToClose:null,pnl:null,creditTotal:null },
-  { id:7, ticker:"GDX",  strike:80,  longStrike:null, expiry:"2026-07-02", premium:2.10, contracts:1, status:"open",   opened:"2026-06-03", type:"CSP",            costToClose:null,pnl:null,creditTotal:null },
-  { id:8, ticker:"RDDT", strike:140, longStrike:null, expiry:"2026-07-17", premium:3.80, contracts:1, status:"open",   opened:"2026-06-08", type:"CSP",            costToClose:null,pnl:null,creditTotal:null },
-];
-
-function loadData() {
-  try {
-    const t = localStorage.getItem("csp_trades");
-    const tgt = localStorage.getItem("csp_target");
-    return {
-      trades: t ? JSON.parse(t) : DEFAULT_TRADES,
-      target: tgt ? parseFloat(tgt) : 500,
-    };
-  } catch { return { trades: DEFAULT_TRADES, target: 500 }; }
-}
-
-function saveData(trades, target) {
-  try {
-    localStorage.setItem("csp_trades", JSON.stringify(trades));
-    localStorage.setItem("csp_target", String(target));
-  } catch {}
-}
+import "./App.css";
+import PortfolioSummary from "./components/PortfolioSummary";
+import CloudSyncControls from "./components/CloudSyncControls";
+import NewTradeForm from "./components/NewTradeForm";
+import ScreenerPage from "./components/ScreenerPage";
+import StrikesPage from "./components/StrikesPage";
+import MobileTrackerShell from "./components/mobile/MobileTrackerShell";
+import { EMPTY_NEW_TRADE, SAMPLE_TICKERS, USD_CAD } from "./data/trackerData";
+import useTrackerData from "./hooks/useTrackerData";
+import { generateStrikes } from "./utils/calculations";
+import { fmt } from "./utils/formatters";
+import { annualizedReturn, daysColor, daysLabel, daysUntil, getCollectedPremium } from "./utils/trades";
 
 export default function App() {
-  const init = loadData();
   const [tab, setTab] = useState("tracker");
-  const [trades, setTradesRaw] = useState(init.trades);
-  const [target, setTargetRaw] = useState(init.target);
+  const {
+    trades,
+    target,
+    setTrades,
+    uploadLocalToCloud,
+    downloadCloudToThisDevice,
+  } = useTrackerData();
   const [selectedTicker, setSelectedTicker] = useState(SAMPLE_TICKERS[4]);
-  const [newTrade, setNewTrade] = useState({ ticker:"", strike:"", longStrike:"", expiry:"", premium:"", contracts:"" });
+  const [newTrade, setNewTrade] = useState(EMPTY_NEW_TRADE);
   const [closeModal, setCloseModal] = useState(null);
   const [editModal, setEditModal] = useState(null);
   const [rollModal, setRollModal] = useState(null);
   const [assignModal, setAssignModal] = useState(null);
-  const setTrades = (t) => { setTradesRaw(t); saveData(t, target); };
-  const uploadLocalToCloud = async () => {
-  const confirmed = window.confirm(
-    `Upload this device's ${trades.length} trades to the cloud?`
-  );
-
-  if (!confirmed) return;
-
-  try {
-    await saveCloudData(trades, target);
-    window.alert("Cloud upload successful.");
-  } catch (error) {
-    window.alert(`Cloud upload failed: ${error.message}`);
-  }
-};
-
-const downloadCloudToThisDevice = async () => {
-  const confirmed = window.confirm(
-    "Replace this device's local data with the cloud data?"
-  );
-
-  if (!confirmed) return;
-
-  try {
-    const cloudData = await loadCloudData();
-
-    if (!cloudData) {
-      window.alert("No cloud data found.");
-      return;
-    }
-
-    setTradesRaw(cloudData.trades);
-    setTargetRaw(cloudData.target);
-    saveData(cloudData.trades, cloudData.target);
-
-    window.alert("Cloud data downloaded successfully.");
-  } catch (error) {
-    window.alert(`Cloud download failed: ${error.message}`);
-  }
-};
   const targetUSD = target / USD_CAD;
 
   const realized = useMemo(() => trades.filter(t=>t.status==="closed").reduce((s,t)=>s+(t.pnl??0),0), [trades]);
-  const openPremium = useMemo(() => trades.filter(t=>t.status==="open").reduce((s,t)=>s+(t.creditTotal??(t.premium*t.contracts*100)),0), [trades]);
+  const openPremium = useMemo(() => trades.filter(t=>t.status==="open").reduce((s,t)=>s+getCollectedPremium(t),0), [trades]);
   const strikes = useMemo(() => generateStrikes(selectedTicker, targetUSD), [selectedTicker, targetUSD]);
 
   const addTrade = () => {
@@ -202,7 +47,7 @@ const downloadCloudToThisDevice = async () => {
       type: isSpread ? `${ss}/${ls} Spread` : "CSP",
       costToClose: null, pnl: null, creditTotal: null,
     }]);
-    setNewTrade({ ticker:"", strike:"", longStrike:"", expiry:"", premium:"", contracts:"" });
+    setNewTrade(EMPTY_NEW_TRADE);
   };
 
   const confirmClose = () => {
@@ -210,7 +55,7 @@ const downloadCloudToThisDevice = async () => {
     const cost = parseFloat(closeModal.costToClose) || 0;
     setTrades(trades.map(t => {
       if (t.id !== closeModal.id) return t;
-      const col = t.creditTotal ?? (t.premium * t.contracts * 100);
+      const col = getCollectedPremium(t);
       return { ...t, status:"closed", costToClose:cost, pnl:col-cost, closedDate:new Date().toISOString().split("T")[0] };
     }));
     setCloseModal(null);
@@ -428,110 +273,24 @@ const downloadCloudToThisDevice = async () => {
 
   return (
     <div style={{minHeight:"100vh",background:"#0b0f14",fontFamily:"'IBM Plex Mono','Courier New',monospace",color:"#d7e0ea"}}>
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&display=swap');
-        *{box-sizing:border-box;}
-        input,button{font-family:inherit;}
-        ::-webkit-scrollbar{width:3px;height:3px;}
-        ::-webkit-scrollbar-track{background:#111821;}
-        ::-webkit-scrollbar-thumb{background:#2a3a2a;border-radius:2px;}
-        .tab-btn{cursor:pointer;padding:7px 16px;font-size:10px;letter-spacing:.15em;text-transform:uppercase;border:1px solid #1c2735;border-radius:2px;background:transparent;color:#7f8ea3;transition:all .15s;}
-        .tab-btn:hover{color:#a6b3c2;border-color:#30445b;}
-        .tab-btn.active{background:#223044;border-color:#4d82b8;color:#5aa9ff;}
-        .row-hover:hover{background:#151f2b!important;}
-        .strike-row:hover{background:#151f2b!important;cursor:pointer;}
-        .csp-input{background:#0b0f14;border:1px solid #1c2735;border-radius:2px;padding:7px 10px;color:#d7e0ea;font-size:11px;outline:none;width:100%;min-width:0;box-sizing:border-box;}
-        .csp-form-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;}
-        @media (max-width:640px){
-          .csp-form-grid{grid-template-columns:1fr 1fr;}
-        }
-        .csp-input:focus{border-color:#4d82b8;}
-        .csp-panel{background:#111821;border:1px solid #223044;border-radius:4px;}
-        .csp-btn{padding:7px 18px;background:#223044;border:1px solid #4d82b8;border-radius:2px;color:#5aa9ff;font-size:10px;letter-spacing:.1em;cursor:pointer;}
-        .csp-btn:hover{background:#223e22;}
-        .csp-btn-sm{padding:2px 8px;background:transparent;border:1px solid #30445b;border-radius:2px;color:#5aa9ff;font-size:9px;cursor:pointer;}
-        .csp-btn-sm:hover{background:#0a1a0a;}
-        .csp-btn-danger{border-color:#2a1a1a!important;color:#6a3a3a!important;}
-        .csp-btn-danger:hover{background:#1a0a0a!important;color:#ff6a6a!important;}
-        .csp-btn-blue{border-color:#1a2a4a!important;color:#60a5fa!important;}
-        .csp-table-wrap{display:block;}
-        .csp-cards{display:none;}
-        .csp-card{background:#0e141c;border:1px solid #142214;border-radius:4px;padding:10px 12px;margin-bottom:8px;}
-        .csp-card-row{display:flex;justify-content:space-between;align-items:center;font-size:11px;padding:2px 0;}
-        .csp-card-label{color:#71839a;font-size:9px;letter-spacing:.08em;}
-        @media (max-width:640px){
-          .csp-table-wrap{display:none;}
-          .csp-cards{display:block;}
-        }
-      `}</style>
-
-      <div style={{maxWidth:780,margin:"0 auto",padding:"24px 16px"}}>
-<div className="csp-panel" style={{padding:"16px 18px",marginBottom:16}}>
-          <div style={{
-            display:"grid",
-            gridTemplateColumns:"repeat(4,1fr)",
-            gap:14
-          }}>
-            <div>
-              <div style={{fontSize:9,color:"#7f8ea3",letterSpacing:".12em",marginBottom:5}}>
-                REALIZED P&L
-              </div>
-              <div style={{fontSize:18,color:realized>=0?"#6fdc8c":"#ff7b7b",fontWeight:600}}>
-                {fmtShort(realized)}
-              </div>
-            </div>
-
-            <div>
-              <div style={{fontSize:9,color:"#7f8ea3",letterSpacing:".12em",marginBottom:5}}>
-                OPEN PREMIUM
-              </div>
-              <div style={{fontSize:18,color:"#9db6ce",fontWeight:600}}>
-                {fmtShort(openPremium)}
-              </div>
-            </div>
-
-            <div>
-              <div style={{fontSize:9,color:"#7f8ea3",letterSpacing:".12em",marginBottom:5}}>
-                WIN RATE
-              </div>
-              <div style={{fontSize:18,color:"#5aa9ff",fontWeight:600}}>
-                {winRate.toFixed(0)}%
-              </div>
-              <div style={{fontSize:9,color:"#71839a",marginTop:3}}>
-                {winningTrades}/{closedTrades.length} profitable
-              </div>
-            </div>
-          </div>
-        </div>
-<div style={{marginBottom:12}}>
-  <button className="csp-btn" onClick={uploadLocalToCloud}>
-    UPLOAD THIS DEVICE TO CLOUD
-  </button><button
-  className="csp-btn"
-  onClick={downloadCloudToThisDevice}
-  style={{ marginLeft: 8 }}
->
-  DOWNLOAD CLOUD TO THIS DEVICE
-</button>
-</div>
+      <div className="app-content" style={{maxWidth:780,margin:"0 auto",padding:"24px 16px"}}>
+        <div className="desktop-interface">
+        <PortfolioSummary
+          realized={realized}
+          openPremium={openPremium}
+          winRate={winRate}
+          winningTrades={winningTrades}
+          closedTradeCount={closedTrades.length}
+        />
+        <CloudSyncControls
+          onUpload={uploadLocalToCloud}
+          onDownload={downloadCloudToThisDevice}
+        />
         
 
         {tab==="tracker" && (
           <div>
-            <div className="csp-panel" style={{padding:14,marginBottom:14}}>
-              <div style={{fontSize:9,color:"#7f8ea3",letterSpacing:".12em",marginBottom:10}}>LOG NEW TRADE</div>
-              <div className="csp-form-grid" style={{marginBottom:7}}>
-                <input className="csp-input" placeholder="TICKER" value={newTrade.ticker} onChange={e=>setNewTrade({...newTrade,ticker:e.target.value})} />
-                <input className="csp-input" placeholder="SHORT STRIKE" value={newTrade.strike} onChange={e=>setNewTrade({...newTrade,strike:e.target.value})} />
-                <input className="csp-input" placeholder="LONG STRIKE (opt)" value={newTrade.longStrike} onChange={e=>setNewTrade({...newTrade,longStrike:e.target.value})} />
-              </div>
-              <div className="csp-form-grid" style={{marginBottom:10}}>
-                <input className="csp-input" placeholder="PREMIUM" value={newTrade.premium} onChange={e=>setNewTrade({...newTrade,premium:e.target.value})} />
-                <input className="csp-input" placeholder="CONTRACTS" value={newTrade.contracts} onChange={e=>setNewTrade({...newTrade,contracts:e.target.value})} />
-                <input className="csp-input" type="date" value={newTrade.expiry} onChange={e=>setNewTrade({...newTrade,expiry:e.target.value})} />
-              </div>
-              <button className="csp-btn" onClick={addTrade}>+ ADD TRADE</button>
-            </div>
+            <NewTradeForm value={newTrade} onChange={setNewTrade} onSubmit={addTrade} />
 
             <div className="csp-panel" style={{marginBottom:12}}>
               <div style={{padding:"10px 14px",borderBottom:"1px solid #223044",fontSize:9,color:"#7f8ea3",letterSpacing:".12em"}}>
@@ -888,86 +647,51 @@ const downloadCloudToThisDevice = async () => {
         )}
 
         {tab==="screener" && (
-          <div className="csp-panel">
-            <div style={{padding:"10px 14px",borderBottom:"1px solid #223044",fontSize:9,color:"#7f8ea3",letterSpacing:".12em"}}>
-              30 DTE CANDIDATES — PREMIUM TO HIT CA${Math.round(target).toLocaleString()}/mo
-            </div>
-            <div style={{overflowX:"auto"}}>
-              <table style={{width:"100%",borderCollapse:"collapse",minWidth:440}}>
-                <thead><tr>
-                  {["TICKER","PRICE","IV%","CONTRACTS","COLLATERAL","RETURN%"].map(h=>(
-                    <th key={h} style={{padding:"9px 14px",textAlign:"right",color:"#71839a",fontWeight:400,fontSize:9,letterSpacing:".1em",borderBottom:"1px solid #223044"}}>{h}</th>
-                  ))}
-                </tr></thead>
-                <tbody>
-                  {SAMPLE_TICKERS.map(tk=>{
-                    const S=tk.price,K=Math.round(S*.95),T=30/365;
-                    const prem=bsPut(S,K,T,.05,tk.iv/100);
-                    const cts=prem>0?Math.ceil(targetUSD/(prem*100)):null;
-                    const coll=cts?K*100*cts:0;
-                    const ret=coll>0?((prem*100*cts)/coll*100).toFixed(2):"—";
-                    return (
-                      <tr key={tk.ticker} className="row-hover" style={{borderBottom:"1px solid #151f2b",cursor:"pointer"}}
-                        onClick={()=>{setSelectedTicker(tk);setTab("strikes");}}>
-                        <td style={{padding:"9px 14px",color:"#5aa9ff",fontWeight:600,textAlign:"right"}}>{tk.ticker}</td>
-                        <td style={{padding:"9px 14px",textAlign:"right",color:"#d7e0ea"}}>${tk.price}</td>
-                        <td style={{padding:"9px 14px",textAlign:"right",color:tk.iv>50?"#f59e0b":tk.iv>30?"#a0d8a0":"#9aa8b8"}}>{tk.iv}%</td>
-                        <td style={{padding:"9px 14px",textAlign:"right",color:"#d7e0ea"}}>{cts?cts+"×":"—"}</td>
-                        <td style={{padding:"9px 14px",textAlign:"right",color:"#a6b3c2"}}>{coll>0?"$"+Math.round(coll).toLocaleString():"—"}</td>
-                        <td style={{padding:"9px 14px",textAlign:"right",color:"#5aa9ff"}}>{ret}%</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-            <div style={{padding:"8px 14px",fontSize:9,color:"#30445b"}}>Click a ticker to explore strikes.</div>
-          </div>
+          <ScreenerPage
+            tickers={SAMPLE_TICKERS}
+            target={target}
+            targetUSD={targetUSD}
+            onSelectTicker={(ticker) => {
+              setSelectedTicker(ticker);
+              setTab("strikes");
+            }}
+          />
         )}
 
         {tab==="strikes" && (
-          <div>
-            <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:12}}>
-              {SAMPLE_TICKERS.map(tk=>(
-                <button key={tk.ticker} className={`tab-btn${selectedTicker.ticker===tk.ticker?" active":""}`}
-                  onClick={()=>setSelectedTicker(tk)} style={{padding:"5px 12px",fontSize:9}}>
-                  {tk.ticker}
-                </button>
-              ))}
-            </div>
-            <div className="csp-panel">
-              <div style={{padding:"10px 14px",borderBottom:"1px solid #223044",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                <span style={{fontSize:9,color:"#7f8ea3",letterSpacing:".1em"}}>{selectedTicker.ticker} · ${selectedTicker.price} · IV {selectedTicker.iv}% · 30 DTE</span>
-                <span style={{fontSize:9,color:"#607086"}}>target CA${Math.round(target).toLocaleString()}/mo</span>
-              </div>
-              <div style={{overflowX:"auto"}}>
-                <table style={{width:"100%",borderCollapse:"collapse",minWidth:480}}>
-                  <thead><tr>
-                    {["STRIKE","OTM%","PREMIUM","DELTA","CONTRACTS","COLLATERAL","TOTAL"].map(h=>(
-                      <th key={h} style={{padding:"9px 12px",textAlign:"right",color:"#71839a",fontWeight:400,fontSize:9,letterSpacing:".08em",borderBottom:"1px solid #223044"}}>{h}</th>
-                    ))}
-                  </tr></thead>
-                  <tbody>
-                    {strikes.map((s,i)=>(
-                      <tr key={i} className="strike-row" style={{borderBottom:"1px solid #151f2b",background:i===1?"#0a1a0a":"transparent"}}>
-                        <td style={{padding:"9px 12px",textAlign:"right",color:"#5aa9ff",fontWeight:600}}>${s.strike}</td>
-                        <td style={{padding:"9px 12px",textAlign:"right",color:"#9aa8b8"}}>{s.otmPct}%</td>
-                        <td style={{padding:"9px 12px",textAlign:"right",color:"#d7e0ea"}}>{fmt(s.premium)}</td>
-                        <td style={{padding:"9px 12px",textAlign:"right",color:s.delta>.3?"#f59e0b":"#6a9a6a"}}>{s.delta.toFixed(2)}</td>
-                        <td style={{padding:"9px 12px",textAlign:"right",color:"#9db6ce"}}>{s.contracts?s.contracts+"×":"—"}</td>
-                        <td style={{padding:"9px 12px",textAlign:"right",color:"#9aa8b8"}}>{s.collateral?"$"+Math.round(s.collateral).toLocaleString():"—"}</td>
-                        <td style={{padding:"9px 12px",textAlign:"right",color:s.premiumTotal>=targetUSD?"#5aa9ff":"#d7e0ea",fontWeight:s.premiumTotal>=targetUSD?600:400}}>
-                          {fmt(s.premiumTotal)}{s.premiumTotal>=targetUSD?" ✓":""}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <div style={{padding:"8px 14px",fontSize:9,color:"#30445b"}}>Row 2 = 5% OTM sweet spot · ✓ meets target · Δ&gt;0.30 = higher assignment risk</div>
-            </div>
-          </div>
+          <StrikesPage
+            tickers={SAMPLE_TICKERS}
+            selectedTicker={selectedTicker}
+            target={target}
+            targetUSD={targetUSD}
+            strikes={strikes}
+            onSelectTicker={setSelectedTicker}
+          />
         )}
+        </div>
+
+        <div className="mobile-interface">
+          <MobileTrackerShell
+            tab={tab}
+            onTabChange={setTab}
+            realized={realized}
+            openPremium={openPremium}
+            winRate={winRate}
+            winningTrades={winningTrades}
+            closedTrades={closedTrades}
+            assignedTrades={assignedTrades}
+            sortedOpenTrades={sortedOpenTrades}
+            sortBy={sortBy}
+            sortDir={sortDir}
+            onSort={toggleSort}
+            onEdit={openEditModal}
+            onRoll={openRollModal}
+            onAssign={openAssignModal}
+            onClose={(trade) => setCloseModal({id:trade.id,costToClose:""})}
+            onReopen={reopenTrade}
+            onDelete={deleteTrade}
+          />
+        </div>
 
         {closeModal && (()=>{
           const t = trades.find(x=>x.id===closeModal.id);

@@ -38,3 +38,29 @@ export function getDelta(S, K, T, r, sigma) {
 
   return Math.abs(normCDF(-d1));
 }
+
+export function generateStrikes(ticker, targetUSD) {
+  const S = ticker.price;
+  const sigma = ticker.iv / 100;
+  const T = 30 / 365;
+  const r = 0.05;
+
+  return [0.97, 0.95, 0.92, 0.9, 0.85].map((percentage) => {
+    const strike = Math.round(S * percentage);
+    const premium = bsPut(S, strike, T, r, sigma);
+    const delta = getDelta(S, strike, T, r, sigma);
+    const contracts = premium > 0
+      ? Math.ceil(targetUSD / (premium * 100))
+      : null;
+
+    return {
+      strike,
+      otmPct: Math.round((1 - strike / S) * 100),
+      premium,
+      delta,
+      contracts,
+      collateral: contracts ? strike * 100 * contracts : null,
+      premiumTotal: contracts ? premium * 100 * contracts : 0,
+    };
+  });
+}
