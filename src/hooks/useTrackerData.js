@@ -78,6 +78,9 @@ export default function useTrackerData() {
   const queuedUploadRef = useRef(false);
   const debounceTimerRef = useRef(null);
   const initializationRunRef = useRef(0);
+  const versionCheckInFlightRef = useRef(false);
+  const versionCheckPendingRef = useRef(false);
+  const checkCloudVersionRef = useRef(null);
 
   latestDataRef.current = { trades, target };
 
@@ -127,7 +130,16 @@ export default function useTrackerData() {
   scheduleUploadRef.current = scheduleUpload;
 
   const performUpload = useCallback(async ({ force = false } = {}) => {
-    if (!mountedRef.current || (!initializedRef.current && !force)) return;
+    if (
+      !mountedRef.current ||
+      (!initializedRef.current && !force) ||
+      (conflictRef.current && !force)
+    ) return;
+
+    if (versionCheckInFlightRef.current && !force) {
+      queuedUploadRef.current = true;
+      return;
+    }
 
     if (uploadInFlightRef.current) {
       queuedUploadRef.current = true;
@@ -182,6 +194,10 @@ export default function useTrackerData() {
       }
     } finally {
       uploadInFlightRef.current = false;
+      if (versionCheckPendingRef.current && mountedRef.current) {
+        versionCheckPendingRef.current = false;
+        checkCloudVersionRef.current?.();
+      }
     }
   }, [markConflict, markSynchronized]);
   performUploadRef.current = performUpload;
@@ -267,6 +283,59 @@ export default function useTrackerData() {
     }
   }, [applyCloudData, markConflict]);
 
+  const checkCloudVersion = useCallback(async () => {
+    if (
+      !mountedRef.current ||
+      !initializedRef.current ||
+      conflictRef.current ||
+      versionCheckInFlightRef.current
+    ) return;
+    if (uploadInFlightRef.current) {
+      versionCheckPendingRef.current = true;
+      return;
+    }
+
+    versionCheckInFlightRef.current = true;
+    try {
+      const cloudData = await loadCloudData();
+      if (!mountedRef.current || !initializedRef.current || !cloudData) return;
+      if (cloudData.updatedAt === cloudVersionRef.current) return;
+
+      const localSnapshot = serializeData(
+        latestDataRef.current.trades,
+        latestDataRef.current.target
+      );
+      if (localSnapshot !== lastSyncedSnapshotRef.current) {
+        clearTimeout(debounceTimerRef.current);
+        cloudVersionRef.current = cloudData.updatedAt;
+        markConflict();
+        return;
+      }
+
+      applyCloudData(cloudData);
+      setSyncStatus("saved");
+    } catch {
+      if (mountedRef.current) setSyncStatus(failureStatus());
+    } finally {
+      versionCheckInFlightRef.current = false;
+      const latestSnapshot = serializeData(
+        latestDataRef.current.trades,
+        latestDataRef.current.target
+      );
+      if (
+        queuedUploadRef.current &&
+        mountedRef.current &&
+        !conflictRef.current &&
+        latestSnapshot !== lastSyncedSnapshotRef.current
+      ) {
+        scheduleUploadRef.current?.();
+      } else if (latestSnapshot === lastSyncedSnapshotRef.current) {
+        queuedUploadRef.current = false;
+      }
+    }
+  }, [applyCloudData, markConflict]);
+  checkCloudVersionRef.current = checkCloudVersion;
+
   useEffect(() => {
     mountedRef.current = true;
     initializeSync();
@@ -276,6 +345,22 @@ export default function useTrackerData() {
       clearTimeout(debounceTimerRef.current);
     };
   }, [initializeSync]);
+
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") checkCloudVersion();
+    };
+    const handleResume = () => checkCloudVersion();
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("focus", handleResume);
+    window.addEventListener("pageshow", handleResume);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("focus", handleResume);
+      window.removeEventListener("pageshow", handleResume);
+    };
+  }, [checkCloudVersion]);
 
   useEffect(() => {
     if (

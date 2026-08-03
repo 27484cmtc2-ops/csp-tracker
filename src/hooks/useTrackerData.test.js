@@ -333,3 +333,128 @@ test("cleanup cancels a debounced local upload", async () => {
 
   expect(saveCloudData).not.toHaveBeenCalled();
 });
+
+test("checks for newer cloud data when the app becomes visible again", async () => {
+  seedLocal(baseData, {
+    cloudVersion: "version-1",
+    syncedSnapshot: snapshot(baseData),
+  });
+  loadCloudData
+    .mockResolvedValueOnce(cloudData(baseData, "version-1"))
+    .mockResolvedValueOnce(cloudData(changedData, "version-2"));
+
+  const { result } = renderHook(() => useTrackerData());
+  await flushAsync();
+  Object.defineProperty(document, "visibilityState", {
+    configurable: true,
+    value: "visible",
+  });
+  window.dispatchEvent(new Event("visibilitychange"));
+  document.dispatchEvent(new Event("visibilitychange"));
+  await flushAsync();
+
+  expect(loadCloudData).toHaveBeenCalledTimes(2);
+  expect(result.current.trades).toEqual(changedData.trades);
+  expect(result.current.syncStatus).toBe("saved");
+  expect(saveCloudData).not.toHaveBeenCalled();
+});
+
+test("leaves local state unchanged when a focus check finds the same cloud version", async () => {
+  seedLocal(baseData, {
+    cloudVersion: "version-1",
+    syncedSnapshot: snapshot(baseData),
+  });
+  loadCloudData.mockResolvedValue(cloudData(baseData, "version-1"));
+
+  const { result } = renderHook(() => useTrackerData());
+  await flushAsync();
+  window.dispatchEvent(new Event("focus"));
+  await flushAsync();
+
+  expect(loadCloudData).toHaveBeenCalledTimes(2);
+  expect(result.current.trades).toEqual(baseData.trades);
+  expect(result.current.hasConflict).toBe(false);
+  expect(saveCloudData).not.toHaveBeenCalled();
+});
+
+test("preserves dirty local data when a pageshow check finds newer cloud data", async () => {
+  seedLocal(baseData, {
+    cloudVersion: "version-1",
+    syncedSnapshot: snapshot(baseData),
+  });
+  loadCloudData
+    .mockResolvedValueOnce(cloudData(baseData, "version-1"))
+    .mockResolvedValueOnce(cloudData({ ...baseData, target: 700 }, "version-2"));
+
+  const { result } = renderHook(() => useTrackerData());
+  await flushAsync();
+  act(() => result.current.setTrades(changedData.trades));
+  window.dispatchEvent(new Event("pageshow"));
+  await flushAsync();
+  await advanceDebounce();
+
+  expect(result.current.trades).toEqual(changedData.trades);
+  expect(result.current.hasConflict).toBe(true);
+  expect(result.current.syncStatus).toBe("conflict");
+  expect(saveCloudData).not.toHaveBeenCalled();
+});
+
+test("coalesces simultaneous resume events into one cloud check", async () => {
+  seedLocal(baseData, {
+    cloudVersion: "version-1",
+    syncedSnapshot: snapshot(baseData),
+  });
+  let resolveCheck;
+  loadCloudData
+    .mockResolvedValueOnce(cloudData(baseData, "version-1"))
+    .mockImplementationOnce(() => new Promise((resolve) => { resolveCheck = resolve; }));
+
+  renderHook(() => useTrackerData());
+  await flushAsync();
+  window.dispatchEvent(new Event("focus"));
+  window.dispatchEvent(new Event("pageshow"));
+  document.dispatchEvent(new Event("visibilitychange"));
+
+  expect(loadCloudData).toHaveBeenCalledTimes(2);
+  await act(async () => {
+    resolveCheck(cloudData(baseData, "version-1"));
+    await Promise.resolve();
+  });
+});
+
+test("a failed resume check preserves local data and reports failure", async () => {
+  seedLocal(baseData, {
+    cloudVersion: "version-1",
+    syncedSnapshot: snapshot(baseData),
+  });
+  loadCloudData
+    .mockResolvedValueOnce(cloudData(baseData, "version-1"))
+    .mockRejectedValueOnce(new Error("network unavailable"));
+
+  const { result } = renderHook(() => useTrackerData());
+  await flushAsync();
+  window.dispatchEvent(new Event("focus"));
+  await flushAsync();
+
+  expect(result.current.trades).toEqual(baseData.trades);
+  expect(["offline", "error"]).toContain(result.current.syncStatus);
+  expect(saveCloudData).not.toHaveBeenCalled();
+});
+
+test("removes all resume listeners during cleanup", async () => {
+  seedLocal(baseData, {
+    cloudVersion: "version-1",
+    syncedSnapshot: snapshot(baseData),
+  });
+  loadCloudData.mockResolvedValue(cloudData(baseData, "version-1"));
+
+  const { unmount } = renderHook(() => useTrackerData());
+  await flushAsync();
+  unmount();
+  window.dispatchEvent(new Event("focus"));
+  window.dispatchEvent(new Event("pageshow"));
+  document.dispatchEvent(new Event("visibilitychange"));
+  await flushAsync();
+
+  expect(loadCloudData).toHaveBeenCalledTimes(1);
+});
