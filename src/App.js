@@ -6,11 +6,27 @@ import NewTradeForm from "./components/NewTradeForm";
 import ScreenerPage from "./components/ScreenerPage";
 import StrikesPage from "./components/StrikesPage";
 import MobileTrackerShell from "./components/mobile/MobileTrackerShell";
+import CoveredCallForm, { CoveredCallSummary } from "./components/CoveredCallForm";
+import StockSaleForm, { StockSaleSummary } from "./components/StockSaleForm";
 import { EMPTY_NEW_TRADE, SAMPLE_TICKERS, USD_CAD } from "./data/trackerData";
 import useTrackerData from "./hooks/useTrackerData";
 import { generateStrikes } from "./utils/calculations";
 import { fmt } from "./utils/formatters";
 import { annualizedReturn, daysColor, daysLabel, daysUntil, getCollectedPremium } from "./utils/trades";
+import {
+  EMPTY_COVERED_CALL,
+  createCoveredCall,
+  getAvailableCoveredCallContracts,
+  getOpenCoveredCallsForAssignment,
+  isCoveredCall,
+  validateCoveredCall,
+} from "./utils/coveredCalls";
+import {
+  EMPTY_STOCK_SALE,
+  completeStockSale,
+  isStockSale,
+  validateStockSale,
+} from "./utils/stockSales";
 
 export default function App() {
   const [tab, setTab] = useState("tracker");
@@ -30,10 +46,14 @@ export default function App() {
   const [editModal, setEditModal] = useState(null);
   const [rollModal, setRollModal] = useState(null);
   const [assignModal, setAssignModal] = useState(null);
+  const [coveredCallModal, setCoveredCallModal] = useState(null);
+  const [coveredCallError, setCoveredCallError] = useState("");
+  const [stockSaleModal, setStockSaleModal] = useState(null);
+  const [stockSaleError, setStockSaleError] = useState("");
   const targetUSD = target / USD_CAD;
 
   const realized = useMemo(() => trades.filter(t=>t.status==="closed").reduce((s,t)=>s+(t.pnl??0),0), [trades]);
-  const openPremium = useMemo(() => trades.filter(t=>t.status==="open").reduce((s,t)=>s+getCollectedPremium(t),0), [trades]);
+  const openPremium = useMemo(() => trades.filter(t=>t.status==="open" && !isCoveredCall(t)).reduce((s,t)=>s+getCollectedPremium(t),0), [trades]);
   const strikes = useMemo(() => generateStrikes(selectedTicker, targetUSD), [selectedTicker, targetUSD]);
 
   const addTrade = () => {
@@ -166,6 +186,61 @@ export default function App() {
   setAssignModal(null);
 };
 
+  const openCoveredCallModal = (assignment) => {
+    const availableContracts = getAvailableCoveredCallContracts(trades, assignment);
+    if (availableContracts <= 0) return;
+    setCoveredCallError("");
+    setCoveredCallModal({
+      assignmentId: assignment.id,
+      value: { ...EMPTY_COVERED_CALL },
+    });
+  };
+
+  const confirmCoveredCall = () => {
+    if (!coveredCallModal) return;
+    const assignment = trades.find(
+      (trade) => trade.id === coveredCallModal.assignmentId && trade.status === "assigned"
+    );
+    if (!assignment) {
+      setCoveredCallError("The assigned position is no longer available.");
+      return;
+    }
+    const availableContracts = getAvailableCoveredCallContracts(trades, assignment);
+    const error = validateCoveredCall(coveredCallModal.value, availableContracts);
+    if (error) {
+      setCoveredCallError(error);
+      return;
+    }
+    setTrades([...trades, createCoveredCall(assignment, coveredCallModal.value)]);
+    setCoveredCallModal(null);
+    setCoveredCallError("");
+  };
+
+  const openStockSaleModal = (assignment) => {
+    if (getOpenCoveredCallsForAssignment(trades, assignment.id).length > 0) return;
+    setStockSaleError("");
+    setStockSaleModal({
+      assignmentId: assignment.id,
+      value: {
+        ...EMPTY_STOCK_SALE,
+        saleDate: new Date().toISOString().split("T")[0],
+      },
+    });
+  };
+
+  const confirmStockSale = () => {
+    if (!stockSaleModal) return;
+    const assignment = trades.find((trade) => trade.id === stockSaleModal.assignmentId);
+    const error = validateStockSale(trades, assignment, stockSaleModal.value);
+    if (error) {
+      setStockSaleError(error);
+      return;
+    }
+    setTrades(completeStockSale(trades, assignment, stockSaleModal.value));
+    setStockSaleModal(null);
+    setStockSaleError("");
+  };
+
   const confirmRoll = () => {
   if (!rollModal) return;
 
@@ -238,7 +313,9 @@ export default function App() {
 
   setRollModal(null);
 };
-  const openTrades  = trades.filter(t => t.status==="open");
+  const openTrades  = trades.filter(t => t.status==="open" && !isCoveredCall(t));
+  const coveredCalls = trades.filter(t => t.status === "open" && isCoveredCall(t));
+  const stockSales = trades.filter(isStockSale);
   const closedTrades= trades.filter(t => t.status==="closed");
   const assignedTrades = trades.filter(t => t.status === "assigned");
 
@@ -432,7 +509,9 @@ export default function App() {
                           "ASSIGNED",
                           "STRIKE",
                           "BASIS / SHARE",
-                          "TOTAL BASIS"
+                          "TOTAL BASIS",
+                          "COVERED CALL",
+                          ""
                         ].map((heading) => (
                           <th
                             key={heading}
@@ -508,6 +587,32 @@ export default function App() {
                           }}>
                             {fmt(trade.adjustedCostBasis)}
                           </td>
+
+                          <td style={{padding:"10px 12px",textAlign:"right"}}>
+                            {getOpenCoveredCallsForAssignment(trades, trade.id).map((call) => (
+                              <CoveredCallSummary key={call.id} call={call} />
+                            ))}
+                            {getOpenCoveredCallsForAssignment(trades, trade.id).length === 0 && <span style={{color:"#607086"}}>—</span>}
+                          </td>
+
+                          <td style={{padding:"10px 12px",textAlign:"right"}}>
+                            <div style={{display:"flex",gap:5,justifyContent:"flex-end"}}>
+                              <button
+                                className="csp-btn-sm"
+                                onClick={() => openCoveredCallModal(trade)}
+                                disabled={getAvailableCoveredCallContracts(trades, trade) <= 0}
+                              >
+                                {getAvailableCoveredCallContracts(trades, trade) > 0 ? "SELL CALL" : "FULLY COVERED"}
+                              </button>
+                              <button
+                                className="csp-btn-sm"
+                                onClick={() => openStockSaleModal(trade)}
+                                disabled={getOpenCoveredCallsForAssignment(trades, trade.id).length > 0}
+                              >
+                                SELL SHARES
+                              </button>
+                            </div>
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -575,8 +680,41 @@ export default function App() {
                           {fmt(trade.adjustedCostBasis)}
                         </span>
                       </div>
+                      {getOpenCoveredCallsForAssignment(trades, trade.id).map((call) => (
+                        <CoveredCallSummary key={call.id} call={call} />
+                      ))}
+                      <div className="assigned-position-actions">
+                        <button
+                          className="csp-btn"
+                          onClick={() => openCoveredCallModal(trade)}
+                          disabled={getAvailableCoveredCallContracts(trades, trade) <= 0}
+                        >
+                          {getAvailableCoveredCallContracts(trades, trade) > 0 ? "SELL COVERED CALL" : "ALL SHARES COVERED"}
+                        </button>
+                        <button
+                          className="csp-btn"
+                          onClick={() => openStockSaleModal(trade)}
+                          disabled={getOpenCoveredCallsForAssignment(trades, trade.id).length > 0}
+                        >
+                          SELL SHARES
+                        </button>
+                      </div>
+                      {getOpenCoveredCallsForAssignment(trades, trade.id).length > 0 && (
+                        <div className="assigned-position-note">Resolve the open covered call before selling these shares.</div>
+                      )}
                     </div>
                   ))}
+                </div>
+              </div>
+            )}
+
+            {stockSales.length > 0 && (
+              <div className="csp-panel completed-stock-sales" style={{marginBottom:12}}>
+                <div style={{padding:"10px 14px",borderBottom:"1px solid #223044",fontSize:9,color:"#6fdc8c",letterSpacing:".12em"}}>
+                  COMPLETED SHARE SALES <span style={{color:"#3f7650"}}>({stockSales.length})</span>
+                </div>
+                <div className="stock-sale-grid">
+                  {stockSales.map((sale) => <StockSaleSummary key={sale.id} sale={sale} />)}
                 </div>
               </div>
             )}
@@ -684,6 +822,8 @@ export default function App() {
             winningTrades={winningTrades}
             closedTrades={closedTrades}
             assignedTrades={assignedTrades}
+            coveredCalls={coveredCalls}
+            stockSales={stockSales}
             sortedOpenTrades={sortedOpenTrades}
             sortBy={sortBy}
             sortDir={sortDir}
@@ -697,6 +837,8 @@ export default function App() {
             onClose={(trade) => setCloseModal({id:trade.id,costToClose:""})}
             onReopen={reopenTrade}
             onDelete={deleteTrade}
+            onSellCoveredCall={openCoveredCallModal}
+            onSellShares={openStockSaleModal}
             syncStatus={syncStatus}
             hasConflict={hasConflict}
             onSyncNow={syncNow}
@@ -878,6 +1020,53 @@ export default function App() {
                 </div>
               </div>
             </div>
+          );
+        })()}
+
+        {coveredCallModal && (() => {
+          const assignment = trades.find(
+            (trade) => trade.id === coveredCallModal.assignmentId && trade.status === "assigned"
+          );
+          if (!assignment) return null;
+          return (
+            <CoveredCallForm
+              assignment={assignment}
+              value={coveredCallModal.value}
+              availableContracts={getAvailableCoveredCallContracts(trades, assignment)}
+              error={coveredCallError}
+              onChange={(value) => {
+                setCoveredCallError("");
+                setCoveredCallModal({ ...coveredCallModal, value });
+              }}
+              onSubmit={confirmCoveredCall}
+              onClose={() => {
+                setCoveredCallModal(null);
+                setCoveredCallError("");
+              }}
+            />
+          );
+        })()}
+
+        {stockSaleModal && (() => {
+          const assignment = trades.find(
+            (trade) => trade.id === stockSaleModal.assignmentId && trade.status === "assigned"
+          );
+          if (!assignment) return null;
+          return (
+            <StockSaleForm
+              assignment={assignment}
+              value={stockSaleModal.value}
+              error={stockSaleError}
+              onChange={(value) => {
+                setStockSaleError("");
+                setStockSaleModal({ ...stockSaleModal, value });
+              }}
+              onSubmit={confirmStockSale}
+              onClose={() => {
+                setStockSaleModal(null);
+                setStockSaleError("");
+              }}
+            />
           );
         })()}
 

@@ -132,3 +132,54 @@ input, button { font-family: inherit; }
   .mobile-action-list .mobile-assign-action { border-color: #5a3a7a; color: #c084fc; }
   .mobile-action-list .mobile-delete-action { border-color: #4a2222; color: #ff7b7b; }
 }
+
+.covered-call-layer { position: fixed; inset: 0; z-index: 130; display: flex; align-items: center; justify-content: center; padding: 16px; }
+.covered-call-backdrop { position: absolute; inset: 0; width: 100%; border: 0; background: rgba(0,0,0,.86); }
+.covered-call-dialog { position: relative; width: min(420px,100%); max-height: 92vh; overflow-y: auto; padding: 20px; border: 1px solid #2f6f61; border-radius: 8px; background: #111821; font-family: 'IBM Plex Mono',monospace; }
+.covered-call-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 16px; }
+.covered-call-header h2 { margin: 4px 0 0; color: #6fdc8c; font-size: 20px; }
+.covered-call-close { border: 0; background: transparent; color: #8796aa; font-size: 26px; line-height: 1; }
+.covered-call-context { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; margin-bottom: 14px; }
+.covered-call-context div { padding: 9px; border: 1px solid #223044; border-radius: 4px; background: #0e141c; }
+.covered-call-context span, .covered-call-fields label > span, .covered-call-preview span { display: block; margin-bottom: 5px; color: #71839a; font-size: 9px; letter-spacing: .06em; text-transform: uppercase; }
+.covered-call-context strong { color: #d7e0ea; font-size: 12px; }
+.covered-call-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.covered-call-fields input { box-sizing: border-box; width: 100%; padding: 10px; border: 1px solid #30445b; border-radius: 4px; background: #0b0f14; color: #d7e0ea; font: inherit; }
+.covered-call-preview { display: flex; align-items: center; justify-content: space-between; margin-top: 14px; padding: 11px 12px; border: 1px solid #244d43; border-radius: 4px; background: #0c1a16; }
+.covered-call-preview span { margin: 0; }
+.covered-call-preview strong { color: #6fdc8c; }
+.covered-call-error { margin-top: 10px; color: #ff7b7b; font-size: 11px; }
+.covered-call-submit { display: flex; gap: 8px; margin-top: 16px; }
+.covered-call-submit .csp-btn { flex: 1; border-color: #2f6f61; color: #6fdc8c; }
+.covered-call-summary { display: flex; flex-direction: column; gap: 3px; margin-top: 9px; padding: 9px 10px; border: 1px solid #244d43; border-radius: 4px; background: #0c1a16; text-align: left; }
+.covered-call-summary strong { color: #d7e0ea; font-size: 11px; }
+.covered-call-summary > span:last-child { color: #8796aa; font-size: 9px; }
+.covered-call-badge { color: #6fdc8c; font-size: 8px; letter-spacing: .1em; }
+.mobile-assigned-call-action { width: 100%; min-height: 44px; margin-top: 10px; border: 1px solid #2f6f61; border-radius: 5px; background: #10201b; color: #6fdc8c; font: inherit; font-size: 10px; font-weight: 600; }
+.mobile-assigned-call-action:disabled { border-color: #26303a; color: #607086; background: #111820; }
+
+@media (max-width: 640px) {
+  .covered-call-layer { align-items: flex-end; padding: 0; }
+  .covered-call-dialog { width: 100%; max-height: 94vh; padding: 20px 18px calc(20px + env(safe-area-inset-bottom)); border-width: 1px 0 0; border-radius: 18px 18px 0 0; }
+  .covered-call-fields { grid-template-columns: 1fr; }
+}
+
+.assigned-position-actions, .mobile-assigned-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin-top: 10px; }
+.assigned-position-actions .csp-btn { width: 100%; }
+.assigned-position-note { margin-top: 7px; color: #a07820; font-size: 9px; line-height: 1.4; }
+.mobile-assigned-actions .mobile-assigned-call-action { margin-top: 0; }
+.mobile-sell-shares-action { border-color: #4d82b8; background: #132033; color: #9db6ce; }
+.stock-sale-preview { display: grid; gap: 7px; margin-top: 14px; padding: 11px 12px; border: 1px solid #244d43; border-radius: 4px; background: #0c1a16; }
+.stock-sale-preview div { display: flex; align-items: center; justify-content: space-between; }
+.stock-sale-preview span { color: #71839a; font-size: 9px; letter-spacing: .06em; text-transform: uppercase; }
+.stock-sale-preview strong { color: #d7e0ea; font-size: 12px; }
+.stock-sale-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(220px,1fr)); gap: 10px; padding: 12px; }
+.stock-sale-summary { padding: 12px; border: 1px solid #244d43; border-radius: 5px; background: #0c1415; }
+.stock-sale-summary > div:first-child { display: flex; justify-content: space-between; }
+.stock-sale-summary > div:first-child strong { color: #6fdc8c; }
+.stock-sale-summary > div:first-child span, .stock-sale-summary p { color: #8796aa; font-size: 9px; }
+.stock-sale-summary p { margin: 6px 0 10px; }
+.stock-sale-summary dl { display: grid; gap: 5px; margin: 0; }
+.stock-sale-summary dl div { display: flex; justify-content: space-between; }
+.stock-sale-summary dt { color: #71839a; font-size: 9px; }
+.stock-sale-summary dd { margin: 0; color: #d7e0ea; font-size: 10px; }
