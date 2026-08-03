@@ -68,7 +68,7 @@ function daysUntil(dateStr) {
 }
 
 function daysColor(d) {
-  if (d == null) return "#4a6a4a";
+  if (d == null) return "#7f8ea3";
   if (d <= 3) return "#ff6a6a";
   if (d <= 10) return "#f59e0b";
   return "#6a9a6a";
@@ -143,7 +143,6 @@ export default function App() {
   const [rollModal, setRollModal] = useState(null);
   const [assignModal, setAssignModal] = useState(null);
   const setTrades = (t) => { setTradesRaw(t); saveData(t, target); };
-  const setTarget = (v) => { setTargetRaw(v); saveData(trades, v); };
   const uploadLocalToCloud = async () => {
   const confirmed = window.confirm(
     `Upload this device's ${trades.length} trades to the cloud?`
@@ -187,8 +186,6 @@ const downloadCloudToThisDevice = async () => {
 
   const realized = useMemo(() => trades.filter(t=>t.status==="closed").reduce((s,t)=>s+(t.pnl??0),0), [trades]);
   const openPremium = useMemo(() => trades.filter(t=>t.status==="open").reduce((s,t)=>s+(t.creditTotal??(t.premium*t.contracts*100)),0), [trades]);
-  const total = realized + openPremium;
-  const progress = Math.min(100, (total / targetUSD) * 100);
   const strikes = useMemo(() => generateStrikes(selectedTicker, targetUSD), [selectedTicker, targetUSD]);
 
   const addTrade = () => {
@@ -435,38 +432,38 @@ const downloadCloudToThisDevice = async () => {
   }, [openTrades, sortBy, sortDir]);
 
   return (
-    <div style={{minHeight:"100vh",background:"#080c10",fontFamily:"'IBM Plex Mono','Courier New',monospace",color:"#c8d8c0"}}>
+    <div style={{minHeight:"100vh",background:"#0b0f14",fontFamily:"'IBM Plex Mono','Courier New',monospace",color:"#d7e0ea"}}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&display=swap');
         *{box-sizing:border-box;}
         input,button{font-family:inherit;}
         ::-webkit-scrollbar{width:3px;height:3px;}
-        ::-webkit-scrollbar-track{background:#0d1117;}
+        ::-webkit-scrollbar-track{background:#111821;}
         ::-webkit-scrollbar-thumb{background:#2a3a2a;border-radius:2px;}
-        .tab-btn{cursor:pointer;padding:7px 16px;font-size:10px;letter-spacing:.15em;text-transform:uppercase;border:1px solid #1a2a1a;border-radius:2px;background:transparent;color:#4a5e4a;transition:all .15s;}
-        .tab-btn:hover{color:#8aaa8a;border-color:#2a4a2a;}
-        .tab-btn.active{background:#1a2e1a;border-color:#3a6e3a;color:#7aff7a;}
-        .row-hover:hover{background:#0f1a0f!important;}
-        .strike-row:hover{background:#0f1a0f!important;cursor:pointer;}
-        .csp-input{background:#080c10;border:1px solid #1a2a1a;border-radius:2px;padding:7px 10px;color:#c8d8c0;font-size:11px;outline:none;width:100%;min-width:0;box-sizing:border-box;}
+        .tab-btn{cursor:pointer;padding:7px 16px;font-size:10px;letter-spacing:.15em;text-transform:uppercase;border:1px solid #1c2735;border-radius:2px;background:transparent;color:#7f8ea3;transition:all .15s;}
+        .tab-btn:hover{color:#a6b3c2;border-color:#30445b;}
+        .tab-btn.active{background:#223044;border-color:#4d82b8;color:#5aa9ff;}
+        .row-hover:hover{background:#151f2b!important;}
+        .strike-row:hover{background:#151f2b!important;cursor:pointer;}
+        .csp-input{background:#0b0f14;border:1px solid #1c2735;border-radius:2px;padding:7px 10px;color:#d7e0ea;font-size:11px;outline:none;width:100%;min-width:0;box-sizing:border-box;}
         .csp-form-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;}
         @media (max-width:640px){
           .csp-form-grid{grid-template-columns:1fr 1fr;}
         }
-        .csp-input:focus{border-color:#3a6e3a;}
-        .csp-panel{background:#0d1117;border:1px solid #1a2e1a;border-radius:4px;}
-        .csp-btn{padding:7px 18px;background:#1a2e1a;border:1px solid #3a6e3a;border-radius:2px;color:#7aff7a;font-size:10px;letter-spacing:.1em;cursor:pointer;}
+        .csp-input:focus{border-color:#4d82b8;}
+        .csp-panel{background:#111821;border:1px solid #223044;border-radius:4px;}
+        .csp-btn{padding:7px 18px;background:#223044;border:1px solid #4d82b8;border-radius:2px;color:#5aa9ff;font-size:10px;letter-spacing:.1em;cursor:pointer;}
         .csp-btn:hover{background:#223e22;}
-        .csp-btn-sm{padding:2px 8px;background:transparent;border:1px solid #2a4a2a;border-radius:2px;color:#7aff7a;font-size:9px;cursor:pointer;}
+        .csp-btn-sm{padding:2px 8px;background:transparent;border:1px solid #30445b;border-radius:2px;color:#5aa9ff;font-size:9px;cursor:pointer;}
         .csp-btn-sm:hover{background:#0a1a0a;}
         .csp-btn-danger{border-color:#2a1a1a!important;color:#6a3a3a!important;}
         .csp-btn-danger:hover{background:#1a0a0a!important;color:#ff6a6a!important;}
         .csp-btn-blue{border-color:#1a2a4a!important;color:#60a5fa!important;}
         .csp-table-wrap{display:block;}
         .csp-cards{display:none;}
-        .csp-card{background:#0a0f0a;border:1px solid #142214;border-radius:4px;padding:10px 12px;margin-bottom:8px;}
+        .csp-card{background:#0e141c;border:1px solid #142214;border-radius:4px;padding:10px 12px;margin-bottom:8px;}
         .csp-card-row{display:flex;justify-content:space-between;align-items:center;font-size:11px;padding:2px 0;}
-        .csp-card-label{color:#3a6a3a;font-size:9px;letter-spacing:.08em;}
+        .csp-card-label{color:#71839a;font-size:9px;letter-spacing:.08em;}
         @media (max-width:640px){
           .csp-table-wrap{display:none;}
           .csp-cards{display:block;}
@@ -481,37 +478,37 @@ const downloadCloudToThisDevice = async () => {
             gap:14
           }}>
             <div>
-              <div style={{fontSize:9,color:"#4a6a4a",letterSpacing:".12em",marginBottom:5}}>
+              <div style={{fontSize:9,color:"#7f8ea3",letterSpacing:".12em",marginBottom:5}}>
                 REALIZED P&L
               </div>
-              <div style={{fontSize:18,color:realized>=0?"#7aff7a":"#ff6a6a",fontWeight:600}}>
+              <div style={{fontSize:18,color:realized>=0?"#6fdc8c":"#ff7b7b",fontWeight:600}}>
                 {fmtShort(realized)}
               </div>
             </div>
 
             <div>
-              <div style={{fontSize:9,color:"#4a6a4a",letterSpacing:".12em",marginBottom:5}}>
+              <div style={{fontSize:9,color:"#7f8ea3",letterSpacing:".12em",marginBottom:5}}>
                 OPEN PREMIUM
               </div>
-              <div style={{fontSize:18,color:"#a0c8a0",fontWeight:600}}>
+              <div style={{fontSize:18,color:"#9db6ce",fontWeight:600}}>
                 {fmtShort(openPremium)}
               </div>
             </div>
 
             <div>
-              <div style={{fontSize:9,color:"#4a6a4a",letterSpacing:".12em",marginBottom:5}}>
+              <div style={{fontSize:9,color:"#7f8ea3",letterSpacing:".12em",marginBottom:5}}>
                 WIN RATE
               </div>
-              <div style={{fontSize:18,color:"#7aff7a",fontWeight:600}}>
+              <div style={{fontSize:18,color:"#5aa9ff",fontWeight:600}}>
                 {winRate.toFixed(0)}%
               </div>
-              <div style={{fontSize:9,color:"#3a6a3a",marginTop:3}}>
+              <div style={{fontSize:9,color:"#71839a",marginTop:3}}>
                 {winningTrades}/{closedTrades.length} profitable
               </div>
             </div>
 
             <div>
-              <div style={{fontSize:9,color:"#4a6a4a",letterSpacing:".12em",marginBottom:5}}>
+              <div style={{fontSize:9,color:"#7f8ea3",letterSpacing:".12em",marginBottom:5}}>
                 CURRENT COLLATERAL
               </div>
               <div style={{fontSize:18,color:"#f59e0b",fontWeight:600}}>
@@ -542,7 +539,7 @@ const downloadCloudToThisDevice = async () => {
         {tab==="tracker" && (
           <div>
             <div className="csp-panel" style={{padding:14,marginBottom:14}}>
-              <div style={{fontSize:9,color:"#4a6a4a",letterSpacing:".12em",marginBottom:10}}>LOG NEW TRADE</div>
+              <div style={{fontSize:9,color:"#7f8ea3",letterSpacing:".12em",marginBottom:10}}>LOG NEW TRADE</div>
               <div className="csp-form-grid" style={{marginBottom:7}}>
                 <input className="csp-input" placeholder="TICKER" value={newTrade.ticker} onChange={e=>setNewTrade({...newTrade,ticker:e.target.value})} />
                 <input className="csp-input" placeholder="SHORT STRIKE" value={newTrade.strike} onChange={e=>setNewTrade({...newTrade,strike:e.target.value})} />
@@ -557,16 +554,16 @@ const downloadCloudToThisDevice = async () => {
             </div>
 
             <div className="csp-panel" style={{marginBottom:12}}>
-              <div style={{padding:"10px 14px",borderBottom:"1px solid #1a2e1a",fontSize:9,color:"#4a6a4a",letterSpacing:".12em"}}>
+              <div style={{padding:"10px 14px",borderBottom:"1px solid #223044",fontSize:9,color:"#7f8ea3",letterSpacing:".12em"}}>
                 OPEN POSITIONS <span style={{color:"#2a5a2a"}}>({openTrades.length})</span>
               </div>
-              {openTrades.length===0 && <div style={{padding:20,textAlign:"center",color:"#3a5a3a",fontSize:11}}>No open positions.</div>}
+              {openTrades.length===0 && <div style={{padding:20,textAlign:"center",color:"#607086",fontSize:11}}>No open positions.</div>}
               {openTrades.length>0 && (
-                <div style={{display:"flex",gap:6,flexWrap:"wrap",padding:"10px 14px",borderBottom:"1px solid #1a2e1a"}}>
-                  <span style={{fontSize:9,color:"#3a6a3a",letterSpacing:".1em",alignSelf:"center"}}>SORT</span>
+                <div style={{display:"flex",gap:6,flexWrap:"wrap",padding:"10px 14px",borderBottom:"1px solid #223044"}}>
+                  <span style={{fontSize:9,color:"#71839a",letterSpacing:".1em",alignSelf:"center"}}>SORT</span>
                   {[["expiry","EXPIRY"],["strike","STRIKE"],["premium","PREMIUM"],["annualized","ANN%"],["ticker","TICKER"]].map(([key,label])=>(
                     <button key={key} className="csp-btn-sm" onClick={()=>toggleSort(key)}
-                      style={{borderColor:sortBy===key?"#3a6e3a":"#2a4a2a",color:sortBy===key?"#7aff7a":"#5a7a5a"}}>
+                      style={{borderColor:sortBy===key?"#4d82b8":"#30445b",color:sortBy===key?"#5aa9ff":"#8796aa"}}>
                       {label}{sortBy===key?(sortDir==="asc"?" ↑":" ↓"):""}
                     </button>
                   ))}
@@ -577,7 +574,7 @@ const downloadCloudToThisDevice = async () => {
                   <table style={{width:"100%",borderCollapse:"collapse",minWidth:560}}>
                     <thead><tr>
                       {["TICKER","STRIKE","EXPIRY","DAYS","COLLECTED","ANN%","CNTS",""].map(h=>(
-                        <th key={h} style={{padding:"9px 12px",textAlign:"right",color:"#3a6a3a",fontWeight:400,fontSize:9,letterSpacing:".08em",borderBottom:"1px solid #1a2e1a"}}>{h}</th>
+                        <th key={h} style={{padding:"9px 12px",textAlign:"right",color:"#71839a",fontWeight:400,fontSize:9,letterSpacing:".08em",borderBottom:"1px solid #223044"}}>{h}</th>
                       ))}
                     </tr></thead>
                     <tbody>
@@ -586,20 +583,20 @@ const downloadCloudToThisDevice = async () => {
                         const isSpread = t.type?.includes("Spread");
                         const d = daysUntil(t.expiry);
                         return (
-                          <tr key={t.id} className="row-hover" style={{borderBottom:"1px solid #0f1a0f"}}>
+                          <tr key={t.id} className="row-hover" style={{borderBottom:"1px solid #151f2b"}}>
                             <td style={{padding:"9px 12px",textAlign:"right"}}>
-                              <span style={{color:isSpread?"#60efff":"#7aff7a",fontWeight:600}}>{t.ticker}</span>
+                              <span style={{color:isSpread?"#60efff":"#5aa9ff",fontWeight:600}}>{t.ticker}</span>
                               {isSpread && <span style={{fontSize:8,color:"#60efff",marginLeft:4,padding:"1px 4px",border:"1px solid #1a3a4a",borderRadius:2}}>SPREAD</span>}
                               {isSpread && <div style={{fontSize:8,color:"#3a7a8a",marginTop:1}}>{t.type}</div>}
                             </td>
-                            <td style={{padding:"9px 12px",textAlign:"right",color:"#c8d8c0"}}>
+                            <td style={{padding:"9px 12px",textAlign:"right",color:"#d7e0ea"}}>
                               ${t.strike}{t.longStrike&&<span style={{color:"#3a6a7a"}}>/{t.longStrike}</span>}
                             </td>
-                            <td style={{padding:"9px 12px",textAlign:"right",color:"#8aaa8a"}}>{t.expiry}</td>
+                            <td style={{padding:"9px 12px",textAlign:"right",color:"#a6b3c2"}}>{t.expiry}</td>
                             <td style={{padding:"9px 12px",textAlign:"right",color:daysColor(d),fontWeight:600}}>{daysLabel(d)}</td>
-                            <td style={{padding:"9px 12px",textAlign:"right",color:"#c8d8c0"}}>{fmt(col)}</td>
-                            <td style={{padding:"9px 12px",textAlign:"right",color:"#a0c8a0"}}>{annualizedReturn(t)!=null?annualizedReturn(t).toFixed(0)+"%":"—"}</td>
-                            <td style={{padding:"9px 12px",textAlign:"right",color:"#c8d8c0"}}>{t.contracts}×</td>
+                            <td style={{padding:"9px 12px",textAlign:"right",color:"#d7e0ea"}}>{fmt(col)}</td>
+                            <td style={{padding:"9px 12px",textAlign:"right",color:"#9db6ce"}}>{annualizedReturn(t)!=null?annualizedReturn(t).toFixed(0)+"%":"—"}</td>
+                            <td style={{padding:"9px 12px",textAlign:"right",color:"#d7e0ea"}}>{t.contracts}×</td>
                             <td style={{padding:"9px 12px",textAlign:"right"}}>
                               <div style={{display:"flex",gap:5,justifyContent:"flex-end"}}>
                                 <button className="csp-btn-sm csp-btn-blue" onClick={()=>openEditModal(t)}>EDIT</button>
@@ -626,26 +623,26 @@ const downloadCloudToThisDevice = async () => {
                       <div key={t.id} className="csp-card">
                         <div className="csp-card-row" style={{marginBottom:4}}>
                           <div>
-                            <span style={{color:isSpread?"#60efff":"#7aff7a",fontWeight:600,fontSize:13}}>{t.ticker}</span>
+                            <span style={{color:isSpread?"#60efff":"#5aa9ff",fontWeight:600,fontSize:13}}>{t.ticker}</span>
                             {isSpread && <span style={{fontSize:8,color:"#60efff",marginLeft:4,padding:"1px 4px",border:"1px solid #1a3a4a",borderRadius:2}}>SPREAD</span>}
                           </div>
                           <span style={{color:daysColor(d),fontWeight:600,fontSize:11}}>{daysLabel(d)}</span>
                         </div>
                         <div className="csp-card-row">
                           <span className="csp-card-label">STRIKE</span>
-                          <span style={{color:"#c8d8c0"}}>${t.strike}{t.longStrike&&<span style={{color:"#3a6a7a"}}>/{t.longStrike}</span>}</span>
+                          <span style={{color:"#d7e0ea"}}>${t.strike}{t.longStrike&&<span style={{color:"#3a6a7a"}}>/{t.longStrike}</span>}</span>
                         </div>
                         <div className="csp-card-row">
                           <span className="csp-card-label">EXPIRY</span>
-                          <span style={{color:"#8aaa8a"}}>{t.expiry}</span>
+                          <span style={{color:"#a6b3c2"}}>{t.expiry}</span>
                         </div>
                         <div className="csp-card-row">
                           <span className="csp-card-label">COLLECTED</span>
-                          <span style={{color:"#c8d8c0"}}>{fmt(col)} ({t.contracts}×)</span>
+                          <span style={{color:"#d7e0ea"}}>{fmt(col)} ({t.contracts}×)</span>
                         </div>
                         <div className="csp-card-row">
                           <span className="csp-card-label">ANNUALIZED</span>
-                          <span style={{color:"#a0c8a0"}}>{annualizedReturn(t)!=null?annualizedReturn(t).toFixed(0)+"%":"—"}</span>
+                          <span style={{color:"#9db6ce"}}>{annualizedReturn(t)!=null?annualizedReturn(t).toFixed(0)+"%":"—"}</span>
                         </div>
                         <div style={{display:"flex",gap:5,justifyContent:"flex-end",marginTop:8}}>
                           <button className="csp-btn-sm csp-btn-blue" onClick={()=>openEditModal(t)}>EDIT</button>
@@ -663,7 +660,7 @@ const downloadCloudToThisDevice = async () => {
               <div className="csp-panel" style={{marginBottom:12}}>
                 <div style={{
                   padding:"10px 14px",
-                  borderBottom:"1px solid #1a2e1a",
+                  borderBottom:"1px solid #223044",
                   fontSize:9,
                   color:"#c084fc",
                   letterSpacing:".12em"
@@ -699,7 +696,7 @@ const downloadCloudToThisDevice = async () => {
                               fontWeight:400,
                               fontSize:9,
                               letterSpacing:".08em",
-                              borderBottom:"1px solid #1a2e1a"
+                              borderBottom:"1px solid #223044"
                             }}
                           >
                             {heading}
@@ -713,7 +710,7 @@ const downloadCloudToThisDevice = async () => {
                         <tr
                           key={trade.id}
                           className="row-hover"
-                          style={{borderBottom:"1px solid #0f1a0f"}}
+                          style={{borderBottom:"1px solid #151f2b"}}
                         >
                           <td style={{
                             padding:"10px 12px",
@@ -727,7 +724,7 @@ const downloadCloudToThisDevice = async () => {
                           <td style={{
                             padding:"10px 12px",
                             textAlign:"right",
-                            color:"#c8d8c0"
+                            color:"#d7e0ea"
                           }}>
                             {trade.shares}
                           </td>
@@ -743,7 +740,7 @@ const downloadCloudToThisDevice = async () => {
                           <td style={{
                             padding:"10px 12px",
                             textAlign:"right",
-                            color:"#c8d8c0"
+                            color:"#d7e0ea"
                           }}>
                             {fmt(trade.strike)}
                           </td>
@@ -760,7 +757,7 @@ const downloadCloudToThisDevice = async () => {
                           <td style={{
                             padding:"10px 12px",
                             textAlign:"right",
-                            color:"#c8d8c0"
+                            color:"#d7e0ea"
                           }}>
                             {fmt(trade.adjustedCostBasis)}
                           </td>
@@ -786,7 +783,7 @@ const downloadCloudToThisDevice = async () => {
                         </span>
 
                         <span style={{
-                          color:"#c8d8c0",
+                          color:"#d7e0ea",
                           fontWeight:600
                         }}>
                           {trade.shares} shares
@@ -806,7 +803,7 @@ const downloadCloudToThisDevice = async () => {
                         <span className="csp-card-label">
                           STRIKE
                         </span>
-                        <span style={{color:"#c8d8c0"}}>
+                        <span style={{color:"#d7e0ea"}}>
                           {fmt(trade.strike)}
                         </span>
                       </div>
@@ -827,7 +824,7 @@ const downloadCloudToThisDevice = async () => {
                         <span className="csp-card-label">
                           TOTAL BASIS
                         </span>
-                        <span style={{color:"#c8d8c0"}}>
+                        <span style={{color:"#d7e0ea"}}>
                           {fmt(trade.adjustedCostBasis)}
                         </span>
                       </div>
@@ -839,29 +836,29 @@ const downloadCloudToThisDevice = async () => {
 
             {closedTrades.length>0 && (
               <div className="csp-panel">
-                <div style={{padding:"10px 14px",borderBottom:"1px solid #1a2e1a",fontSize:9,color:"#4a6a4a",letterSpacing:".12em"}}>
+                <div style={{padding:"10px 14px",borderBottom:"1px solid #223044",fontSize:9,color:"#7f8ea3",letterSpacing:".12em"}}>
                   CLOSED POSITIONS <span style={{color:"#4a4a1a"}}>({closedTrades.length})</span>
                 </div>
                 <div className="csp-table-wrap" style={{overflowX:"auto"}}>
                   <table style={{width:"100%",borderCollapse:"collapse",minWidth:500}}>
                     <thead><tr>
                       {["TICKER","STRIKE","EXPIRY","COLLECTED","COST TO CLOSE","NET P&L",""].map(h=>(
-                        <th key={h} style={{padding:"9px 12px",textAlign:"right",color:"#3a6a3a",fontWeight:400,fontSize:9,letterSpacing:".08em",borderBottom:"1px solid #1a2e1a"}}>{h}</th>
+                        <th key={h} style={{padding:"9px 12px",textAlign:"right",color:"#71839a",fontWeight:400,fontSize:9,letterSpacing:".08em",borderBottom:"1px solid #223044"}}>{h}</th>
                       ))}
                     </tr></thead>
                     <tbody>
                       {closedTrades.map(t=>{
                         const col = t.creditTotal??(t.premium*t.contracts*100);
                         return (
-                          <tr key={t.id} className="row-hover" style={{borderBottom:"1px solid #0f1a0f",background:"#0a0f0a"}}>
+                          <tr key={t.id} className="row-hover" style={{borderBottom:"1px solid #151f2b",background:"#0e141c"}}>
                             <td style={{padding:"9px 12px",textAlign:"right"}}>
                               <span style={{color:"#4a7a4a",fontWeight:600}}>{t.ticker}</span>
                             </td>
-                            <td style={{padding:"9px 12px",textAlign:"right",color:"#6a8a6a"}}>${t.strike}</td>
-                            <td style={{padding:"9px 12px",textAlign:"right",color:"#5a7a5a"}}>{t.expiry}</td>
-                            <td style={{padding:"9px 12px",textAlign:"right",color:"#6a8a6a"}}>{fmt(col)}</td>
+                            <td style={{padding:"9px 12px",textAlign:"right",color:"#9aa8b8"}}>${t.strike}</td>
+                            <td style={{padding:"9px 12px",textAlign:"right",color:"#8796aa"}}>{t.expiry}</td>
+                            <td style={{padding:"9px 12px",textAlign:"right",color:"#9aa8b8"}}>{fmt(col)}</td>
                             <td style={{padding:"9px 12px",textAlign:"right",color:"#a07820"}}>{t.costToClose!=null?fmt(t.costToClose):"—"}</td>
-                            <td style={{padding:"9px 12px",textAlign:"right",color:(t.pnl??0)>=0?"#7aff7a":"#ff6a6a",fontWeight:600}}>{t.pnl!=null?fmt(t.pnl):"—"}</td>
+                            <td style={{padding:"9px 12px",textAlign:"right",color:(t.pnl??0)>=0?"#6fdc8c":"#ff7b7b",fontWeight:600}}>{t.pnl!=null?fmt(t.pnl):"—"}</td>
                             <td style={{padding:"9px 12px",textAlign:"right"}}>
                               <div style={{display:"flex",gap:5,justifyContent:"flex-end"}}>
                                 <button className="csp-btn-sm csp-btn-blue" onClick={()=>reopenTrade(t.id)}>REOPEN</button>
@@ -881,19 +878,19 @@ const downloadCloudToThisDevice = async () => {
                       <div key={t.id} className="csp-card">
                         <div className="csp-card-row" style={{marginBottom:4}}>
                           <span style={{color:"#4a7a4a",fontWeight:600,fontSize:13}}>{t.ticker}</span>
-                          <span style={{color:(t.pnl??0)>=0?"#7aff7a":"#ff6a6a",fontWeight:600}}>{t.pnl!=null?fmt(t.pnl):"—"}</span>
+                          <span style={{color:(t.pnl??0)>=0?"#6fdc8c":"#ff7b7b",fontWeight:600}}>{t.pnl!=null?fmt(t.pnl):"—"}</span>
                         </div>
                         <div className="csp-card-row">
                           <span className="csp-card-label">STRIKE</span>
-                          <span style={{color:"#6a8a6a"}}>${t.strike}</span>
+                          <span style={{color:"#9aa8b8"}}>${t.strike}</span>
                         </div>
                         <div className="csp-card-row">
                           <span className="csp-card-label">EXPIRY</span>
-                          <span style={{color:"#5a7a5a"}}>{t.expiry}</span>
+                          <span style={{color:"#8796aa"}}>{t.expiry}</span>
                         </div>
                         <div className="csp-card-row">
                           <span className="csp-card-label">COLLECTED / COST</span>
-                          <span style={{color:"#6a8a6a"}}>{fmt(col)} / {t.costToClose!=null?fmt(t.costToClose):"—"}</span>
+                          <span style={{color:"#9aa8b8"}}>{fmt(col)} / {t.costToClose!=null?fmt(t.costToClose):"—"}</span>
                         </div>
                         <div style={{display:"flex",gap:5,justifyContent:"flex-end",marginTop:8}}>
                           <button className="csp-btn-sm csp-btn-blue" onClick={()=>reopenTrade(t.id)}>REOPEN</button>
@@ -910,14 +907,14 @@ const downloadCloudToThisDevice = async () => {
 
         {tab==="screener" && (
           <div className="csp-panel">
-            <div style={{padding:"10px 14px",borderBottom:"1px solid #1a2e1a",fontSize:9,color:"#4a6a4a",letterSpacing:".12em"}}>
+            <div style={{padding:"10px 14px",borderBottom:"1px solid #223044",fontSize:9,color:"#7f8ea3",letterSpacing:".12em"}}>
               30 DTE CANDIDATES — PREMIUM TO HIT CA${Math.round(target).toLocaleString()}/mo
             </div>
             <div style={{overflowX:"auto"}}>
               <table style={{width:"100%",borderCollapse:"collapse",minWidth:440}}>
                 <thead><tr>
                   {["TICKER","PRICE","IV%","CONTRACTS","COLLATERAL","RETURN%"].map(h=>(
-                    <th key={h} style={{padding:"9px 14px",textAlign:"right",color:"#3a6a3a",fontWeight:400,fontSize:9,letterSpacing:".1em",borderBottom:"1px solid #1a2e1a"}}>{h}</th>
+                    <th key={h} style={{padding:"9px 14px",textAlign:"right",color:"#71839a",fontWeight:400,fontSize:9,letterSpacing:".1em",borderBottom:"1px solid #223044"}}>{h}</th>
                   ))}
                 </tr></thead>
                 <tbody>
@@ -928,21 +925,21 @@ const downloadCloudToThisDevice = async () => {
                     const coll=cts?K*100*cts:0;
                     const ret=coll>0?((prem*100*cts)/coll*100).toFixed(2):"—";
                     return (
-                      <tr key={tk.ticker} className="row-hover" style={{borderBottom:"1px solid #0f1a0f",cursor:"pointer"}}
+                      <tr key={tk.ticker} className="row-hover" style={{borderBottom:"1px solid #151f2b",cursor:"pointer"}}
                         onClick={()=>{setSelectedTicker(tk);setTab("strikes");}}>
-                        <td style={{padding:"9px 14px",color:"#7aff7a",fontWeight:600,textAlign:"right"}}>{tk.ticker}</td>
-                        <td style={{padding:"9px 14px",textAlign:"right",color:"#c8d8c0"}}>${tk.price}</td>
-                        <td style={{padding:"9px 14px",textAlign:"right",color:tk.iv>50?"#f59e0b":tk.iv>30?"#a0d8a0":"#6a8a6a"}}>{tk.iv}%</td>
-                        <td style={{padding:"9px 14px",textAlign:"right",color:"#c8d8c0"}}>{cts?cts+"×":"—"}</td>
-                        <td style={{padding:"9px 14px",textAlign:"right",color:"#8aaa8a"}}>{coll>0?"$"+Math.round(coll).toLocaleString():"—"}</td>
-                        <td style={{padding:"9px 14px",textAlign:"right",color:"#7aff7a"}}>{ret}%</td>
+                        <td style={{padding:"9px 14px",color:"#5aa9ff",fontWeight:600,textAlign:"right"}}>{tk.ticker}</td>
+                        <td style={{padding:"9px 14px",textAlign:"right",color:"#d7e0ea"}}>${tk.price}</td>
+                        <td style={{padding:"9px 14px",textAlign:"right",color:tk.iv>50?"#f59e0b":tk.iv>30?"#a0d8a0":"#9aa8b8"}}>{tk.iv}%</td>
+                        <td style={{padding:"9px 14px",textAlign:"right",color:"#d7e0ea"}}>{cts?cts+"×":"—"}</td>
+                        <td style={{padding:"9px 14px",textAlign:"right",color:"#a6b3c2"}}>{coll>0?"$"+Math.round(coll).toLocaleString():"—"}</td>
+                        <td style={{padding:"9px 14px",textAlign:"right",color:"#5aa9ff"}}>{ret}%</td>
                       </tr>
                     );
                   })}
                 </tbody>
               </table>
             </div>
-            <div style={{padding:"8px 14px",fontSize:9,color:"#2a4a2a"}}>Click a ticker to explore strikes.</div>
+            <div style={{padding:"8px 14px",fontSize:9,color:"#30445b"}}>Click a ticker to explore strikes.</div>
           </div>
         )}
 
@@ -957,27 +954,27 @@ const downloadCloudToThisDevice = async () => {
               ))}
             </div>
             <div className="csp-panel">
-              <div style={{padding:"10px 14px",borderBottom:"1px solid #1a2e1a",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                <span style={{fontSize:9,color:"#4a6a4a",letterSpacing:".1em"}}>{selectedTicker.ticker} · ${selectedTicker.price} · IV {selectedTicker.iv}% · 30 DTE</span>
-                <span style={{fontSize:9,color:"#3a5a3a"}}>target CA${Math.round(target).toLocaleString()}/mo</span>
+              <div style={{padding:"10px 14px",borderBottom:"1px solid #223044",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <span style={{fontSize:9,color:"#7f8ea3",letterSpacing:".1em"}}>{selectedTicker.ticker} · ${selectedTicker.price} · IV {selectedTicker.iv}% · 30 DTE</span>
+                <span style={{fontSize:9,color:"#607086"}}>target CA${Math.round(target).toLocaleString()}/mo</span>
               </div>
               <div style={{overflowX:"auto"}}>
                 <table style={{width:"100%",borderCollapse:"collapse",minWidth:480}}>
                   <thead><tr>
                     {["STRIKE","OTM%","PREMIUM","DELTA","CONTRACTS","COLLATERAL","TOTAL"].map(h=>(
-                      <th key={h} style={{padding:"9px 12px",textAlign:"right",color:"#3a6a3a",fontWeight:400,fontSize:9,letterSpacing:".08em",borderBottom:"1px solid #1a2e1a"}}>{h}</th>
+                      <th key={h} style={{padding:"9px 12px",textAlign:"right",color:"#71839a",fontWeight:400,fontSize:9,letterSpacing:".08em",borderBottom:"1px solid #223044"}}>{h}</th>
                     ))}
                   </tr></thead>
                   <tbody>
                     {strikes.map((s,i)=>(
-                      <tr key={i} className="strike-row" style={{borderBottom:"1px solid #0f1a0f",background:i===1?"#0a1a0a":"transparent"}}>
-                        <td style={{padding:"9px 12px",textAlign:"right",color:"#7aff7a",fontWeight:600}}>${s.strike}</td>
-                        <td style={{padding:"9px 12px",textAlign:"right",color:"#6a8a6a"}}>{s.otmPct}%</td>
-                        <td style={{padding:"9px 12px",textAlign:"right",color:"#c8d8c0"}}>{fmt(s.premium)}</td>
+                      <tr key={i} className="strike-row" style={{borderBottom:"1px solid #151f2b",background:i===1?"#0a1a0a":"transparent"}}>
+                        <td style={{padding:"9px 12px",textAlign:"right",color:"#5aa9ff",fontWeight:600}}>${s.strike}</td>
+                        <td style={{padding:"9px 12px",textAlign:"right",color:"#9aa8b8"}}>{s.otmPct}%</td>
+                        <td style={{padding:"9px 12px",textAlign:"right",color:"#d7e0ea"}}>{fmt(s.premium)}</td>
                         <td style={{padding:"9px 12px",textAlign:"right",color:s.delta>.3?"#f59e0b":"#6a9a6a"}}>{s.delta.toFixed(2)}</td>
-                        <td style={{padding:"9px 12px",textAlign:"right",color:"#a0c8a0"}}>{s.contracts?s.contracts+"×":"—"}</td>
-                        <td style={{padding:"9px 12px",textAlign:"right",color:"#6a8a6a"}}>{s.collateral?"$"+Math.round(s.collateral).toLocaleString():"—"}</td>
-                        <td style={{padding:"9px 12px",textAlign:"right",color:s.premiumTotal>=targetUSD?"#7aff7a":"#c8d8c0",fontWeight:s.premiumTotal>=targetUSD?600:400}}>
+                        <td style={{padding:"9px 12px",textAlign:"right",color:"#9db6ce"}}>{s.contracts?s.contracts+"×":"—"}</td>
+                        <td style={{padding:"9px 12px",textAlign:"right",color:"#9aa8b8"}}>{s.collateral?"$"+Math.round(s.collateral).toLocaleString():"—"}</td>
+                        <td style={{padding:"9px 12px",textAlign:"right",color:s.premiumTotal>=targetUSD?"#5aa9ff":"#d7e0ea",fontWeight:s.premiumTotal>=targetUSD?600:400}}>
                           {fmt(s.premiumTotal)}{s.premiumTotal>=targetUSD?" ✓":""}
                         </td>
                       </tr>
@@ -985,7 +982,7 @@ const downloadCloudToThisDevice = async () => {
                   </tbody>
                 </table>
               </div>
-              <div style={{padding:"8px 14px",fontSize:9,color:"#2a4a2a"}}>Row 2 = 5% OTM sweet spot · ✓ meets target · Δ&gt;0.30 = higher assignment risk</div>
+              <div style={{padding:"8px 14px",fontSize:9,color:"#30445b"}}>Row 2 = 5% OTM sweet spot · ✓ meets target · Δ&gt;0.30 = higher assignment risk</div>
             </div>
           </div>
         )}
@@ -997,25 +994,25 @@ const downloadCloudToThisDevice = async () => {
           const net = col-cost;
           return (
             <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.85)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:100}}>
-              <div style={{background:"#0d1117",border:"1px solid #3a6e3a",borderRadius:6,padding:24,width:300,fontFamily:"'IBM Plex Mono',monospace"}}>
-                <div style={{fontSize:9,color:"#3a6e3a",letterSpacing:".2em",marginBottom:10}}>{"// CLOSE POSITION"}</div>
-                <div style={{fontSize:15,color:"#7aff7a",fontWeight:600,marginBottom:3}}>{t?.ticker}</div>
-                <div style={{fontSize:10,color:"#4a6a4a",marginBottom:16}}>Collected: <span style={{color:"#c8d8c0"}}>{fmt(col)}</span></div>
-                <div style={{fontSize:9,color:"#4a6a4a",letterSpacing:".1em",marginBottom:5}}>COST TO CLOSE (USD)</div>
+              <div style={{background:"#111821",border:"1px solid #4d82b8",borderRadius:6,padding:24,width:300,fontFamily:"'IBM Plex Mono',monospace"}}>
+                <div style={{fontSize:9,color:"#4d82b8",letterSpacing:".2em",marginBottom:10}}>{"// CLOSE POSITION"}</div>
+                <div style={{fontSize:15,color:"#5aa9ff",fontWeight:600,marginBottom:3}}>{t?.ticker}</div>
+                <div style={{fontSize:10,color:"#7f8ea3",marginBottom:16}}>Collected: <span style={{color:"#d7e0ea"}}>{fmt(col)}</span></div>
+                <div style={{fontSize:9,color:"#7f8ea3",letterSpacing:".1em",marginBottom:5}}>COST TO CLOSE (USD)</div>
                 <input className="csp-input" type="number" placeholder="e.g. 27.00" value={closeModal.costToClose}
                   onChange={e=>setCloseModal({...closeModal,costToClose:e.target.value})}
                   style={{marginBottom:12}} autoFocus />
                 {cost>0 && (
                   <div style={{background:"#0a1a0a",border:"1px solid #1a3a1a",borderRadius:3,padding:"9px 12px",marginBottom:14,fontSize:12}}>
                     <div style={{display:"flex",justifyContent:"space-between"}}>
-                      <span style={{color:"#4a6a4a"}}>Net P&L</span>
-                      <span style={{color:net>=0?"#7aff7a":"#ff6a6a",fontWeight:600}}>{fmt(net)}</span>
+                      <span style={{color:"#7f8ea3"}}>Net P&L</span>
+                      <span style={{color:net>=0?"#5aa9ff":"#ff6a6a",fontWeight:600}}>{fmt(net)}</span>
                     </div>
                   </div>
                 )}
                 <div style={{display:"flex",gap:7}}>
                   <button className="csp-btn" onClick={confirmClose} style={{flex:1}}>CONFIRM CLOSE</button>
-                  <button className="csp-btn-sm" onClick={()=>setCloseModal(null)} style={{padding:"7px 14px",borderColor:"#2a2a2a",color:"#4a6a4a"}}>CANCEL</button>
+                  <button className="csp-btn-sm" onClick={()=>setCloseModal(null)} style={{padding:"7px 14px",borderColor:"#2a2a2a",color:"#7f8ea3"}}>CANCEL</button>
                 </div>
               </div>
             </div>
@@ -1024,8 +1021,8 @@ const downloadCloudToThisDevice = async () => {
 
         {editModal && (
           <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.85)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:100}}>
-            <div style={{background:"#0d1117",border:"1px solid #3a6e3a",borderRadius:6,padding:24,width:320,fontFamily:"'IBM Plex Mono',monospace"}}>
-              <div style={{fontSize:9,color:"#3a6e3a",letterSpacing:".2em",marginBottom:12}}>{"// EDIT TRADE"}</div>
+            <div style={{background:"#111821",border:"1px solid #4d82b8",borderRadius:6,padding:24,width:320,fontFamily:"'IBM Plex Mono',monospace"}}>
+              <div style={{fontSize:9,color:"#4d82b8",letterSpacing:".2em",marginBottom:12}}>{"// EDIT TRADE"}</div>
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:7,marginBottom:7}}>
                 <input className="csp-input" placeholder="TICKER" value={editModal.ticker} onChange={e=>setEditModal({...editModal,ticker:e.target.value})} />
                 <input className="csp-input" type="date" value={editModal.expiry} onChange={e=>setEditModal({...editModal,expiry:e.target.value})} />
@@ -1040,7 +1037,7 @@ const downloadCloudToThisDevice = async () => {
               </div>
               <div style={{display:"flex",gap:7}}>
                 <button className="csp-btn" onClick={confirmEdit} style={{flex:1}}>SAVE CHANGES</button>
-                <button className="csp-btn-sm" onClick={()=>setEditModal(null)} style={{padding:"7px 14px",borderColor:"#2a2a2a",color:"#4a6a4a"}}>CANCEL</button>
+                <button className="csp-btn-sm" onClick={()=>setEditModal(null)} style={{padding:"7px 14px",borderColor:"#2a2a2a",color:"#7f8ea3"}}>CANCEL</button>
               </div>
             </div>
           </div>
@@ -1060,7 +1057,7 @@ const downloadCloudToThisDevice = async () => {
 
           return (
             <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.88)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:115,padding:16}}>
-              <div style={{background:"#0d1117",border:"1px solid #5a3a7a",borderRadius:6,padding:20,width:360,maxWidth:"100%",fontFamily:"'IBM Plex Mono',monospace"}}>
+              <div style={{background:"#111821",border:"1px solid #5a3a7a",borderRadius:6,padding:20,width:360,maxWidth:"100%",fontFamily:"'IBM Plex Mono',monospace"}}>
                 <div style={{fontSize:10,color:"#c084fc",letterSpacing:".2em",marginBottom:8}}>{"// ASSIGN POSITION"}</div>
                 <div style={{fontSize:17,color:"#c084fc",fontWeight:600,marginBottom:12}}>{assignModal.ticker}</div>
 
@@ -1069,32 +1066,32 @@ const downloadCloudToThisDevice = async () => {
                   <input className="csp-input" type="number" placeholder="CONTRACTS" value={assignModal.contracts} onChange={e=>setAssignModal({...assignModal,contracts:e.target.value})} />
                 </div>
 
-                <div style={{background:"#0a0f0a",border:"1px solid #1a2e1a",borderRadius:3,padding:"10px 12px",marginBottom:14,fontSize:10}}>
+                <div style={{background:"#0e141c",border:"1px solid #223044",borderRadius:3,padding:"10px 12px",marginBottom:14,fontSize:10}}>
                   <div style={{display:"flex",justifyContent:"space-between",marginBottom:5}}>
-                    <span style={{color:"#4a6a4a"}}>Shares received</span>
-                    <span style={{color:"#c8d8c0"}}>{shares}</span>
+                    <span style={{color:"#7f8ea3"}}>Shares received</span>
+                    <span style={{color:"#d7e0ea"}}>{shares}</span>
                   </div>
                   <div style={{display:"flex",justifyContent:"space-between",marginBottom:5}}>
-                    <span style={{color:"#4a6a4a"}}>Gross stock cost</span>
-                    <span style={{color:"#c8d8c0"}}>{fmt(grossStockCost)}</span>
+                    <span style={{color:"#7f8ea3"}}>Gross stock cost</span>
+                    <span style={{color:"#d7e0ea"}}>{fmt(grossStockCost)}</span>
                   </div>
                   <div style={{display:"flex",justifyContent:"space-between",marginBottom:5}}>
-                    <span style={{color:"#4a6a4a"}}>Premium applied</span>
-                    <span style={{color:"#7aff7a"}}>{fmt(premiumApplied)}</span>
+                    <span style={{color:"#7f8ea3"}}>Premium applied</span>
+                    <span style={{color:"#5aa9ff"}}>{fmt(premiumApplied)}</span>
                   </div>
                   <div style={{display:"flex",justifyContent:"space-between",marginBottom:5}}>
-                    <span style={{color:"#4a6a4a"}}>Adjusted basis</span>
-                    <span style={{color:"#c8d8c0"}}>{fmt(adjustedCostBasis)}</span>
+                    <span style={{color:"#7f8ea3"}}>Adjusted basis</span>
+                    <span style={{color:"#d7e0ea"}}>{fmt(adjustedCostBasis)}</span>
                   </div>
                   <div style={{display:"flex",justifyContent:"space-between"}}>
-                    <span style={{color:"#4a6a4a"}}>Basis per share</span>
+                    <span style={{color:"#7f8ea3"}}>Basis per share</span>
                     <span style={{color:"#c084fc",fontWeight:600}}>{fmt(adjustedCostPerShare)}</span>
                   </div>
                 </div>
 
                 <div style={{display:"flex",gap:7}}>
                   <button className="csp-btn" onClick={confirmAssignment} style={{flex:1,borderColor:"#5a3a7a",color:"#c084fc"}}>CONFIRM ASSIGNMENT</button>
-                  <button className="csp-btn-sm" onClick={()=>setAssignModal(null)} style={{padding:"7px 14px",borderColor:"#2a2a2a",color:"#4a6a4a"}}>CANCEL</button>
+                  <button className="csp-btn-sm" onClick={()=>setAssignModal(null)} style={{padding:"7px 14px",borderColor:"#2a2a2a",color:"#7f8ea3"}}>CANCEL</button>
                 </div>
               </div>
             </div>
@@ -1118,7 +1115,7 @@ const downloadCloudToThisDevice = async () => {
 
           return (
             <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.88)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:110,padding:16}}>
-              <div style={{background:"#0d1117",border:"1px solid #7a4a1a",borderRadius:6,padding:20,width:380,maxWidth:"100%",maxHeight:"92vh",overflowY:"auto",fontFamily:"'IBM Plex Mono',monospace"}}>
+              <div style={{background:"#111821",border:"1px solid #7a4a1a",borderRadius:6,padding:20,width:380,maxWidth:"100%",maxHeight:"92vh",overflowY:"auto",fontFamily:"'IBM Plex Mono',monospace"}}>
                 <div style={{fontSize:9,color:"#f59e0b",letterSpacing:".2em",marginBottom:8}}>{"// ROLL POSITION"}</div>
                 <div style={{fontSize:15,color:"#f59e0b",fontWeight:600,marginBottom:12}}>{rollModal.ticker}</div>
 
@@ -1142,31 +1139,31 @@ const downloadCloudToThisDevice = async () => {
                   <input className="csp-input" type="number" placeholder="OPEN FEES" value={rollModal.openFees} onChange={e=>setRollModal({...rollModal,openFees:e.target.value})} />
                 </div>
 
-                <div style={{background:"#0a0f0a",border:"1px solid #1a2e1a",borderRadius:3,padding:"10px 12px",marginBottom:14,fontSize:10}}>
+                <div style={{background:"#0e141c",border:"1px solid #223044",borderRadius:3,padding:"10px 12px",marginBottom:14,fontSize:10}}>
                   <div style={{display:"flex",justifyContent:"space-between",marginBottom:5}}>
-                    <span style={{color:"#4a6a4a"}}>Old leg P&L</span>
-                    <span style={{color:oldPnl>=0?"#7aff7a":"#ff6a6a",fontWeight:600}}>{fmt(oldPnl)}</span>
+                    <span style={{color:"#7f8ea3"}}>Old leg P&L</span>
+                    <span style={{color:oldPnl>=0?"#6fdc8c":"#ff7b7b",fontWeight:600}}>{fmt(oldPnl)}</span>
                   </div>
                   <div style={{display:"flex",justifyContent:"space-between",marginBottom:5}}>
-                    <span style={{color:"#4a6a4a"}}>New credit</span>
-                    <span style={{color:"#c8d8c0"}}>{fmt(newCredit)}</span>
+                    <span style={{color:"#7f8ea3"}}>New credit</span>
+                    <span style={{color:"#d7e0ea"}}>{fmt(newCredit)}</span>
                   </div>
                   <div style={{display:"flex",justifyContent:"space-between"}}>
-                    <span style={{color:"#4a6a4a"}}>Roll net</span>
-                    <span style={{color:rollNet>=0?"#7aff7a":"#ff6a6a",fontWeight:600}}>{rollNet>=0?"CREDIT ":"DEBIT "}{fmt(Math.abs(rollNet))}</span>
+                    <span style={{color:"#7f8ea3"}}>Roll net</span>
+                    <span style={{color:rollNet>=0?"#6fdc8c":"#ff7b7b",fontWeight:600}}>{rollNet>=0?"CREDIT ":"DEBIT "}{fmt(Math.abs(rollNet))}</span>
                   </div>
                 </div>
 
                 <div style={{display:"flex",gap:7}}>
                   <button className="csp-btn" onClick={confirmRoll} style={{flex:1,borderColor:"#7a4a1a",color:"#f59e0b"}}>CONFIRM ROLL</button>
-                  <button className="csp-btn-sm" onClick={()=>setRollModal(null)} style={{padding:"7px 14px",borderColor:"#2a2a2a",color:"#4a6a4a"}}>CANCEL</button>
+                  <button className="csp-btn-sm" onClick={()=>setRollModal(null)} style={{padding:"7px 14px",borderColor:"#2a2a2a",color:"#7f8ea3"}}>CANCEL</button>
                 </div>
               </div>
             </div>
           );
         })()}
 
-        <div style={{marginTop:16,fontSize:9,color:"#1a2a1a",textAlign:"center"}}>
+        <div style={{marginTop:16,fontSize:9,color:"#1c2735",textAlign:"center"}}>
           Black-Scholes estimates only · not financial advice
         </div>
       </div>
