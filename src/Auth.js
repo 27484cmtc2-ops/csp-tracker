@@ -7,6 +7,51 @@ export default function Auth({ onSignedIn }) {
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
+  const [resetOpen, setResetOpen] = useState(false);
+  const [resetEmail, setResetEmail] = useState("");
+  const [resetMessage, setResetMessage] = useState("");
+  const [resetError, setResetError] = useState("");
+  const [resetLoading, setResetLoading] = useState(false);
+
+  const openPasswordReset = () => {
+    setResetEmail(email);
+    setResetMessage("");
+    setResetError("");
+    setResetOpen(true);
+  };
+
+  const closePasswordReset = () => {
+    if (resetLoading) return;
+    setResetOpen(false);
+  };
+
+  const requestPasswordReset = async () => {
+    const normalizedEmail = resetEmail.trim();
+    setResetMessage("");
+    setResetError("");
+    if (!normalizedEmail) {
+      setResetError("Enter your email address.");
+      return;
+    }
+
+    setResetLoading(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(
+        normalizedEmail,
+        { redirectTo: `${window.location.origin}/` }
+      );
+      if (error) throw error;
+      setResetMessage(
+        "If an account exists for this email, we've sent password reset instructions."
+      );
+    } catch {
+      setResetError(
+        "We couldn't send reset instructions. Check your connection and try again."
+      );
+    } finally {
+      setResetLoading(false);
+    }
+  };
 
   const signUp = async () => {
     setLoading(true);
@@ -72,6 +117,10 @@ export default function Auth({ onSignedIn }) {
             />
           </label>
 
+          <button type="button" className="auth-forgot-action" onClick={openPasswordReset}>
+            Forgot Password?
+          </button>
+
           <label className="auth-field">
             <span>Password</span>
             <input
@@ -94,6 +143,48 @@ export default function Auth({ onSignedIn }) {
 
         {message && <div className="auth-message" role="status">{message}</div>}
       </section>
+
+      {resetOpen && (
+        <div className="auth-reset-layer">
+          <button type="button" className="auth-reset-backdrop" aria-label="Close password reset" onClick={closePasswordReset} />
+          <section className="auth-reset-sheet" role="dialog" aria-modal="true" aria-labelledby="reset-title">
+            <div className="auth-reset-handle" aria-hidden="true" />
+            <header>
+              <span className="auth-eyebrow">{"// ACCOUNT RECOVERY"}</span>
+              <h2 id="reset-title">Reset password</h2>
+              <p>Enter your email and we'll send reset instructions if an account exists.</p>
+            </header>
+
+            {!resetMessage ? (
+              <>
+                <label className="auth-field">
+                  <span>Email</span>
+                  <input
+                    type="email"
+                    autoComplete="email"
+                    value={resetEmail}
+                    onChange={(event) => setResetEmail(event.target.value)}
+                  />
+                </label>
+                {resetError && <div className="auth-reset-error" role="alert">{resetError}</div>}
+                <div className="auth-reset-actions">
+                  <button type="button" className="auth-primary-action" onClick={requestPasswordReset} disabled={resetLoading}>
+                    {resetLoading ? "SENDING…" : "SEND RESET INSTRUCTIONS"}
+                  </button>
+                  <button type="button" className="auth-secondary-action" onClick={closePasswordReset} disabled={resetLoading}>
+                    CANCEL
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="auth-reset-success" role="status">{resetMessage}</div>
+                <button type="button" className="auth-primary-action" onClick={closePasswordReset}>DONE</button>
+              </>
+            )}
+          </section>
+        </div>
+      )}
     </main>
   );
 }

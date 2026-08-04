@@ -16,6 +16,9 @@ jest.mock("./supabaseClient", () => ({
 }));
 
 jest.mock("./Auth", () => () => <main><h1>Login screen</h1></main>);
+jest.mock("./PasswordRecovery", () => ({ onUpdated }) => (
+  <main><h1>Set new password</h1><button onClick={onUpdated}>Finish recovery</button></main>
+));
 jest.mock("./App", () => ({ userId, userEmail, onLogOut }) => {
   const trades = JSON.parse(globalThis.localStorage.getItem(`csp_trades:${userId}`) || "[]");
   return (
@@ -82,4 +85,15 @@ test("signing into a different account never displays the previous user's trades
   expect(await screen.findByText("ONLY-B")).toBeInTheDocument();
   expect(screen.queryByText("ONLY-A")).not.toBeInTheDocument();
   expect(screen.getByText("b@example.com")).toBeInTheDocument();
+});
+
+test("a password recovery session shows the update screen and returns to login", async () => {
+  render(<AppRoot />);
+  await screen.findByText("a@example.com");
+
+  act(() => mockAuthChangeHandler("PASSWORD_RECOVERY", accountA));
+  expect(await screen.findByRole("heading", { name: "Set new password" })).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Finish recovery" }));
+
+  expect(await screen.findByRole("heading", { name: "Login screen" })).toBeInTheDocument();
 });
