@@ -37,7 +37,7 @@ import {
   validateStockSale,
 } from "./utils/stockSales";
 
-export default function App() {
+export default function App({ userId }) {
   const [tab, setTab] = useState("tracker");
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const {
@@ -49,7 +49,7 @@ export default function App() {
     syncNow,
     useCloudData,
     keepLocalData,
-  } = useTrackerData();
+  } = useTrackerData({ userId });
   const [selectedTicker, setSelectedTicker] = useState(SAMPLE_TICKERS[4]);
   const [newTrade, setNewTrade] = useState(EMPTY_NEW_TRADE);
   const [closeModal, setCloseModal] = useState(null);

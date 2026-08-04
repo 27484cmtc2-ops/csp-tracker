@@ -12,18 +12,24 @@ jest.mock("./feedbackStorage", () => ({
 
 import App from "./App";
 import { loadCloudData } from "./cloudStorage";
+import { DEFAULT_TRADES } from "./data/trackerData";
+import { getTrackerStorageKeys } from "./hooks/useTrackerData";
+
+const TEST_USER_ID = "test-user";
+const TEST_KEYS = getTrackerStorageKeys(TEST_USER_ID);
 
 beforeEach(() => {
   localStorage.clear();
   loadCloudData.mockImplementation(() => new Promise(() => {}));
 });
 
-test("renders the tracker and its default portfolio data", () => {
-  render(<App />);
+test("renders the tracker with an empty portfolio by default", () => {
+  render(<App userId={TEST_USER_ID} />);
 
   expect(screen.getByText("LOG NEW TRADE")).toBeInTheDocument();
   expect(screen.getByText(/OPEN POSITIONS/)).toBeInTheDocument();
-  expect(screen.getAllByText(/CLOSED POSITIONS/)).toHaveLength(2);
+  expect(screen.getAllByText("No open positions.")).toHaveLength(2);
+  expect(screen.getAllByText(/CLOSED POSITIONS/)).toHaveLength(1);
   expect(screen.getByRole("button", { name: "Open add trade form" })).toBeInTheDocument();
   expect(screen.queryByText("CSP TRACKER")).not.toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "tracker" })).not.toBeInTheDocument();
@@ -32,7 +38,7 @@ test("renders the tracker and its default portfolio data", () => {
 });
 
 test("opens the mobile add-trade sheet with labeled fields", () => {
-  render(<App />);
+  render(<App userId={TEST_USER_ID} />);
 
   fireEvent.click(screen.getByRole("button", { name: "Open add trade form" }));
 
@@ -47,9 +53,9 @@ test("opens the mobile add-trade sheet with labeled fields", () => {
 
 test("blocks a new trade without expiry on desktop and mobile", () => {
   const alert = jest.spyOn(window, "alert").mockImplementation(() => {});
-  localStorage.setItem("csp_trades", "[]");
-  localStorage.setItem("csp_target", "500");
-  render(<App />);
+  localStorage.setItem(TEST_KEYS.trades, "[]");
+  localStorage.setItem(TEST_KEYS.target, "500");
+  render(<App userId={TEST_USER_ID} />);
 
   fireEvent.change(screen.getByPlaceholderText("TICKER"), { target: { value: "BETA" } });
   fireEvent.change(screen.getByPlaceholderText("SHORT STRIKE"), { target: { value: "10" } });
@@ -58,19 +64,21 @@ test("blocks a new trade without expiry on desktop and mobile", () => {
   fireEvent.click(screen.getByRole("button", { name: "+ ADD TRADE" }));
 
   expect(alert).toHaveBeenLastCalledWith("Choose an expiry date.");
-  expect(JSON.parse(localStorage.getItem("csp_trades"))).toEqual([]);
+  expect(JSON.parse(localStorage.getItem(TEST_KEYS.trades))).toEqual([]);
 
   fireEvent.click(screen.getByRole("button", { name: "Open add trade form" }));
   const mobileDialog = screen.getByRole("dialog", { name: "Add trade" });
   fireEvent.click(within(mobileDialog).getByRole("button", { name: "+ ADD TRADE" }));
 
   expect(alert).toHaveBeenCalledTimes(2);
-  expect(JSON.parse(localStorage.getItem("csp_trades"))).toEqual([]);
+  expect(JSON.parse(localStorage.getItem(TEST_KEYS.trades))).toEqual([]);
   alert.mockRestore();
 });
 
 test("opens mobile position actions from the more button", () => {
-  render(<App />);
+  localStorage.setItem(TEST_KEYS.trades, JSON.stringify(DEFAULT_TRADES));
+  localStorage.setItem(TEST_KEYS.target, "500");
+  render(<App userId={TEST_USER_ID} />);
 
   fireEvent.click(screen.getByRole("button", { name: "More actions for NVDA" }));
 
@@ -82,7 +90,7 @@ test("opens mobile position actions from the more button", () => {
 });
 
 test("opens authenticated beta feedback without exposing tracker data", () => {
-  render(<App />);
+  render(<App userId={TEST_USER_ID} />);
 
   const feedbackButtons = screen.getAllByRole("button", { name: "Feedback" });
   fireEvent.click(feedbackButtons[0]);
@@ -108,10 +116,10 @@ test("persists a covered call with assignment-controlled wheel linkage", () => {
     adjustedCostBasis: 11800,
     wheelChainId: 100,
   };
-  localStorage.setItem("csp_trades", JSON.stringify([assignment]));
-  localStorage.setItem("csp_target", "500");
+  localStorage.setItem(TEST_KEYS.trades, JSON.stringify([assignment]));
+  localStorage.setItem(TEST_KEYS.target, "500");
 
-  render(<App />);
+  render(<App userId={TEST_USER_ID} />);
   fireEvent.click(screen.getAllByRole("button", { name: "SELL CALL" })[0]);
 
   const dialog = screen.getByRole("dialog", { name: "Sell covered call" });
@@ -122,7 +130,7 @@ test("persists a covered call with assignment-controlled wheel linkage", () => {
   fireEvent.change(screen.getByLabelText("Contracts"), { target: { value: "1" } });
   fireEvent.click(within(dialog).getByRole("button", { name: "SELL COVERED CALL" }));
 
-  const savedTrades = JSON.parse(localStorage.getItem("csp_trades"));
+  const savedTrades = JSON.parse(localStorage.getItem(TEST_KEYS.trades));
   expect(savedTrades).toHaveLength(2);
   expect(savedTrades[1]).toMatchObject({
     kind: "covered_call",
@@ -151,10 +159,10 @@ test("persists a full-lot stock sale and removes the assignment from active posi
     adjustedCostBasis: 1400,
     wheelChainId: 110,
   };
-  localStorage.setItem("csp_trades", JSON.stringify([assignment]));
-  localStorage.setItem("csp_target", "500");
+  localStorage.setItem(TEST_KEYS.trades, JSON.stringify([assignment]));
+  localStorage.setItem(TEST_KEYS.target, "500");
 
-  render(<App />);
+  render(<App userId={TEST_USER_ID} />);
   fireEvent.click(screen.getAllByRole("button", { name: "SELL SHARES" })[0]);
   const dialog = screen.getByRole("dialog", { name: "Sell shares" });
   fireEvent.change(screen.getByLabelText("Sale date"), { target: { value: "2026-08-12" } });
@@ -162,7 +170,7 @@ test("persists a full-lot stock sale and removes the assignment from active posi
   fireEvent.change(screen.getByLabelText("Fees"), { target: { value: "5" } });
   fireEvent.click(within(dialog).getByRole("button", { name: "CONFIRM SHARE SALE" }));
 
-  const savedTrades = JSON.parse(localStorage.getItem("csp_trades"));
+  const savedTrades = JSON.parse(localStorage.getItem(TEST_KEYS.trades));
   const savedAssignment = savedTrades.find((trade) => trade.id === 210);
   const sale = savedTrades.find((trade) => trade.kind === "stock_sale");
   expect(savedAssignment).toMatchObject({
@@ -208,10 +216,10 @@ test("explains why share sales are blocked when a covered call is open", () => {
     parentAssignmentId: 220,
     wheelChainId: 120,
   };
-  localStorage.setItem("csp_trades", JSON.stringify([assignment, coveredCall]));
-  localStorage.setItem("csp_target", "500");
+  localStorage.setItem(TEST_KEYS.trades, JSON.stringify([assignment, coveredCall]));
+  localStorage.setItem(TEST_KEYS.target, "500");
 
-  render(<App />);
+  render(<App userId={TEST_USER_ID} />);
 
   const blockedButtons = screen.getAllByRole("button", { name: "SELL SHARES" }).filter(
     (button) => button.getAttribute("aria-disabled") === "true"
@@ -250,10 +258,10 @@ test("closes a covered call early, restores shares, and keeps it out of closed o
     parentAssignmentId: 230,
     wheelChainId: 130,
   };
-  localStorage.setItem("csp_trades", JSON.stringify([assignment, coveredCall]));
-  localStorage.setItem("csp_target", "500");
+  localStorage.setItem(TEST_KEYS.trades, JSON.stringify([assignment, coveredCall]));
+  localStorage.setItem(TEST_KEYS.target, "500");
 
-  render(<App />);
+  render(<App userId={TEST_USER_ID} />);
   fireEvent.click(screen.getAllByRole("button", { name: "CLOSE CALL" })[0]);
   const dialog = screen.getByRole("dialog", { name: "Close covered call early" });
   fireEvent.change(screen.getByLabelText("Close date"), { target: { value: "2026-08-20" } });
@@ -261,7 +269,7 @@ test("closes a covered call early, restores shares, and keeps it out of closed o
   fireEvent.change(screen.getByLabelText("Fees"), { target: { value: "1" } });
   fireEvent.click(within(dialog).getByRole("button", { name: "CONFIRM CLOSE" }));
 
-  const savedTrades = JSON.parse(localStorage.getItem("csp_trades"));
+  const savedTrades = JSON.parse(localStorage.getItem(TEST_KEYS.trades));
   expect(savedTrades.find((trade) => trade.id === assignment.id).status).toBe("assigned");
   expect(savedTrades.find((trade) => trade.id === coveredCall.id)).toMatchObject({
     status: "closed",

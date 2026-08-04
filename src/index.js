@@ -32,7 +32,7 @@ function Root() {
     return <Auth />;
   }
 
-  return <App />;
+  return <App key={session.user.id} userId={session.user.id} />;
 }
 
 const root = ReactDOM.createRoot(document.getElementById("root"));
