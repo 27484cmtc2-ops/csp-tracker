@@ -410,6 +410,20 @@ test("cancelling completed-history deletion leaves the record intact", () => {
   confirm.mockRestore();
 });
 
+test("completed history exposes delete without showing reopen controls", () => {
+  seedCompletedHistory();
+
+  render(<App userId={TEST_USER_ID} />);
+  fireEvent.click(screen.getByRole("button", { name: /closed positions/i }));
+  fireEvent.click(screen.getByRole("button", { name: /covered call history/i }));
+
+  expect(screen.queryByRole("button", { name: /reopen/i })).not.toBeInTheDocument();
+  expect(screen.getAllByText("DEL").length).toBeGreaterThan(0);
+  expect(screen.getAllByRole("button", {
+    name: "Delete completed covered call for CALL",
+  }).length).toBeGreaterThan(0);
+});
+
 test("a deleted covered-call history record stays deleted after refresh", () => {
   seedCompletedHistory();
   const confirm = jest.spyOn(window, "confirm").mockReturnValue(true);

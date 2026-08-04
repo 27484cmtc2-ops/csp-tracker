@@ -102,6 +102,8 @@ export default function App({ userId, userEmail, onLogOut, logoutError }) {
     setCloseModal(null);
   };
 
+  // Kept for a future overflow menu or advanced mode; intentionally hidden from the default UI.
+  // eslint-disable-next-line no-unused-vars
   const reopenTrade = (id) => setTrades(trades.map(t => t.id===id ? {...t,status:"open",pnl:undefined,costToClose:undefined} : t));
   const deleteTrade = (id) => setTrades(trades.filter(t => t.id!==id));
   const deleteCompletedShareSale = (id) => {
@@ -617,7 +619,6 @@ export default function App({ userId, userEmail, onLogOut, logoutError }) {
                             <td style={{padding:"9px 12px",textAlign:"right",color:(t.pnl??0)>=0?"#6fdc8c":"#ff7b7b",fontWeight:600}}>{t.pnl!=null?fmt(t.pnl):"—"}</td>
                             <td style={{padding:"9px 12px",textAlign:"right"}}>
                               <div style={{display:"flex",gap:5,justifyContent:"flex-end"}}>
-                                <button className="csp-btn-sm csp-btn-blue" onClick={()=>reopenTrade(t.id)}>REOPEN</button>
                                 <button className="csp-btn-sm csp-btn-danger" onClick={()=>deleteTrade(t.id)}>DEL</button>
                               </div>
                             </td>
@@ -649,7 +650,6 @@ export default function App({ userId, userEmail, onLogOut, logoutError }) {
                           <span style={{color:"#9aa8b8"}}>{fmt(col)} / {t.costToClose!=null?fmt(t.costToClose):"—"}</span>
                         </div>
                         <div style={{display:"flex",gap:5,justifyContent:"flex-end",marginTop:8}}>
-                          <button className="csp-btn-sm csp-btn-blue" onClick={()=>reopenTrade(t.id)}>REOPEN</button>
                           <button className="csp-btn-sm csp-btn-danger" onClick={()=>deleteTrade(t.id)}>DEL</button>
                         </div>
                       </div>
@@ -707,7 +707,6 @@ export default function App({ userId, userEmail, onLogOut, logoutError }) {
             onRoll={openRollModal}
             onAssign={openAssignModal}
             onClose={(trade) => setCloseModal({id:trade.id,costToClose:""})}
-            onReopen={reopenTrade}
             onDelete={deleteTrade}
             onSellCoveredCall={openCoveredCallModal}
             onCloseCoveredCall={openCloseCoveredCallModal}

@@ -180,7 +180,7 @@ function MobileTradeActionSheet({ trade, onEdit, onRoll, onAssign, onDelete, onC
   );
 }
 
-function MobileClosedCard({ trade, onReopen, onDelete }) {
+function MobileClosedCard({ trade, onDelete }) {
   const collected = trade.creditTotal ?? trade.premium * trade.contracts * 100;
   return (
     <article className="mobile-history-card">
@@ -194,7 +194,6 @@ function MobileClosedCard({ trade, onReopen, onDelete }) {
       <div className="mobile-detail-row"><span>Collected</span><strong>{fmt(collected)}</strong></div>
       <div className="mobile-detail-row"><span>Cost to close</span><strong>{trade.costToClose != null ? fmt(trade.costToClose) : "—"}</strong></div>
       <div className="mobile-history-actions">
-        <button onClick={() => onReopen(trade.id)}>REOPEN</button>
         <button className="mobile-delete-action" onClick={() => onDelete(trade.id)}>DELETE</button>
       </div>
     </article>
@@ -236,7 +235,6 @@ export default function MobileTrackerShell({
   onRoll,
   onAssign,
   onClose,
-  onReopen,
   onDelete,
   onSellCoveredCall,
   onCloseCoveredCall,
@@ -347,7 +345,7 @@ export default function MobileTrackerShell({
           <CollapsibleSection title="CLOSED POSITIONS" count={closedTrades.length} open={closedOpen} onToggle={() => setClosedOpen((value) => !value)}>
             {closedTrades.length === 0
               ? <div className="mobile-empty-state">No closed positions.</div>
-              : closedTrades.map((trade) => <MobileClosedCard key={trade.id} trade={trade} onReopen={onReopen} onDelete={onDelete} />)}
+              : closedTrades.map((trade) => <MobileClosedCard key={trade.id} trade={trade} onDelete={onDelete} />)}
           </CollapsibleSection>
 
           <button className="mobile-add-trade-button" onClick={() => setAddTradeOpen(true)} aria-label="Open add trade form">
