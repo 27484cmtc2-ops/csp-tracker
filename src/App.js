@@ -18,6 +18,7 @@ import useTrackerData from "./hooks/useTrackerData";
 import { generateStrikes } from "./utils/calculations";
 import { fmt } from "./utils/formatters";
 import { annualizedReturn, daysColor, daysLabel, daysUntil, getCollectedPremium } from "./utils/trades";
+import { validateNewTradeExpiry } from "./utils/newTrades";
 import {
   EMPTY_COVERED_CALL,
   EMPTY_COVERED_CALL_CLOSE,
@@ -69,6 +70,11 @@ export default function App() {
 
   const addTrade = () => {
     const { ticker, strike, longStrike, expiry, premium, contracts } = newTrade;
+    const expiryError = validateNewTradeExpiry(expiry);
+    if (expiryError) {
+      window.alert(expiryError);
+      return;
+    }
     if (!ticker || !strike || !premium || !contracts) return;
     const isSpread = !!longStrike;
     const ls = parseFloat(longStrike) || null;

@@ -140,7 +140,7 @@ function MobileNewTradeSheet({ value, onChange, onSubmit, onClose }) {
           </div>
           <label>
             <span>Expiry</span>
-            <input type="date" value={value.expiry} onChange={update("expiry")} />
+            <input type="date" value={value.expiry} onChange={update("expiry")} required />
           </label>
         </div>
 

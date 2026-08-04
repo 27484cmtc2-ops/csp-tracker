@@ -42,6 +42,31 @@ test("opens the mobile add-trade sheet with labeled fields", () => {
   expect(screen.getByLabelText("Premium per share")).toHaveAttribute("type", "number");
   expect(screen.getByLabelText("Contracts")).toHaveAttribute("inputmode", "numeric");
   expect(screen.getByLabelText("Expiry")).toHaveAttribute("type", "date");
+  expect(screen.getByLabelText("Expiry")).toBeRequired();
+});
+
+test("blocks a new trade without expiry on desktop and mobile", () => {
+  const alert = jest.spyOn(window, "alert").mockImplementation(() => {});
+  localStorage.setItem("csp_trades", "[]");
+  localStorage.setItem("csp_target", "500");
+  render(<App />);
+
+  fireEvent.change(screen.getByPlaceholderText("TICKER"), { target: { value: "BETA" } });
+  fireEvent.change(screen.getByPlaceholderText("SHORT STRIKE"), { target: { value: "10" } });
+  fireEvent.change(screen.getByPlaceholderText("PREMIUM"), { target: { value: "0.1" } });
+  fireEvent.change(screen.getByPlaceholderText("CONTRACTS"), { target: { value: "1" } });
+  fireEvent.click(screen.getByRole("button", { name: "+ ADD TRADE" }));
+
+  expect(alert).toHaveBeenLastCalledWith("Choose an expiry date.");
+  expect(JSON.parse(localStorage.getItem("csp_trades"))).toEqual([]);
+
+  fireEvent.click(screen.getByRole("button", { name: "Open add trade form" }));
+  const mobileDialog = screen.getByRole("dialog", { name: "Add trade" });
+  fireEvent.click(within(mobileDialog).getByRole("button", { name: "+ ADD TRADE" }));
+
+  expect(alert).toHaveBeenCalledTimes(2);
+  expect(JSON.parse(localStorage.getItem("csp_trades"))).toEqual([]);
+  alert.mockRestore();
 });
 
 test("opens mobile position actions from the more button", () => {

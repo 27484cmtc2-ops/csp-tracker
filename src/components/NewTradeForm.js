@@ -14,7 +14,7 @@ export default function NewTradeForm({ value, onChange, onSubmit }) {
       <div className="csp-form-grid" style={{ marginBottom: 10 }}>
         <input className="csp-input" placeholder="PREMIUM" value={value.premium} onChange={update("premium")} />
         <input className="csp-input" placeholder="CONTRACTS" value={value.contracts} onChange={update("contracts")} />
-        <input className="csp-input" type="date" value={value.expiry} onChange={update("expiry")} />
+        <input className="csp-input" type="date" value={value.expiry} onChange={update("expiry")} required />
       </div>
       <button className="csp-btn" onClick={onSubmit}>+ ADD TRADE</button>
     </div>
