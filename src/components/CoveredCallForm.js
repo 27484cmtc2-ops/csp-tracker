@@ -74,8 +74,8 @@ export function CoveredCallSummary({ call, onCloseEarly }) {
   return (
     <div className="covered-call-summary">
       <span className="covered-call-primary">${call.strike} · {call.expiry}</span>
-      <span className="covered-call-secondary">{call.contracts} contract{call.contracts === 1 ? "" : "s"} · {fmt(premium)} collected</span>
-      {onCloseEarly && <button className="covered-call-close-action" onClick={() => onCloseEarly(call)}>CLOSE CALL</button>}
+      <span className="covered-call-secondary">{call.contracts}× · {fmt(premium)}</span>
+      {onCloseEarly && <button className="csp-btn-sm covered-call-close-action" onClick={() => onCloseEarly(call)}>CLOSE CALL</button>}
     </div>
   );
 }

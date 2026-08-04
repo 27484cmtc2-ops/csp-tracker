@@ -23,7 +23,7 @@ test("renders the tracker and its default portfolio data", () => {
   expect(screen.getByRole("button", { name: "Open add trade form" })).toBeInTheDocument();
   expect(screen.queryByText("CSP TRACKER")).not.toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "tracker" })).not.toBeInTheDocument();
-  expect(screen.getByRole("button", { name: /assigned shares/i })).toHaveAttribute("aria-expanded", "false");
+  expect(screen.getByRole("button", { name: /active wheels/i })).toHaveAttribute("aria-expanded", "false");
   expect(screen.getByRole("button", { name: /closed positions/i })).toHaveAttribute("aria-expanded", "false");
 });
 
@@ -70,7 +70,7 @@ test("persists a covered call with assignment-controlled wheel linkage", () => {
   localStorage.setItem("csp_target", "500");
 
   render(<App />);
-  fireEvent.click(screen.getAllByRole("button", { name: "SELL COVERED CALL" })[0]);
+  fireEvent.click(screen.getAllByRole("button", { name: "SELL CALL" })[0]);
 
   const dialog = screen.getByRole("dialog", { name: "Sell covered call" });
   expect(screen.getByText("Estimated total premium")).toBeInTheDocument();
@@ -138,7 +138,7 @@ test("persists a full-lot stock sale and removes the assignment from active posi
     netProceeds: 1595,
     pnl: 195,
   });
-  expect(screen.getByRole("button", { name: /assigned shares/i })).toHaveTextContent("(0)");
+  expect(screen.getByRole("button", { name: /active wheels/i })).toHaveTextContent("(0)");
   expect(screen.getAllByText(/COMPLETED SHARE SALES/).length).toBeGreaterThan(0);
   expect(screen.getByText(/OPEN POSITIONS/)).toHaveTextContent("(0)");
 });
@@ -171,10 +171,13 @@ test("explains why share sales are blocked when a covered call is open", () => {
 
   render(<App />);
 
-  const blockedButtons = screen.getAllByRole("button", { name: "SELL SHARES — CALL OPEN" });
+  const blockedButtons = screen.getAllByRole("button", { name: "SELL SHARES" }).filter(
+    (button) => button.getAttribute("aria-disabled") === "true"
+  );
   expect(blockedButtons.length).toBeGreaterThan(0);
-  blockedButtons.forEach((button) => expect(button).toBeDisabled());
-  expect(screen.getAllByText("Close the call before selling shares.").length).toBeGreaterThan(0);
+  expect(screen.queryByText("Close the call before selling shares.")).not.toBeInTheDocument();
+  fireEvent.click(blockedButtons[0]);
+  expect(screen.getByText("Close the call before selling shares.")).toBeInTheDocument();
   expect(screen.getAllByText("Fully covered").length).toBeGreaterThan(0);
   expect(screen.queryByRole("dialog", { name: "Sell shares" })).not.toBeInTheDocument();
 });
@@ -226,7 +229,7 @@ test("closes a covered call early, restores shares, and keeps it out of closed o
     wheelChainId: 130,
     parentAssignmentId: 230,
   });
-  expect(screen.getAllByRole("button", { name: "SELL SHARES" }).every((button) => button.disabled === false)).toBe(true);
+  expect(screen.getAllByRole("button", { name: "SELL SHARES" }).every((button) => button.getAttribute("aria-disabled") !== "true")).toBe(true);
   expect(screen.getAllByText(/COVERED CALL HISTORY/).length).toBeGreaterThan(0);
   expect(screen.getByRole("button", { name: /closed positions/i })).toHaveTextContent("(0)");
 });

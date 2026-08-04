@@ -6,10 +6,10 @@ import NewTradeForm from "./components/NewTradeForm";
 import ScreenerPage from "./components/ScreenerPage";
 import StrikesPage from "./components/StrikesPage";
 import MobileTrackerShell from "./components/mobile/MobileTrackerShell";
+import ActiveWheelCard from "./components/ActiveWheelCard";
 import CoveredCallForm, {
   CloseCoveredCallForm,
   ClosedCoveredCallSummary,
-  CoveredCallSummary,
 } from "./components/CoveredCallForm";
 import StockSaleForm, { StockSaleSummary } from "./components/StockSaleForm";
 import { EMPTY_NEW_TRADE, SAMPLE_TICKERS, USD_CAD } from "./data/trackerData";
@@ -523,223 +523,23 @@ export default function App() {
                   color:"#c084fc",
                   letterSpacing:".12em"
                 }}>
-                  ASSIGNED SHARES{" "}
+                  ACTIVE WHEELS{" "}
                   <span style={{color:"#6b4a8a"}}>
                     ({assignedTrades.length})
                   </span>
                 </div>
 
-                <div className="csp-table-wrap" style={{overflowX:"auto"}}>
-                  <table style={{
-                    width:"100%",
-                    borderCollapse:"collapse",
-                    minWidth:560
-                  }}>
-                    <thead>
-                      <tr>
-                        {[
-                          "TICKER",
-                          "SHARES",
-                          "ASSIGNED",
-                          "STRIKE",
-                          "BASIS / SHARE",
-                          "TOTAL BASIS",
-                          "COVERED CALL",
-                          ""
-                        ].map((heading) => (
-                          <th
-                            key={heading}
-                            style={{
-                              padding:"9px 12px",
-                              textAlign:"right",
-                              color:"#5a4a6a",
-                              fontWeight:400,
-                              fontSize:9,
-                              letterSpacing:".08em",
-                              borderBottom:"1px solid #223044"
-                            }}
-                          >
-                            {heading}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-
-                    <tbody>
-                      {assignedTrades.map((trade) => (
-                        <tr
-                          key={trade.id}
-                          className="row-hover"
-                          style={{borderBottom:"1px solid #151f2b"}}
-                        >
-                          <td style={{
-                            padding:"10px 12px",
-                            textAlign:"right",
-                            color:"#c084fc",
-                            fontWeight:600
-                          }}>
-                            {trade.ticker}
-                          </td>
-
-                          <td style={{
-                            padding:"10px 12px",
-                            textAlign:"right",
-                            color:"#d7e0ea"
-                          }}>
-                            {trade.shares}
-                          </td>
-
-                          <td style={{
-                            padding:"10px 12px",
-                            textAlign:"right",
-                            color:"#8a7a9a"
-                          }}>
-                            {trade.assignmentDate}
-                          </td>
-
-                          <td style={{
-                            padding:"10px 12px",
-                            textAlign:"right",
-                            color:"#d7e0ea"
-                          }}>
-                            {fmt(trade.strike)}
-                          </td>
-
-                          <td style={{
-                            padding:"10px 12px",
-                            textAlign:"right",
-                            color:"#c084fc",
-                            fontWeight:600
-                          }}>
-                            {fmt(trade.adjustedCostPerShare)}
-                          </td>
-
-                          <td style={{
-                            padding:"10px 12px",
-                            textAlign:"right",
-                            color:"#d7e0ea"
-                          }}>
-                            {fmt(trade.adjustedCostBasis)}
-                          </td>
-
-                          <td style={{padding:"10px 12px",textAlign:"right"}}>
-                            {getOpenCoveredCallsForAssignment(trades, trade.id).map((call) => (
-                              <CoveredCallSummary key={call.id} call={call} onCloseEarly={openCloseCoveredCallModal} />
-                            ))}
-                            {getOpenCoveredCallsForAssignment(trades, trade.id).length === 0 && <span style={{color:"#607086"}}>—</span>}
-                          </td>
-
-                          <td style={{padding:"10px 12px",textAlign:"right"}}>
-                            <div style={{display:"flex",gap:5,justifyContent:"flex-end"}}>
-                              {getAvailableCoveredCallContracts(trades, trade) > 0 ? (
-                                <button className="csp-btn-sm" onClick={() => openCoveredCallModal(trade)}>SELL CALL</button>
-                              ) : (
-                                <span className="assigned-position-status">Fully covered</span>
-                              )}
-                              <button
-                                className="csp-btn-sm"
-                                onClick={() => openStockSaleModal(trade)}
-                                disabled={getOpenCoveredCallsForAssignment(trades, trade.id).length > 0}
-                                aria-describedby={getOpenCoveredCallsForAssignment(trades, trade.id).length > 0 ? `share-sale-blocked-${trade.id}-table` : undefined}
-                              >
-                                {getOpenCoveredCallsForAssignment(trades, trade.id).length > 0 ? "SELL SHARES — CALL OPEN" : "SELL SHARES"}
-                              </button>
-                            </div>
-                            {getOpenCoveredCallsForAssignment(trades, trade.id).length > 0 && (
-                              <div id={`share-sale-blocked-${trade.id}-table`} className="assigned-position-note">
-                                Close the call before selling shares.
-                              </div>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-
-                <div className="csp-cards" style={{padding:"10px 12px"}}>
+                <div className="active-wheel-grid">
                   {assignedTrades.map((trade) => (
-                    <div key={trade.id} className="csp-card">
-                      <div
-                        className="csp-card-row"
-                        style={{marginBottom:5}}
-                      >
-                        <span style={{
-                          color:"#c084fc",
-                          fontWeight:600,
-                          fontSize:14
-                        }}>
-                          {trade.ticker}
-                        </span>
-
-                        <span style={{
-                          color:"#d7e0ea",
-                          fontWeight:600
-                        }}>
-                          {trade.shares} shares
-                        </span>
-                      </div>
-
-                      <div className="csp-card-row">
-                        <span className="csp-card-label">
-                          ASSIGNED
-                        </span>
-                        <span style={{color:"#8a7a9a"}}>
-                          {trade.assignmentDate}
-                        </span>
-                      </div>
-
-                      <div className="csp-card-row">
-                        <span className="csp-card-label">
-                          STRIKE
-                        </span>
-                        <span style={{color:"#d7e0ea"}}>
-                          {fmt(trade.strike)}
-                        </span>
-                      </div>
-
-                      <div className="csp-card-row">
-                        <span className="csp-card-label">
-                          BASIS / SHARE
-                        </span>
-                        <span style={{
-                          color:"#c084fc",
-                          fontWeight:600
-                        }}>
-                          {fmt(trade.adjustedCostPerShare)}
-                        </span>
-                      </div>
-
-                      <div className="csp-card-row">
-                        <span className="csp-card-label">
-                          TOTAL BASIS
-                        </span>
-                        <span style={{color:"#d7e0ea"}}>
-                          {fmt(trade.adjustedCostBasis)}
-                        </span>
-                      </div>
-                      {getOpenCoveredCallsForAssignment(trades, trade.id).map((call) => (
-                        <CoveredCallSummary key={call.id} call={call} onCloseEarly={openCloseCoveredCallModal} />
-                      ))}
-                      <div className="assigned-position-actions">
-                        {getAvailableCoveredCallContracts(trades, trade) > 0 ? (
-                          <button className="csp-btn" onClick={() => openCoveredCallModal(trade)}>SELL COVERED CALL</button>
-                        ) : (
-                          <span className="assigned-position-status">Fully covered</span>
-                        )}
-                        <button
-                          className="csp-btn"
-                          onClick={() => openStockSaleModal(trade)}
-                          disabled={getOpenCoveredCallsForAssignment(trades, trade.id).length > 0}
-                          aria-describedby={getOpenCoveredCallsForAssignment(trades, trade.id).length > 0 ? `share-sale-blocked-${trade.id}-card` : undefined}
-                        >
-                          {getOpenCoveredCallsForAssignment(trades, trade.id).length > 0 ? "SELL SHARES — CALL OPEN" : "SELL SHARES"}
-                        </button>
-                      </div>
-                      {getOpenCoveredCallsForAssignment(trades, trade.id).length > 0 && (
-                        <div id={`share-sale-blocked-${trade.id}-card`} className="assigned-position-note">Close the call before selling shares.</div>
-                      )}
-                    </div>
+                    <ActiveWheelCard
+                      key={trade.id}
+                      trade={trade}
+                      trades={trades}
+                      coveredCalls={getOpenCoveredCallsForAssignment(trades, trade.id)}
+                      onSellCall={openCoveredCallModal}
+                      onSellShares={openStockSaleModal}
+                      onCloseCall={openCloseCoveredCallModal}
+                    />
                   ))}
                 </div>
               </div>

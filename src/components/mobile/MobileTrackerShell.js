@@ -1,6 +1,7 @@
 import { useState } from "react";
+import ActiveWheelCard from "../ActiveWheelCard";
 import CloudSyncControls from "../CloudSyncControls";
-import { ClosedCoveredCallSummary, CoveredCallSummary } from "../CoveredCallForm";
+import { ClosedCoveredCallSummary } from "../CoveredCallForm";
 import { StockSaleSummary } from "../StockSaleForm";
 import { fmt, fmtShort } from "../../utils/formatters";
 import {
@@ -178,46 +179,6 @@ function MobileTradeActionSheet({ trade, onEdit, onRoll, onAssign, onDelete, onC
   );
 }
 
-function MobileAssignedCard({ trade, coveredCalls, onSellCoveredCall, onSellShares, onCloseCoveredCall }) {
-  const coveredContracts = coveredCalls.reduce(
-    (sum, call) => sum + (Number(call.contracts) || 0),
-    0
-  );
-  const availableContracts = Math.max(
-    0,
-    Math.floor((Number(trade.shares) || 0) / 100) - coveredContracts
-  );
-  return (
-    <article className="mobile-history-card">
-      <div className="mobile-history-title">
-        <strong className="mobile-assigned">{trade.ticker}</strong>
-        <strong>{trade.shares} shares</strong>
-      </div>
-      <div className="mobile-detail-row"><span>Assigned</span><strong>{trade.assignmentDate}</strong></div>
-      <div className="mobile-detail-row"><span>Strike</span><strong>{fmt(trade.strike)}</strong></div>
-      <div className="mobile-detail-row"><span>Basis / share</span><strong className="mobile-assigned">{fmt(trade.adjustedCostPerShare)}</strong></div>
-      <div className="mobile-detail-row"><span>Total basis</span><strong>{fmt(trade.adjustedCostBasis)}</strong></div>
-      {coveredCalls.map((call) => <CoveredCallSummary key={call.id} call={call} onCloseEarly={onCloseCoveredCall} />)}
-      <div className="mobile-assigned-actions">
-        {availableContracts > 0 ? (
-          <button className="mobile-assigned-call-action" onClick={() => onSellCoveredCall(trade)}>SELL COVERED CALL</button>
-        ) : (
-          <span className="assigned-position-status">Fully covered</span>
-        )}
-        <button
-          className="mobile-assigned-call-action mobile-sell-shares-action"
-          onClick={() => onSellShares(trade)}
-          disabled={coveredCalls.length > 0}
-          aria-describedby={coveredCalls.length > 0 ? `share-sale-blocked-${trade.id}-mobile` : undefined}
-        >
-          {coveredCalls.length > 0 ? "SELL SHARES — CALL OPEN" : "SELL SHARES"}
-        </button>
-      </div>
-      {coveredCalls.length > 0 && <div id={`share-sale-blocked-${trade.id}-mobile`} className="assigned-position-note">Close the call before selling shares.</div>}
-    </article>
-  );
-}
-
 function MobileClosedCard({ trade, onReopen, onDelete }) {
   const collected = trade.creditTotal ?? trade.premium * trade.contracts * 100;
   return (
@@ -344,17 +305,18 @@ export default function MobileTrackerShell({
             ))}
           </section>
 
-          <CollapsibleSection title="ASSIGNED SHARES" count={assignedTrades.length} open={assignedOpen} onToggle={() => setAssignedOpen((value) => !value)}>
+          <CollapsibleSection title="ACTIVE WHEELS" count={assignedTrades.length} open={assignedOpen} onToggle={() => setAssignedOpen((value) => !value)}>
             {assignedTrades.length === 0
               ? <div className="mobile-empty-state">No assigned shares.</div>
               : assignedTrades.map((trade) => (
-                <MobileAssignedCard
+                <ActiveWheelCard
                   key={trade.id}
                   trade={trade}
+                  trades={[...assignedTrades, ...coveredCalls]}
                   coveredCalls={coveredCalls.filter((call) => call.parentAssignmentId === trade.id)}
-                  onSellCoveredCall={onSellCoveredCall}
+                  onSellCall={onSellCoveredCall}
                   onSellShares={onSellShares}
-                  onCloseCoveredCall={onCloseCoveredCall}
+                  onCloseCall={onCloseCoveredCall}
                 />
               ))}
           </CollapsibleSection>
