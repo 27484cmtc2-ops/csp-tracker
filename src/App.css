@@ -253,3 +253,12 @@ input, button { font-family: inherit; }
 .stock-sale-summary dt { color: #71839a; font-size: 9px; }
 .stock-sale-summary dd { margin: 0; color: #d7e0ea; font-size: 10px; }
 .completed-history-actions { display: flex; justify-content: flex-end; margin-top: 9px; }
+
+.undo-toast { position: fixed; left: 50%; bottom: 20px; z-index: 180; display: flex; align-items: center; gap: 18px; max-width: calc(100vw - 32px); padding: 10px 12px 10px 14px; border: 1px solid #30445b; border-radius: 5px; background: #111821; box-shadow: 0 8px 28px rgba(0,0,0,.45); color: #d7e0ea; font-size: 11px; transform: translateX(-50%); }
+.undo-toast button { padding: 5px 8px; border: 1px solid #4d82b8; border-radius: 3px; background: #102033; color: #5aa9ff; font: inherit; font-size: 9px; font-weight: 600; letter-spacing: .06em; cursor: pointer; }
+.undo-toast-error { border-color: #6a3434; color: #ff9a9a; }
+
+@media (max-width: 640px) {
+  .undo-toast { bottom: calc(76px + env(safe-area-inset-bottom)); width: calc(100vw - 28px); box-sizing: border-box; justify-content: space-between; padding: 11px 12px; }
+  .undo-toast button { min-width: 58px; min-height: 36px; }
+}

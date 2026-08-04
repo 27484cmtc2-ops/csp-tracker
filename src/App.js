@@ -14,8 +14,10 @@ import CoveredCallForm, {
   ClosedCoveredCallSummary,
 } from "./components/CoveredCallForm";
 import StockSaleForm, { StockSaleSummary } from "./components/StockSaleForm";
+import UndoToast from "./components/UndoToast";
 import { EMPTY_NEW_TRADE, SAMPLE_TICKERS, USD_CAD } from "./data/trackerData";
 import useTrackerData from "./hooks/useTrackerData";
+import usePortfolioUndo from "./hooks/usePortfolioUndo";
 import { generateStrikes } from "./utils/calculations";
 import { fmt } from "./utils/formatters";
 import { annualizedReturn, daysColor, daysLabel, daysUntil, getCollectedPremium } from "./utils/trades";
@@ -51,6 +53,11 @@ export default function App({ userId, userEmail, onLogOut, logoutError }) {
     useCloudData,
     keepLocalData,
   } = useTrackerData({ userId });
+  const { undoEntry, undoError, commitTrades, undo } = usePortfolioUndo({
+    userId,
+    trades,
+    setTrades,
+  });
   const [selectedTicker, setSelectedTicker] = useState(SAMPLE_TICKERS[4]);
   const [newTrade, setNewTrade] = useState(EMPTY_NEW_TRADE);
   const [closeModal, setCloseModal] = useState(null);
@@ -80,41 +87,55 @@ export default function App({ userId, userEmail, onLogOut, logoutError }) {
     const isSpread = !!longStrike;
     const ls = parseFloat(longStrike) || null;
     const ss = parseFloat(strike);
-    setTrades([...trades, {
+    commitTrades([...trades, {
       id: Date.now(), ticker: ticker.toUpperCase(),
       strike: ss, longStrike: ls, expiry, premium: parseFloat(premium),
       contracts: parseInt(contracts), status: "open",
       opened: new Date().toISOString().split("T")[0],
       type: isSpread ? `${ss}/${ls} Spread` : "CSP",
       costToClose: null, pnl: null, creditTotal: null,
-    }]);
+    }], "Trade added.");
     setNewTrade(EMPTY_NEW_TRADE);
   };
 
   const confirmClose = () => {
     if (!closeModal) return;
     const cost = parseFloat(closeModal.costToClose) || 0;
-    setTrades(trades.map(t => {
+    commitTrades(trades.map(t => {
       if (t.id !== closeModal.id) return t;
       const col = getCollectedPremium(t);
       return { ...t, status:"closed", costToClose:cost, pnl:col-cost, closedDate:new Date().toISOString().split("T")[0] };
-    }));
+    }), "Position closed.");
     setCloseModal(null);
   };
 
   // Kept for a future overflow menu or advanced mode; intentionally hidden from the default UI.
   // eslint-disable-next-line no-unused-vars
   const reopenTrade = (id) => setTrades(trades.map(t => t.id===id ? {...t,status:"open",pnl:undefined,costToClose:undefined} : t));
-  const deleteTrade = (id) => setTrades(trades.filter(t => t.id!==id));
+  const deleteTrade = (id) => {
+    const trade = trades.find((item) => item.id === id);
+    const nextTrades = trades.filter((item) => item.id !== id);
+    if (trade?.status === "closed") {
+      commitTrades(nextTrades, "Closed trade deleted.");
+      return;
+    }
+    setTrades(nextTrades);
+  };
   const deleteCompletedShareSale = (id) => {
-    if (!window.confirm("Delete this completed record? This cannot be undone.")) return;
-    setTrades(trades.filter((trade) => trade.id !== id || !isStockSale(trade)));
+    if (!window.confirm("Delete this completed record? You can undo for 30 seconds.")) return;
+    commitTrades(
+      trades.filter((trade) => trade.id !== id || !isStockSale(trade)),
+      "Completed share sale deleted."
+    );
   };
   const deleteCompletedCoveredCall = (id) => {
-    if (!window.confirm("Delete this completed record? This cannot be undone.")) return;
-    setTrades(trades.filter((trade) =>
-      trade.id !== id || !isCoveredCall(trade) || trade.status !== "closed"
-    ));
+    if (!window.confirm("Delete this completed record? You can undo for 30 seconds.")) return;
+    commitTrades(
+      trades.filter((trade) =>
+        trade.id !== id || !isCoveredCall(trade) || trade.status !== "closed"
+      ),
+      "Covered call history deleted."
+    );
   };
 
   const openEditModal = (t) =>
@@ -160,7 +181,7 @@ export default function App({ userId, userEmail, onLogOut, logoutError }) {
     if (!ticker || !strike || !premium || !contracts) return;
     const ls = parseFloat(longStrike) || null;
     const ss = parseFloat(strike);
-    setTrades(trades.map(t => t.id===id ? {
+    commitTrades(trades.map(t => t.id===id ? {
       ...t,
       ticker: ticker.toUpperCase(),
       strike: ss,
@@ -170,7 +191,7 @@ export default function App({ userId, userEmail, onLogOut, logoutError }) {
       expiry,
       type: ls ? `${ss}/${ls} Spread` : "CSP",
       creditTotal: null,
-    } : t));
+    } : t), "Trade updated.");
     setEditModal(null);
   };
   const confirmAssignment = () => {
@@ -195,7 +216,7 @@ export default function App({ userId, userEmail, onLogOut, logoutError }) {
     trade.rollChainId ||
     trade.id;
 
-  setTrades(
+  commitTrades(
     trades.map((t) =>
       t.id === trade.id
         ? {
@@ -210,7 +231,8 @@ export default function App({ userId, userEmail, onLogOut, logoutError }) {
             wheelChainId,
           }
         : t
-    )
+    ),
+    "Shares assigned."
   );
 
   setAssignModal(null);
@@ -241,7 +263,10 @@ export default function App({ userId, userEmail, onLogOut, logoutError }) {
       setCoveredCallError(error);
       return;
     }
-    setTrades([...trades, createCoveredCall(assignment, coveredCallModal.value)]);
+    commitTrades(
+      [...trades, createCoveredCall(assignment, coveredCallModal.value)],
+      "Covered call sold."
+    );
     setCoveredCallModal(null);
     setCoveredCallError("");
   };
@@ -265,7 +290,10 @@ export default function App({ userId, userEmail, onLogOut, logoutError }) {
       setCloseCoveredCallError(error);
       return;
     }
-    setTrades(closeCoveredCall(trades, call, closeCoveredCallModal.value));
+    commitTrades(
+      closeCoveredCall(trades, call, closeCoveredCallModal.value),
+      "Covered call closed."
+    );
     setCloseCoveredCallModal(null);
     setCloseCoveredCallError("");
   };
@@ -290,7 +318,10 @@ export default function App({ userId, userEmail, onLogOut, logoutError }) {
       setStockSaleError(error);
       return;
     }
-    setTrades(completeStockSale(trades, assignment, stockSaleModal.value));
+    commitTrades(
+      completeStockSale(trades, assignment, stockSaleModal.value),
+      "Shares sold."
+    );
     setStockSaleModal(null);
     setStockSaleError("");
   };
@@ -359,10 +390,11 @@ export default function App({ userId, userEmail, onLogOut, logoutError }) {
     rollNet: newCredit - costToClose - closeFees,
   };
 
-  setTrades(
+  commitTrades(
     trades
       .map((t) => (t.id === oldTrade.id ? closedOldTrade : t))
-      .concat(newTrade)
+      .concat(newTrade),
+    "Position rolled."
   );
 
   setRollModal(null);
@@ -726,6 +758,8 @@ export default function App({ userId, userEmail, onLogOut, logoutError }) {
         </div>
 
         {feedbackOpen && <FeedbackModal onClose={() => setFeedbackOpen(false)} />}
+
+        <UndoToast entry={undoEntry} error={undoError} onUndo={undo} />
 
         {closeModal && (()=>{
           const t = trades.find(x=>x.id===closeModal.id);

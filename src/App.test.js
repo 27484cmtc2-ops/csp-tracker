@@ -113,6 +113,34 @@ function seedCompletedHistory(trades = completedHistoryTrades()) {
   return trades;
 }
 
+function openPut(id = 10) {
+  return {
+    id,
+    ticker: "PUT",
+    type: "CSP",
+    status: "open",
+    strike: 20,
+    expiry: "2026-09-18",
+    contracts: 1,
+    premium: 1,
+    opened: "2026-08-01",
+    costToClose: null,
+    pnl: null,
+    creditTotal: null,
+  };
+}
+
+function seedTrades(trades) {
+  localStorage.setItem(TEST_KEYS.trades, JSON.stringify(trades));
+  localStorage.setItem(TEST_KEYS.target, "500");
+}
+
+function undoAndExpect(expectedTrades) {
+  fireEvent.click(screen.getByRole("button", { name: "UNDO" }));
+  expect(JSON.parse(localStorage.getItem(TEST_KEYS.trades))).toEqual(expectedTrades);
+  expect(screen.queryByRole("button", { name: "UNDO" })).not.toBeInTheDocument();
+}
+
 test("renders the tracker with an empty portfolio by default", () => {
   render(<App userId={TEST_USER_ID} />);
 
@@ -163,6 +191,53 @@ test("blocks a new trade without expiry on desktop and mobile", () => {
   expect(alert).toHaveBeenCalledTimes(2);
   expect(JSON.parse(localStorage.getItem(TEST_KEYS.trades))).toEqual([]);
   alert.mockRestore();
+});
+
+test("undo restores add, edit, close, assign, and roll put mutations", () => {
+  seedTrades([]);
+  let view = render(<App userId={TEST_USER_ID} />);
+  fireEvent.change(screen.getByPlaceholderText("TICKER"), { target: { value: "ADD" } });
+  fireEvent.change(screen.getByPlaceholderText("SHORT STRIKE"), { target: { value: "10" } });
+  fireEvent.change(screen.getByPlaceholderText("PREMIUM"), { target: { value: "0.5" } });
+  fireEvent.change(screen.getByPlaceholderText("CONTRACTS"), { target: { value: "1" } });
+  fireEvent.change(document.querySelector(".desktop-interface input[type='date']"), { target: { value: "2026-10-16" } });
+  fireEvent.click(screen.getByRole("button", { name: "+ ADD TRADE" }));
+  undoAndExpect([]);
+  view.unmount();
+
+  const original = [openPut()];
+  seedTrades(original);
+  view = render(<App userId={TEST_USER_ID} />);
+  fireEvent.click(screen.getAllByRole("button", { name: "EDIT" })[0]);
+  fireEvent.change(screen.getAllByPlaceholderText("TICKER")[1], { target: { value: "EDITED" } });
+  fireEvent.click(screen.getByRole("button", { name: "SAVE CHANGES" }));
+  undoAndExpect(original);
+  view.unmount();
+
+  seedTrades(original);
+  view = render(<App userId={TEST_USER_ID} />);
+  fireEvent.click(screen.getAllByRole("button", { name: "CLOSE" })[0]);
+  fireEvent.change(screen.getByPlaceholderText("e.g. 27.00"), { target: { value: "20" } });
+  fireEvent.click(screen.getByRole("button", { name: "CONFIRM CLOSE" }));
+  undoAndExpect(original);
+  view.unmount();
+
+  seedTrades(original);
+  view = render(<App userId={TEST_USER_ID} />);
+  fireEvent.click(screen.getAllByRole("button", { name: "ASSIGN" })[0]);
+  fireEvent.click(screen.getByRole("button", { name: "CONFIRM ASSIGNMENT" }));
+  undoAndExpect(original);
+  view.unmount();
+
+  seedTrades(original);
+  view = render(<App userId={TEST_USER_ID} />);
+  fireEvent.click(screen.getAllByRole("button", { name: "ROLL" })[0]);
+  fireEvent.change(screen.getByPlaceholderText("NEW PREMIUM"), { target: { value: "1.25" } });
+  const rollDates = document.querySelectorAll("input[type='date']");
+  fireEvent.change(rollDates[rollDates.length - 1], { target: { value: "2026-11-20" } });
+  fireEvent.click(screen.getByRole("button", { name: "CONFIRM ROLL" }));
+  undoAndExpect(original);
+  view.unmount();
 });
 
 test("opens mobile position actions from the more button", () => {
@@ -233,6 +308,7 @@ test("persists a covered call with assignment-controlled wheel linkage", () => {
     status: "open",
   });
   expect(screen.getByText(/OPEN POSITIONS/)).toHaveTextContent("(0)");
+  undoAndExpect([assignment]);
 });
 
 test("persists a full-lot stock sale and removes the assignment from active positions", () => {
@@ -281,6 +357,7 @@ test("persists a full-lot stock sale and removes the assignment from active posi
   expect(screen.getByRole("button", { name: /active wheels/i })).toHaveTextContent("(0)");
   expect(screen.getAllByText(/COMPLETED SHARE SALES/).length).toBeGreaterThan(0);
   expect(screen.getByText(/OPEN POSITIONS/)).toHaveTextContent("(0)");
+  undoAndExpect([assignment]);
 });
 
 test("explains why share sales are blocked when a covered call is open", () => {
@@ -372,6 +449,7 @@ test("closes a covered call early, restores shares, and keeps it out of closed o
   expect(screen.getAllByRole("button", { name: "SELL SHARES" }).every((button) => button.getAttribute("aria-disabled") !== "true")).toBe(true);
   expect(screen.getAllByText(/COVERED CALL HISTORY/).length).toBeGreaterThan(0);
   expect(screen.getByRole("button", { name: /closed positions/i })).toHaveTextContent("(0)");
+  undoAndExpect([assignment, coveredCall]);
 });
 
 test("confirms and deletes only a completed share-sale record", () => {
@@ -384,11 +462,12 @@ test("confirms and deletes only a completed share-sale record", () => {
   })[0]);
 
   expect(confirm).toHaveBeenCalledWith(
-    "Delete this completed record? This cannot be undone."
+    "Delete this completed record? You can undo for 30 seconds."
   );
   const savedTrades = JSON.parse(localStorage.getItem(TEST_KEYS.trades));
   expect(savedTrades.find((trade) => trade.id === 301)).toBeUndefined();
   expect(savedTrades.map((trade) => trade.id)).toEqual([300, 302, 303, 304, 305]);
+  undoAndExpect(completedHistoryTrades());
   confirm.mockRestore();
 });
 
@@ -446,6 +525,51 @@ test("a deleted covered-call history record stays deleted after refresh", () => 
   confirm.mockRestore();
 });
 
+test("undo restores deleted covered-call history exactly", () => {
+  const original = seedCompletedHistory();
+  const confirm = jest.spyOn(window, "confirm").mockReturnValue(true);
+
+  render(<App userId={TEST_USER_ID} />);
+  fireEvent.click(screen.getAllByRole("button", {
+    name: "Delete completed covered call for CALL",
+  })[0]);
+  undoAndExpect(original);
+
+  confirm.mockRestore();
+});
+
+test("undo expires after 30 seconds and is cleared by remount or account switch", () => {
+  jest.useFakeTimers();
+  seedTrades([]);
+  let view = render(<App userId={TEST_USER_ID} />);
+  fireEvent.change(screen.getByPlaceholderText("TICKER"), { target: { value: "ADD" } });
+  fireEvent.change(screen.getByPlaceholderText("SHORT STRIKE"), { target: { value: "10" } });
+  fireEvent.change(screen.getByPlaceholderText("PREMIUM"), { target: { value: "0.5" } });
+  fireEvent.change(screen.getByPlaceholderText("CONTRACTS"), { target: { value: "1" } });
+  fireEvent.change(document.querySelector(".desktop-interface input[type='date']"), { target: { value: "2026-10-16" } });
+  fireEvent.click(screen.getByRole("button", { name: "+ ADD TRADE" }));
+  expect(screen.getByRole("button", { name: "UNDO" })).toBeInTheDocument();
+  act(() => jest.advanceTimersByTime(30000));
+  expect(screen.queryByRole("button", { name: "UNDO" })).not.toBeInTheDocument();
+
+  fireEvent.change(screen.getByPlaceholderText("TICKER"), { target: { value: "NEXT" } });
+  fireEvent.change(screen.getByPlaceholderText("SHORT STRIKE"), { target: { value: "11" } });
+  fireEvent.change(screen.getByPlaceholderText("PREMIUM"), { target: { value: "0.6" } });
+  fireEvent.change(screen.getByPlaceholderText("CONTRACTS"), { target: { value: "1" } });
+  fireEvent.change(document.querySelector(".desktop-interface input[type='date']"), { target: { value: "2026-11-20" } });
+  fireEvent.click(screen.getByRole("button", { name: "+ ADD TRADE" }));
+  expect(screen.getByRole("button", { name: "UNDO" })).toBeInTheDocument();
+  view.unmount();
+  view = render(<App userId={TEST_USER_ID} />);
+  expect(screen.queryByRole("button", { name: "UNDO" })).not.toBeInTheDocument();
+  view.unmount();
+
+  const otherUser = "other-user";
+  localStorage.setItem(getTrackerStorageKeys(otherUser).trades, JSON.stringify([]));
+  render(<App userId={otherUser} />);
+  expect(screen.queryByRole("button", { name: "UNDO" })).not.toBeInTheDocument();
+});
+
 test("deleting completed history is uploaded through cloud synchronization", async () => {
   jest.useFakeTimers();
   const trades = seedCompletedHistory();
@@ -477,6 +601,15 @@ test("deleting completed history is uploaded through cloud synchronization", asy
     expectedUpdatedAt: "version-1",
     force: false,
   });
+
+  fireEvent.click(screen.getByRole("button", { name: "UNDO" }));
+  await act(async () => {
+    jest.advanceTimersByTime(1000);
+    await Promise.resolve();
+    await Promise.resolve();
+  });
+  expect(saveCloudData).toHaveBeenCalledTimes(2);
+  expect(saveCloudData.mock.calls[1][0]).toEqual(trades);
   confirm.mockRestore();
   jest.useRealTimers();
 });
