@@ -3,6 +3,7 @@ import ActiveWheelCard from "../ActiveWheelCard";
 import CloudSyncControls from "../CloudSyncControls";
 import { ClosedCoveredCallSummary } from "../CoveredCallForm";
 import { StockSaleSummary } from "../StockSaleForm";
+import AccountMenu from "../AccountMenu";
 import { fmt, fmtShort } from "../../utils/formatters";
 import {
   annualizedReturn,
@@ -246,6 +247,9 @@ export default function MobileTrackerShell({
   onUseCloud,
   onKeepLocal,
   onFeedback,
+  userEmail,
+  onLogOut,
+  logoutError,
 }) {
   const [assignedOpen, setAssignedOpen] = useState(false);
   const [closedOpen, setClosedOpen] = useState(false);
@@ -257,6 +261,9 @@ export default function MobileTrackerShell({
   return (
     <div className="mobile-shell">
       <main className="mobile-main">
+          <div className="mobile-account-row">
+            <AccountMenu email={userEmail} onLogOut={onLogOut} error={logoutError} mobile />
+          </div>
           <MobilePortfolioSummary
             realized={realized}
             openPremium={openPremium}

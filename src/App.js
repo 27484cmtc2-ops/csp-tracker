@@ -8,6 +8,7 @@ import StrikesPage from "./components/StrikesPage";
 import MobileTrackerShell from "./components/mobile/MobileTrackerShell";
 import ActiveWheelCard from "./components/ActiveWheelCard";
 import FeedbackModal from "./components/FeedbackModal";
+import AccountMenu from "./components/AccountMenu";
 import CoveredCallForm, {
   CloseCoveredCallForm,
   ClosedCoveredCallSummary,
@@ -37,7 +38,7 @@ import {
   validateStockSale,
 } from "./utils/stockSales";
 
-export default function App({ userId }) {
+export default function App({ userId, userEmail, onLogOut, logoutError }) {
   const [tab, setTab] = useState("tracker");
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const {
@@ -407,6 +408,9 @@ export default function App({ userId }) {
     <div style={{minHeight:"100vh",background:"#0b0f14",fontFamily:"'IBM Plex Mono','Courier New',monospace",color:"#d7e0ea"}}>
       <div className="app-content" style={{maxWidth:780,margin:"0 auto",padding:"24px 16px"}}>
         <div className="desktop-interface">
+          <div className="desktop-account-row">
+            <AccountMenu email={userEmail} onLogOut={onLogOut} error={logoutError} />
+          </div>
         <PortfolioSummary
           realized={realized}
           openPremium={openPremium}
@@ -716,6 +720,9 @@ export default function App({ userId }) {
             onUseCloud={useCloudData}
             onKeepLocal={keepLocalData}
             onFeedback={() => setFeedbackOpen(true)}
+            userEmail={userEmail}
+            onLogOut={onLogOut}
+            logoutError={logoutError}
           />
         </div>
 

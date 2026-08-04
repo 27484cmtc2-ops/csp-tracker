@@ -45,6 +45,16 @@ input, button { font-family: inherit; }
 .sync-control-buttons { display: flex; gap: 6px; }
 .feedback-entry-button { min-height: 30px; padding: 0 10px; border: 1px solid #30445b; border-radius: 4px; background: transparent; color: #a6b3c2; font-size: 9px; cursor: pointer; }
 .feedback-entry-button:hover { border-color: #4d82b8; color: #d7e0ea; }
+.desktop-account-row, .mobile-account-row { position: relative; z-index: 40; display: flex; justify-content: flex-end; margin-bottom: 8px; }
+.account-menu { position: relative; }
+.account-menu-trigger { min-height: 28px; padding: 0 9px; border: 1px solid #30445b; border-radius: 3px; background: transparent; color: #8796aa; font-size: 8px; letter-spacing: .1em; cursor: pointer; }
+.account-menu-trigger:hover, .account-menu-trigger[aria-expanded="true"] { border-color: #4d82b8; color: #d7e0ea; }
+.account-menu-popover { position: absolute; top: calc(100% + 6px); right: 0; z-index: 50; width: min(260px, calc(100vw - 28px)); padding: 12px; border: 1px solid #30445b; border-radius: 5px; background: #111821; box-shadow: 0 12px 30px rgba(0, 0, 0, .5); }
+.account-menu-label { display: block; margin-bottom: 4px; color: #607086; font-size: 8px; letter-spacing: .1em; }
+.account-menu-email { display: block; overflow: hidden; margin-bottom: 11px; color: #d7e0ea; font-size: 10px; font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
+.account-menu-error { display: block; margin: -3px 0 9px; color: #ff7b7b; font-size: 9px; }
+.account-menu-popover button { width: 100%; min-height: 32px; border: 1px solid #4a2222; border-radius: 3px; background: transparent; color: #ff7b7b; font-size: 9px; letter-spacing: .08em; cursor: pointer; }
+.account-menu-popover button:disabled { opacity: .6; cursor: default; }
 .sync-conflict-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 9px; padding-top: 9px; border-top: 1px solid #223044; }
 .sync-conflict-actions button { min-height: 32px; padding: 0 9px; border: 1px solid #30445b; border-radius: 4px; background: transparent; color: #a6b3c2; font-size: 8px; cursor: pointer; }
 .sync-conflict-actions .sync-keep-local { border-color: #7a4a1a; color: #f59e0b; }
@@ -56,6 +66,9 @@ input, button { font-family: inherit; }
   .app-content { max-width: none !important; padding: 0 !important; }
   .mobile-shell { min-height: 100vh; background: #0b0f14; padding-bottom: calc(92px + env(safe-area-inset-bottom)); }
   .mobile-main { padding: 14px; }
+  .mobile-account-row { margin-bottom: 8px; }
+  .account-menu-mobile .account-menu-trigger { min-height: 38px; padding: 0 12px; border-radius: 6px; }
+  .account-menu-mobile .account-menu-popover button { min-height: 44px; }
   .mobile-summary { margin-bottom: 22px; overflow: hidden; border: 1px solid #223044; border-radius: 8px; background: #111821; }
   .mobile-summary-primary { display: flex; align-items: flex-end; justify-content: space-between; padding: 16px; border-bottom: 1px solid #223044; }
   .mobile-summary-primary strong { font-size: 24px; line-height: 1; }
