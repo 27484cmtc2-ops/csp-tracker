@@ -239,3 +239,4 @@ input, button { font-family: inherit; }
 .stock-sale-summary dl div { display: flex; justify-content: space-between; }
 .stock-sale-summary dt { color: #71839a; font-size: 9px; }
 .stock-sale-summary dd { margin: 0; color: #d7e0ea; font-size: 10px; }
+.completed-history-actions { display: flex; justify-content: flex-end; margin-top: 9px; }

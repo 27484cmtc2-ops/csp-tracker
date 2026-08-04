@@ -56,7 +56,7 @@ export default function StockSaleForm({ assignment, value, error, onChange, onSu
   );
 }
 
-export function StockSaleSummary({ sale }) {
+export function StockSaleSummary({ sale, onDelete }) {
   return (
     <article className="stock-sale-summary">
       <div><strong>{sale.ticker}</strong><span>{sale.shares} shares</span></div>
@@ -66,6 +66,11 @@ export function StockSaleSummary({ sale }) {
         <div><dt>Adjusted basis</dt><dd>{fmt(sale.adjustedCostBasis)}</dd></div>
         <div><dt>Stock P&amp;L</dt><dd className={sale.pnl >= 0 ? "mobile-positive" : "mobile-negative"}>{fmt(sale.pnl)}</dd></div>
       </dl>
+      {onDelete && (
+        <div className="completed-history-actions">
+          <button type="button" className="csp-btn-sm csp-btn-danger" aria-label={`Delete completed share sale for ${sale.ticker}`} onClick={() => onDelete(sale.id)}>DELETE</button>
+        </div>
+      )}
     </article>
   );
 }

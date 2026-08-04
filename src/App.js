@@ -103,6 +103,16 @@ export default function App({ userId }) {
 
   const reopenTrade = (id) => setTrades(trades.map(t => t.id===id ? {...t,status:"open",pnl:undefined,costToClose:undefined} : t));
   const deleteTrade = (id) => setTrades(trades.filter(t => t.id!==id));
+  const deleteCompletedShareSale = (id) => {
+    if (!window.confirm("Delete this completed record? This cannot be undone.")) return;
+    setTrades(trades.filter((trade) => trade.id !== id || !isStockSale(trade)));
+  };
+  const deleteCompletedCoveredCall = (id) => {
+    if (!window.confirm("Delete this completed record? This cannot be undone.")) return;
+    setTrades(trades.filter((trade) =>
+      trade.id !== id || !isCoveredCall(trade) || trade.status !== "closed"
+    ));
+  };
 
   const openEditModal = (t) =>
     setEditModal({
@@ -560,7 +570,7 @@ export default function App({ userId }) {
                   COMPLETED SHARE SALES <span style={{color:"#3f7650"}}>({stockSales.length})</span>
                 </div>
                 <div className="stock-sale-grid">
-                  {stockSales.map((sale) => <StockSaleSummary key={sale.id} sale={sale} />)}
+                  {stockSales.map((sale) => <StockSaleSummary key={sale.id} sale={sale} onDelete={deleteCompletedShareSale} />)}
                 </div>
               </div>
             )}
@@ -571,7 +581,7 @@ export default function App({ userId }) {
                   COVERED CALL HISTORY <span style={{color:"#3f7650"}}>({closedCoveredCalls.length})</span>
                 </div>
                 <div className="stock-sale-grid">
-                  {closedCoveredCalls.map((call) => <ClosedCoveredCallSummary key={call.id} call={call} />)}
+                  {closedCoveredCalls.map((call) => <ClosedCoveredCallSummary key={call.id} call={call} onDelete={deleteCompletedCoveredCall} />)}
                 </div>
               </div>
             )}
@@ -698,6 +708,8 @@ export default function App({ userId }) {
             onSellCoveredCall={openCoveredCallModal}
             onCloseCoveredCall={openCloseCoveredCallModal}
             onSellShares={openStockSaleModal}
+            onDeleteCompletedShareSale={deleteCompletedShareSale}
+            onDeleteCompletedCoveredCall={deleteCompletedCoveredCall}
             syncStatus={syncStatus}
             hasConflict={hasConflict}
             onSyncNow={syncNow}

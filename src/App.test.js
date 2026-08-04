@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 
 jest.mock("./cloudStorage", () => ({
   CloudConflictError: class CloudConflictError extends Error {},
@@ -11,7 +11,7 @@ jest.mock("./feedbackStorage", () => ({
 }));
 
 import App from "./App";
-import { loadCloudData } from "./cloudStorage";
+import { loadCloudData, saveCloudData } from "./cloudStorage";
 import { DEFAULT_TRADES } from "./data/trackerData";
 import { getTrackerStorageKeys } from "./hooks/useTrackerData";
 
@@ -21,7 +21,97 @@ const TEST_KEYS = getTrackerStorageKeys(TEST_USER_ID);
 beforeEach(() => {
   localStorage.clear();
   loadCloudData.mockImplementation(() => new Promise(() => {}));
+  saveCloudData.mockReset();
+  saveCloudData.mockResolvedValue({ updatedAt: "version-2" });
 });
+
+afterEach(() => {
+  jest.restoreAllMocks();
+  jest.useRealTimers();
+});
+
+function completedHistoryTrades() {
+  return [
+    {
+      id: 300,
+      ticker: "SALE",
+      status: "sold",
+      shares: 100,
+      adjustedCostBasis: 1000,
+      adjustedCostPerShare: 10,
+      wheelChainId: 300,
+    },
+    {
+      id: 301,
+      kind: "stock_sale",
+      type: "Stock Sale",
+      status: "completed",
+      ticker: "SALE",
+      shares: 100,
+      saleDate: "2026-08-01",
+      salePricePerShare: 12,
+      netProceeds: 1199,
+      adjustedCostBasis: 1000,
+      pnl: 199,
+      parentAssignmentId: 300,
+      wheelChainId: 300,
+    },
+    {
+      id: 302,
+      kind: "covered_call",
+      type: "Covered Call",
+      status: "closed",
+      ticker: "CALL",
+      strike: 15,
+      contracts: 1,
+      premium: 0.5,
+      opened: "2026-07-01",
+      closeDate: "2026-08-01",
+      closingCost: 20,
+      pnl: 30,
+      parentAssignmentId: 303,
+      wheelChainId: 303,
+    },
+    {
+      id: 303,
+      ticker: "ACTIVE",
+      status: "assigned",
+      shares: 100,
+      adjustedCostBasis: 1400,
+      adjustedCostPerShare: 14,
+      wheelChainId: 303,
+    },
+    {
+      id: 304,
+      kind: "covered_call",
+      type: "Covered Call",
+      status: "open",
+      ticker: "ACTIVE",
+      strike: 16,
+      expiry: "2026-09-18",
+      contracts: 1,
+      premium: 0.4,
+      parentAssignmentId: 303,
+      wheelChainId: 303,
+    },
+    {
+      id: 305,
+      ticker: "PUT",
+      type: "CSP",
+      status: "open",
+      strike: 10,
+      expiry: "2026-09-18",
+      contracts: 1,
+      premium: 0.2,
+    },
+  ];
+}
+
+function seedCompletedHistory(trades = completedHistoryTrades()) {
+  localStorage.setItem(TEST_KEYS.trades, JSON.stringify(trades));
+  localStorage.setItem(TEST_KEYS.target, "500");
+  return trades;
+}
 
 test("renders the tracker with an empty portfolio by default", () => {
   render(<App userId={TEST_USER_ID} />);
@@ -282,4 +372,97 @@ test("closes a covered call early, restores shares, and keeps it out of closed o
   expect(screen.getAllByRole("button", { name: "SELL SHARES" }).every((button) => button.getAttribute("aria-disabled") !== "true")).toBe(true);
   expect(screen.getAllByText(/COVERED CALL HISTORY/).length).toBeGreaterThan(0);
   expect(screen.getByRole("button", { name: /closed positions/i })).toHaveTextContent("(0)");
+});
+
+test("confirms and deletes only a completed share-sale record", () => {
+  seedCompletedHistory();
+  const confirm = jest.spyOn(window, "confirm").mockReturnValue(true);
+
+  render(<App userId={TEST_USER_ID} />);
+  fireEvent.click(screen.getAllByRole("button", {
+    name: "Delete completed share sale for SALE",
+  })[0]);
+
+  expect(confirm).toHaveBeenCalledWith(
+    "Delete this completed record? This cannot be undone."
+  );
+  const savedTrades = JSON.parse(localStorage.getItem(TEST_KEYS.trades));
+  expect(savedTrades.find((trade) => trade.id === 301)).toBeUndefined();
+  expect(savedTrades.map((trade) => trade.id)).toEqual([300, 302, 303, 304, 305]);
+  confirm.mockRestore();
+});
+
+test("cancelling completed-history deletion leaves the record intact", () => {
+  seedCompletedHistory();
+  const confirm = jest.spyOn(window, "confirm").mockReturnValue(false);
+
+  render(<App userId={TEST_USER_ID} />);
+  fireEvent.click(screen.getAllByRole("button", {
+    name: "Delete completed covered call for CALL",
+  })[0]);
+
+  expect(JSON.parse(localStorage.getItem(TEST_KEYS.trades))).toEqual(
+    completedHistoryTrades()
+  );
+  expect(screen.getAllByRole("button", {
+    name: "Delete completed covered call for CALL",
+  }).length).toBeGreaterThan(0);
+  confirm.mockRestore();
+});
+
+test("a deleted covered-call history record stays deleted after refresh", () => {
+  seedCompletedHistory();
+  const confirm = jest.spyOn(window, "confirm").mockReturnValue(true);
+
+  const firstRender = render(<App userId={TEST_USER_ID} />);
+  fireEvent.click(screen.getAllByRole("button", {
+    name: "Delete completed covered call for CALL",
+  })[0]);
+  firstRender.unmount();
+
+  render(<App userId={TEST_USER_ID} />);
+  expect(screen.queryByRole("button", {
+    name: "Delete completed covered call for CALL",
+  })).not.toBeInTheDocument();
+  expect(screen.getAllByRole("button", {
+    name: "Delete completed share sale for SALE",
+  }).length).toBeGreaterThan(0);
+  expect(JSON.parse(localStorage.getItem(TEST_KEYS.trades)).map((trade) => trade.id))
+    .toEqual([300, 301, 303, 304, 305]);
+  confirm.mockRestore();
+});
+
+test("deleting completed history is uploaded through cloud synchronization", async () => {
+  jest.useFakeTimers();
+  const trades = seedCompletedHistory();
+  localStorage.setItem(TEST_KEYS.syncMeta, JSON.stringify({
+    cloudVersion: "version-1",
+    syncedSnapshot: JSON.stringify({ trades, target: 500 }),
+  }));
+  loadCloudData.mockResolvedValue({ trades, target: 500, updatedAt: "version-1" });
+  const confirm = jest.spyOn(window, "confirm").mockReturnValue(true);
+
+  render(<App userId={TEST_USER_ID} />);
+  await act(async () => {
+    await Promise.resolve();
+    await Promise.resolve();
+  });
+  fireEvent.click(screen.getAllByRole("button", {
+    name: "Delete completed share sale for SALE",
+  })[0]);
+  await act(async () => {
+    jest.advanceTimersByTime(1000);
+    await Promise.resolve();
+    await Promise.resolve();
+  });
+
+  expect(saveCloudData).toHaveBeenCalledTimes(1);
+  expect(saveCloudData.mock.calls[0][0].map((trade) => trade.id))
+    .toEqual([300, 302, 303, 304, 305]);
+  expect(saveCloudData.mock.calls[0][2]).toEqual({
+    expectedUpdatedAt: "version-1",
+    force: false,
+  });
+  confirm.mockRestore();
+  jest.useRealTimers();
 });

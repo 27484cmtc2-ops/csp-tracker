@@ -222,6 +222,8 @@ export default function MobileTrackerShell({
   coveredCalls,
   closedCoveredCalls,
   stockSales,
+  onDeleteCompletedShareSale,
+  onDeleteCompletedCoveredCall,
   sortedOpenTrades,
   sortBy,
   sortDir,
@@ -326,13 +328,13 @@ export default function MobileTrackerShell({
           <CollapsibleSection title="COMPLETED SHARE SALES" count={stockSales.length} open={stockSalesOpen} onToggle={() => setStockSalesOpen((value) => !value)}>
             {stockSales.length === 0
               ? <div className="mobile-empty-state">No completed share sales.</div>
-              : stockSales.map((sale) => <StockSaleSummary key={sale.id} sale={sale} />)}
+              : stockSales.map((sale) => <StockSaleSummary key={sale.id} sale={sale} onDelete={onDeleteCompletedShareSale} />)}
           </CollapsibleSection>
 
           <CollapsibleSection title="COVERED CALL HISTORY" count={closedCoveredCalls.length} open={coveredCallHistoryOpen} onToggle={() => setCoveredCallHistoryOpen((value) => !value)}>
             {closedCoveredCalls.length === 0
               ? <div className="mobile-empty-state">No closed covered calls.</div>
-              : closedCoveredCalls.map((call) => <ClosedCoveredCallSummary key={call.id} call={call} />)}
+              : closedCoveredCalls.map((call) => <ClosedCoveredCallSummary key={call.id} call={call} onDelete={onDeleteCompletedCoveredCall} />)}
           </CollapsibleSection>
 
           <CollapsibleSection title="CLOSED POSITIONS" count={closedTrades.length} open={closedOpen} onToggle={() => setClosedOpen((value) => !value)}>

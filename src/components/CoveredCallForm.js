@@ -131,7 +131,7 @@ export function CloseCoveredCallForm({ call, value, error, onChange, onSubmit, o
   );
 }
 
-export function ClosedCoveredCallSummary({ call }) {
+export function ClosedCoveredCallSummary({ call, onDelete }) {
   const collected = call.creditTotal ?? call.premium * call.contracts * 100;
   return (
     <article className="stock-sale-summary">
@@ -142,6 +142,11 @@ export function ClosedCoveredCallSummary({ call }) {
         <div><dt>Closing cost</dt><dd>{fmt(call.closingCost)}</dd></div>
         <div><dt>Call P&amp;L</dt><dd className={(call.pnl ?? 0) >= 0 ? "mobile-positive" : "mobile-negative"}>{fmt(call.pnl)}</dd></div>
       </dl>
+      {onDelete && (
+        <div className="completed-history-actions">
+          <button type="button" className="csp-btn-sm csp-btn-danger" aria-label={`Delete completed covered call for ${call.ticker}`} onClick={() => onDelete(call.id)}>DELETE</button>
+        </div>
+      )}
     </article>
   );
 }
