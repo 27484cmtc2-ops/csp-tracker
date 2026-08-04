@@ -155,6 +155,7 @@ input, button { font-family: inherit; }
 .covered-call-summary strong { color: #d7e0ea; font-size: 11px; }
 .covered-call-summary > span:last-child { color: #8796aa; font-size: 9px; }
 .covered-call-badge { color: #6fdc8c; font-size: 8px; letter-spacing: .1em; }
+.covered-call-close-action { width: 100%; min-height: 34px; margin-top: 7px; border: 1px solid #7a4a1a; border-radius: 4px; background: #1d160e; color: #f59e0b; font: inherit; font-size: 8px; font-weight: 600; letter-spacing: .05em; }
 .mobile-assigned-call-action { width: 100%; min-height: 44px; margin-top: 10px; border: 1px solid #2f6f61; border-radius: 5px; background: #10201b; color: #6fdc8c; font: inherit; font-size: 10px; font-weight: 600; }
 .mobile-assigned-call-action:disabled { border-color: #26303a; color: #607086; background: #111820; }
 

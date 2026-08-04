@@ -1,6 +1,6 @@
 import { useState } from "react";
 import CloudSyncControls from "../CloudSyncControls";
-import { CoveredCallSummary } from "../CoveredCallForm";
+import { ClosedCoveredCallSummary, CoveredCallSummary } from "../CoveredCallForm";
 import { StockSaleSummary } from "../StockSaleForm";
 import { fmt, fmtShort } from "../../utils/formatters";
 import {
@@ -178,7 +178,7 @@ function MobileTradeActionSheet({ trade, onEdit, onRoll, onAssign, onDelete, onC
   );
 }
 
-function MobileAssignedCard({ trade, coveredCalls, onSellCoveredCall, onSellShares }) {
+function MobileAssignedCard({ trade, coveredCalls, onSellCoveredCall, onSellShares, onCloseCoveredCall }) {
   const coveredContracts = coveredCalls.reduce(
     (sum, call) => sum + (Number(call.contracts) || 0),
     0
@@ -197,7 +197,7 @@ function MobileAssignedCard({ trade, coveredCalls, onSellCoveredCall, onSellShar
       <div className="mobile-detail-row"><span>Strike</span><strong>{fmt(trade.strike)}</strong></div>
       <div className="mobile-detail-row"><span>Basis / share</span><strong className="mobile-assigned">{fmt(trade.adjustedCostPerShare)}</strong></div>
       <div className="mobile-detail-row"><span>Total basis</span><strong>{fmt(trade.adjustedCostBasis)}</strong></div>
-      {coveredCalls.map((call) => <CoveredCallSummary key={call.id} call={call} />)}
+      {coveredCalls.map((call) => <CoveredCallSummary key={call.id} call={call} onCloseEarly={onCloseCoveredCall} />)}
       <div className="mobile-assigned-actions">
         <button
           className="mobile-assigned-call-action"
@@ -210,11 +210,12 @@ function MobileAssignedCard({ trade, coveredCalls, onSellCoveredCall, onSellShar
           className="mobile-assigned-call-action mobile-sell-shares-action"
           onClick={() => onSellShares(trade)}
           disabled={coveredCalls.length > 0}
+          aria-describedby={coveredCalls.length > 0 ? `share-sale-blocked-${trade.id}-mobile` : undefined}
         >
-          SELL SHARES
+          {coveredCalls.length > 0 ? "SELL SHARES — CALL OPEN" : "SELL SHARES"}
         </button>
       </div>
-      {coveredCalls.length > 0 && <div className="assigned-position-note">Resolve the open covered call before selling these shares.</div>}
+      {coveredCalls.length > 0 && <div id={`share-sale-blocked-${trade.id}-mobile`} className="assigned-position-note">Resolve the open covered call before selling these shares.</div>}
     </article>
   );
 }
@@ -260,6 +261,7 @@ export default function MobileTrackerShell({
   closedTrades,
   assignedTrades,
   coveredCalls,
+  closedCoveredCalls,
   stockSales,
   sortedOpenTrades,
   sortBy,
@@ -275,6 +277,7 @@ export default function MobileTrackerShell({
   onReopen,
   onDelete,
   onSellCoveredCall,
+  onCloseCoveredCall,
   onSellShares,
   syncStatus,
   hasConflict,
@@ -285,6 +288,7 @@ export default function MobileTrackerShell({
   const [assignedOpen, setAssignedOpen] = useState(false);
   const [closedOpen, setClosedOpen] = useState(false);
   const [stockSalesOpen, setStockSalesOpen] = useState(false);
+  const [coveredCallHistoryOpen, setCoveredCallHistoryOpen] = useState(false);
   const [addTradeOpen, setAddTradeOpen] = useState(false);
   const [actionTrade, setActionTrade] = useState(null);
 
@@ -352,6 +356,7 @@ export default function MobileTrackerShell({
                   coveredCalls={coveredCalls.filter((call) => call.parentAssignmentId === trade.id)}
                   onSellCoveredCall={onSellCoveredCall}
                   onSellShares={onSellShares}
+                  onCloseCoveredCall={onCloseCoveredCall}
                 />
               ))}
           </CollapsibleSection>
@@ -360,6 +365,12 @@ export default function MobileTrackerShell({
             {stockSales.length === 0
               ? <div className="mobile-empty-state">No completed share sales.</div>
               : stockSales.map((sale) => <StockSaleSummary key={sale.id} sale={sale} />)}
+          </CollapsibleSection>
+
+          <CollapsibleSection title="COVERED CALL HISTORY" count={closedCoveredCalls.length} open={coveredCallHistoryOpen} onToggle={() => setCoveredCallHistoryOpen((value) => !value)}>
+            {closedCoveredCalls.length === 0
+              ? <div className="mobile-empty-state">No closed covered calls.</div>
+              : closedCoveredCalls.map((call) => <ClosedCoveredCallSummary key={call.id} call={call} />)}
           </CollapsibleSection>
 
           <CollapsibleSection title="CLOSED POSITIONS" count={closedTrades.length} open={closedOpen} onToggle={() => setClosedOpen((value) => !value)}>

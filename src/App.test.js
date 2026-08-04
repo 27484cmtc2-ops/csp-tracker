@@ -142,3 +142,90 @@ test("persists a full-lot stock sale and removes the assignment from active posi
   expect(screen.getAllByText(/COMPLETED SHARE SALES/).length).toBeGreaterThan(0);
   expect(screen.getByText(/OPEN POSITIONS/)).toHaveTextContent("(0)");
 });
+
+test("explains why share sales are blocked when a covered call is open", () => {
+  const assignment = {
+    id: 220,
+    ticker: "PLTR",
+    status: "assigned",
+    shares: 100,
+    assignmentDate: "2026-07-10",
+    adjustedCostPerShare: 14,
+    adjustedCostBasis: 1400,
+    wheelChainId: 120,
+  };
+  const coveredCall = {
+    id: 221,
+    kind: "covered_call",
+    ticker: "PLTR",
+    status: "open",
+    strike: 16,
+    expiry: "2026-09-18",
+    premium: 0.5,
+    contracts: 1,
+    parentAssignmentId: 220,
+    wheelChainId: 120,
+  };
+  localStorage.setItem("csp_trades", JSON.stringify([assignment, coveredCall]));
+  localStorage.setItem("csp_target", "500");
+
+  render(<App />);
+
+  const blockedButtons = screen.getAllByRole("button", { name: "SELL SHARES — CALL OPEN" });
+  expect(blockedButtons.length).toBeGreaterThan(0);
+  blockedButtons.forEach((button) => expect(button).toBeDisabled());
+  expect(screen.getAllByText("Resolve the open covered call before selling these shares.").length).toBeGreaterThan(0);
+  expect(screen.queryByRole("dialog", { name: "Sell shares" })).not.toBeInTheDocument();
+});
+
+test("closes a covered call early, restores shares, and keeps it out of closed options", () => {
+  const assignment = {
+    id: 230,
+    ticker: "PLTR",
+    status: "assigned",
+    shares: 100,
+    assignmentDate: "2026-07-10",
+    adjustedCostPerShare: 14,
+    adjustedCostBasis: 1400,
+    wheelChainId: 130,
+  };
+  const coveredCall = {
+    id: 231,
+    kind: "covered_call",
+    type: "Covered Call",
+    ticker: "PLTR",
+    status: "open",
+    strike: 16,
+    opened: "2026-08-01",
+    expiry: "2026-09-18",
+    premium: 0.5,
+    contracts: 1,
+    creditTotal: null,
+    parentAssignmentId: 230,
+    wheelChainId: 130,
+  };
+  localStorage.setItem("csp_trades", JSON.stringify([assignment, coveredCall]));
+  localStorage.setItem("csp_target", "500");
+
+  render(<App />);
+  fireEvent.click(screen.getAllByRole("button", { name: "CLOSE COVERED CALL EARLY" })[0]);
+  const dialog = screen.getByRole("dialog", { name: "Close covered call early" });
+  fireEvent.change(screen.getByLabelText("Close date"), { target: { value: "2026-08-20" } });
+  fireEvent.change(screen.getByLabelText("Close price per share"), { target: { value: "0.20" } });
+  fireEvent.change(screen.getByLabelText("Fees"), { target: { value: "1" } });
+  fireEvent.click(within(dialog).getByRole("button", { name: "CONFIRM CLOSE" }));
+
+  const savedTrades = JSON.parse(localStorage.getItem("csp_trades"));
+  expect(savedTrades.find((trade) => trade.id === assignment.id).status).toBe("assigned");
+  expect(savedTrades.find((trade) => trade.id === coveredCall.id)).toMatchObject({
+    status: "closed",
+    closeDate: "2026-08-20",
+    closingCost: 21,
+    pnl: 29,
+    wheelChainId: 130,
+    parentAssignmentId: 230,
+  });
+  expect(screen.getAllByRole("button", { name: "SELL SHARES" }).every((button) => button.disabled === false)).toBe(true);
+  expect(screen.getAllByText(/COVERED CALL HISTORY/).length).toBeGreaterThan(0);
+  expect(screen.getByRole("button", { name: /closed positions/i })).toHaveTextContent("(0)");
+});

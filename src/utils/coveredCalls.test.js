@@ -1,7 +1,10 @@
 import {
+  calculateCoveredCallClose,
+  closeCoveredCall,
   createCoveredCall,
   getAvailableCoveredCallContracts,
   validateCoveredCall,
+  validateCoveredCallClose,
 } from "./coveredCalls";
 
 const assignment = {
@@ -60,4 +63,66 @@ test("covered-call ownership and wheel linkage always come from the assignment",
     contracts: 1,
     status: "open",
   });
+});
+
+test("calculates early-close cost and covered-call P&L", () => {
+  const call = {
+    kind: "covered_call",
+    status: "open",
+    premium: 1.8,
+    contracts: 2,
+  };
+  expect(calculateCoveredCallClose(call, { closePricePerShare: "0.65", fees: "2" })).toEqual({
+    collectedPremium: 360,
+    closingCost: 132,
+    pnl: 228,
+  });
+});
+
+test.each([
+  [{ closeDate: "", closePricePerShare: "0.5", fees: "0" }, "close date"],
+  [{ closeDate: "2026-08-20", closePricePerShare: "-1", fees: "0" }, "close price per share"],
+  [{ closeDate: "2026-08-20", closePricePerShare: "0.5", fees: "-1" }, "valid fees"],
+])("rejects invalid covered-call close input", (draft, expectedMessage) => {
+  const call = {
+    id: 40,
+    kind: "covered_call",
+    status: "open",
+    contracts: 1,
+    parentAssignmentId: assignment.id,
+  };
+  expect(validateCoveredCallClose([assignment, call], call, draft)).toContain(expectedMessage);
+});
+
+test("closing a call preserves linkage and immediately restores assignment capacity", () => {
+  const call = {
+    id: 40,
+    kind: "covered_call",
+    ticker: "PLTR",
+    status: "open",
+    premium: 1.8,
+    contracts: 1,
+    wheelChainId: 10,
+    parentAssignmentId: assignment.id,
+  };
+  const other = { id: 99, ticker: "OTHER", status: "open" };
+  const result = closeCoveredCall(
+    [assignment, call, other],
+    call,
+    { closeDate: "2026-08-20", closePricePerShare: "0.65", fees: "1" }
+  );
+  const closedCall = result.find((trade) => trade.id === call.id);
+
+  expect(closedCall).toMatchObject({
+    status: "closed",
+    closeDate: "2026-08-20",
+    closePricePerShare: 0.65,
+    closeFees: 1,
+    closingCost: 66,
+    pnl: 114,
+    wheelChainId: 10,
+    parentAssignmentId: assignment.id,
+  });
+  expect(result.find((trade) => trade.id === other.id)).toEqual(other);
+  expect(getAvailableCoveredCallContracts(result, assignment)).toBe(3);
 });

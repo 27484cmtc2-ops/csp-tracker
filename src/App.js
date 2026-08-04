@@ -6,7 +6,11 @@ import NewTradeForm from "./components/NewTradeForm";
 import ScreenerPage from "./components/ScreenerPage";
 import StrikesPage from "./components/StrikesPage";
 import MobileTrackerShell from "./components/mobile/MobileTrackerShell";
-import CoveredCallForm, { CoveredCallSummary } from "./components/CoveredCallForm";
+import CoveredCallForm, {
+  CloseCoveredCallForm,
+  ClosedCoveredCallSummary,
+  CoveredCallSummary,
+} from "./components/CoveredCallForm";
 import StockSaleForm, { StockSaleSummary } from "./components/StockSaleForm";
 import { EMPTY_NEW_TRADE, SAMPLE_TICKERS, USD_CAD } from "./data/trackerData";
 import useTrackerData from "./hooks/useTrackerData";
@@ -15,11 +19,14 @@ import { fmt } from "./utils/formatters";
 import { annualizedReturn, daysColor, daysLabel, daysUntil, getCollectedPremium } from "./utils/trades";
 import {
   EMPTY_COVERED_CALL,
+  EMPTY_COVERED_CALL_CLOSE,
+  closeCoveredCall,
   createCoveredCall,
   getAvailableCoveredCallContracts,
   getOpenCoveredCallsForAssignment,
   isCoveredCall,
   validateCoveredCall,
+  validateCoveredCallClose,
 } from "./utils/coveredCalls";
 import {
   EMPTY_STOCK_SALE,
@@ -48,11 +55,13 @@ export default function App() {
   const [assignModal, setAssignModal] = useState(null);
   const [coveredCallModal, setCoveredCallModal] = useState(null);
   const [coveredCallError, setCoveredCallError] = useState("");
+  const [closeCoveredCallModal, setCloseCoveredCallModal] = useState(null);
+  const [closeCoveredCallError, setCloseCoveredCallError] = useState("");
   const [stockSaleModal, setStockSaleModal] = useState(null);
   const [stockSaleError, setStockSaleError] = useState("");
   const targetUSD = target / USD_CAD;
 
-  const realized = useMemo(() => trades.filter(t=>t.status==="closed").reduce((s,t)=>s+(t.pnl??0),0), [trades]);
+  const realized = useMemo(() => trades.filter(t=>t.status==="closed" && !isCoveredCall(t)).reduce((s,t)=>s+(t.pnl??0),0), [trades]);
   const openPremium = useMemo(() => trades.filter(t=>t.status==="open" && !isCoveredCall(t)).reduce((s,t)=>s+getCollectedPremium(t),0), [trades]);
   const strikes = useMemo(() => generateStrikes(selectedTicker, targetUSD), [selectedTicker, targetUSD]);
 
@@ -216,6 +225,30 @@ export default function App() {
     setCoveredCallError("");
   };
 
+  const openCloseCoveredCallModal = (call) => {
+    setCloseCoveredCallError("");
+    setCloseCoveredCallModal({
+      callId: call.id,
+      value: {
+        ...EMPTY_COVERED_CALL_CLOSE,
+        closeDate: new Date().toISOString().split("T")[0],
+      },
+    });
+  };
+
+  const confirmCloseCoveredCall = () => {
+    if (!closeCoveredCallModal) return;
+    const call = trades.find((trade) => trade.id === closeCoveredCallModal.callId);
+    const error = validateCoveredCallClose(trades, call, closeCoveredCallModal.value);
+    if (error) {
+      setCloseCoveredCallError(error);
+      return;
+    }
+    setTrades(closeCoveredCall(trades, call, closeCoveredCallModal.value));
+    setCloseCoveredCallModal(null);
+    setCloseCoveredCallError("");
+  };
+
   const openStockSaleModal = (assignment) => {
     if (getOpenCoveredCallsForAssignment(trades, assignment.id).length > 0) return;
     setStockSaleError("");
@@ -315,8 +348,9 @@ export default function App() {
 };
   const openTrades  = trades.filter(t => t.status==="open" && !isCoveredCall(t));
   const coveredCalls = trades.filter(t => t.status === "open" && isCoveredCall(t));
+  const closedCoveredCalls = trades.filter(t => t.status === "closed" && isCoveredCall(t));
   const stockSales = trades.filter(isStockSale);
-  const closedTrades= trades.filter(t => t.status==="closed");
+  const closedTrades= trades.filter(t => t.status==="closed" && !isCoveredCall(t));
   const assignedTrades = trades.filter(t => t.status === "assigned");
 
   const winningTrades = closedTrades.filter(
@@ -590,7 +624,7 @@ export default function App() {
 
                           <td style={{padding:"10px 12px",textAlign:"right"}}>
                             {getOpenCoveredCallsForAssignment(trades, trade.id).map((call) => (
-                              <CoveredCallSummary key={call.id} call={call} />
+                              <CoveredCallSummary key={call.id} call={call} onCloseEarly={openCloseCoveredCallModal} />
                             ))}
                             {getOpenCoveredCallsForAssignment(trades, trade.id).length === 0 && <span style={{color:"#607086"}}>—</span>}
                           </td>
@@ -608,10 +642,16 @@ export default function App() {
                                 className="csp-btn-sm"
                                 onClick={() => openStockSaleModal(trade)}
                                 disabled={getOpenCoveredCallsForAssignment(trades, trade.id).length > 0}
+                                aria-describedby={getOpenCoveredCallsForAssignment(trades, trade.id).length > 0 ? `share-sale-blocked-${trade.id}-table` : undefined}
                               >
-                                SELL SHARES
+                                {getOpenCoveredCallsForAssignment(trades, trade.id).length > 0 ? "SELL SHARES — CALL OPEN" : "SELL SHARES"}
                               </button>
                             </div>
+                            {getOpenCoveredCallsForAssignment(trades, trade.id).length > 0 && (
+                              <div id={`share-sale-blocked-${trade.id}-table`} className="assigned-position-note">
+                                Resolve the open covered call before selling these shares.
+                              </div>
+                            )}
                           </td>
                         </tr>
                       ))}
@@ -681,7 +721,7 @@ export default function App() {
                         </span>
                       </div>
                       {getOpenCoveredCallsForAssignment(trades, trade.id).map((call) => (
-                        <CoveredCallSummary key={call.id} call={call} />
+                        <CoveredCallSummary key={call.id} call={call} onCloseEarly={openCloseCoveredCallModal} />
                       ))}
                       <div className="assigned-position-actions">
                         <button
@@ -695,12 +735,13 @@ export default function App() {
                           className="csp-btn"
                           onClick={() => openStockSaleModal(trade)}
                           disabled={getOpenCoveredCallsForAssignment(trades, trade.id).length > 0}
+                          aria-describedby={getOpenCoveredCallsForAssignment(trades, trade.id).length > 0 ? `share-sale-blocked-${trade.id}-card` : undefined}
                         >
-                          SELL SHARES
+                          {getOpenCoveredCallsForAssignment(trades, trade.id).length > 0 ? "SELL SHARES — CALL OPEN" : "SELL SHARES"}
                         </button>
                       </div>
                       {getOpenCoveredCallsForAssignment(trades, trade.id).length > 0 && (
-                        <div className="assigned-position-note">Resolve the open covered call before selling these shares.</div>
+                        <div id={`share-sale-blocked-${trade.id}-card`} className="assigned-position-note">Resolve the open covered call before selling these shares.</div>
                       )}
                     </div>
                   ))}
@@ -715,6 +756,17 @@ export default function App() {
                 </div>
                 <div className="stock-sale-grid">
                   {stockSales.map((sale) => <StockSaleSummary key={sale.id} sale={sale} />)}
+                </div>
+              </div>
+            )}
+
+            {closedCoveredCalls.length > 0 && (
+              <div className="csp-panel" style={{marginBottom:12}}>
+                <div style={{padding:"10px 14px",borderBottom:"1px solid #223044",fontSize:9,color:"#6fdc8c",letterSpacing:".12em"}}>
+                  COVERED CALL HISTORY <span style={{color:"#3f7650"}}>({closedCoveredCalls.length})</span>
+                </div>
+                <div className="stock-sale-grid">
+                  {closedCoveredCalls.map((call) => <ClosedCoveredCallSummary key={call.id} call={call} />)}
                 </div>
               </div>
             )}
@@ -823,6 +875,7 @@ export default function App() {
             closedTrades={closedTrades}
             assignedTrades={assignedTrades}
             coveredCalls={coveredCalls}
+            closedCoveredCalls={closedCoveredCalls}
             stockSales={stockSales}
             sortedOpenTrades={sortedOpenTrades}
             sortBy={sortBy}
@@ -838,6 +891,7 @@ export default function App() {
             onReopen={reopenTrade}
             onDelete={deleteTrade}
             onSellCoveredCall={openCoveredCallModal}
+            onCloseCoveredCall={openCloseCoveredCallModal}
             onSellShares={openStockSaleModal}
             syncStatus={syncStatus}
             hasConflict={hasConflict}
@@ -1042,6 +1096,29 @@ export default function App() {
               onClose={() => {
                 setCoveredCallModal(null);
                 setCoveredCallError("");
+              }}
+            />
+          );
+        })()}
+
+        {closeCoveredCallModal && (() => {
+          const call = trades.find(
+            (trade) => trade.id === closeCoveredCallModal.callId && trade.status === "open" && isCoveredCall(trade)
+          );
+          if (!call) return null;
+          return (
+            <CloseCoveredCallForm
+              call={call}
+              value={closeCoveredCallModal.value}
+              error={closeCoveredCallError}
+              onChange={(value) => {
+                setCloseCoveredCallError("");
+                setCloseCoveredCallModal({ ...closeCoveredCallModal, value });
+              }}
+              onSubmit={confirmCloseCoveredCall}
+              onClose={() => {
+                setCloseCoveredCallModal(null);
+                setCloseCoveredCallError("");
               }}
             />
           );
