@@ -174,7 +174,8 @@ test("explains why share sales are blocked when a covered call is open", () => {
   const blockedButtons = screen.getAllByRole("button", { name: "SELL SHARES — CALL OPEN" });
   expect(blockedButtons.length).toBeGreaterThan(0);
   blockedButtons.forEach((button) => expect(button).toBeDisabled());
-  expect(screen.getAllByText("Resolve the open covered call before selling these shares.").length).toBeGreaterThan(0);
+  expect(screen.getAllByText("Close the call before selling shares.").length).toBeGreaterThan(0);
+  expect(screen.getAllByText("Fully covered").length).toBeGreaterThan(0);
   expect(screen.queryByRole("dialog", { name: "Sell shares" })).not.toBeInTheDocument();
 });
 
@@ -208,7 +209,7 @@ test("closes a covered call early, restores shares, and keeps it out of closed o
   localStorage.setItem("csp_target", "500");
 
   render(<App />);
-  fireEvent.click(screen.getAllByRole("button", { name: "CLOSE COVERED CALL EARLY" })[0]);
+  fireEvent.click(screen.getAllByRole("button", { name: "CLOSE CALL" })[0]);
   const dialog = screen.getByRole("dialog", { name: "Close covered call early" });
   fireEvent.change(screen.getByLabelText("Close date"), { target: { value: "2026-08-20" } });
   fireEvent.change(screen.getByLabelText("Close price per share"), { target: { value: "0.20" } });

@@ -43,7 +43,7 @@ test("blocks a share sale while any linked covered call is open", () => {
   ];
 
   expect(validateStockSale(trades, assignment, validDraft)).toBe(
-    "Resolve the open covered call before selling these shares."
+    "Close the call before selling shares."
   );
 });
 

@@ -151,11 +151,10 @@ input, button { font-family: inherit; }
 .covered-call-error { margin-top: 10px; color: #ff7b7b; font-size: 11px; }
 .covered-call-submit { display: flex; gap: 8px; margin-top: 16px; }
 .covered-call-submit .csp-btn { flex: 1; border-color: #2f6f61; color: #6fdc8c; }
-.covered-call-summary { display: flex; flex-direction: column; gap: 3px; margin-top: 9px; padding: 9px 10px; border: 1px solid #244d43; border-radius: 4px; background: #0c1a16; text-align: left; }
-.covered-call-summary strong { color: #d7e0ea; font-size: 11px; }
-.covered-call-summary > span:last-child { color: #8796aa; font-size: 9px; }
-.covered-call-badge { color: #6fdc8c; font-size: 8px; letter-spacing: .1em; }
-.covered-call-close-action { width: 100%; min-height: 34px; margin-top: 7px; border: 1px solid #7a4a1a; border-radius: 4px; background: #1d160e; color: #f59e0b; font: inherit; font-size: 8px; font-weight: 600; letter-spacing: .05em; }
+.covered-call-summary { display: flex; align-items: center; justify-content: flex-end; gap: 7px; margin-top: 5px; color: #8796aa; font-size: 9px; text-align: left; white-space: nowrap; }
+.covered-call-primary { color: #d7e0ea; font-weight: 600; }
+.covered-call-primary::after { content: " ·"; color: #607086; font-weight: 400; }
+.covered-call-close-action { min-height: 26px; padding: 0 8px; border: 1px solid #7a4a1a; border-radius: 4px; background: #1d160e; color: #f59e0b; font: inherit; font-size: 8px; font-weight: 600; letter-spacing: .04em; white-space: nowrap; }
 .mobile-assigned-call-action { width: 100%; min-height: 44px; margin-top: 10px; border: 1px solid #2f6f61; border-radius: 5px; background: #10201b; color: #6fdc8c; font: inherit; font-size: 10px; font-weight: 600; }
 .mobile-assigned-call-action:disabled { border-color: #26303a; color: #607086; background: #111820; }
 
@@ -163,11 +162,16 @@ input, button { font-family: inherit; }
   .covered-call-layer { align-items: flex-end; padding: 0; }
   .covered-call-dialog { width: 100%; max-height: 94vh; padding: 20px 18px calc(20px + env(safe-area-inset-bottom)); border-width: 1px 0 0; border-radius: 18px 18px 0 0; }
   .covered-call-fields { grid-template-columns: 1fr; }
+  .covered-call-summary { display: grid; grid-template-columns: 1fr auto; justify-content: stretch; gap: 3px 10px; margin-top: 10px; padding: 10px; border: 1px solid #244d43; border-radius: 5px; background: #0c1a16; white-space: normal; }
+  .covered-call-primary, .covered-call-secondary { grid-column: 1; }
+  .covered-call-primary::after { content: ""; }
+  .covered-call-close-action { grid-column: 2; grid-row: 1 / span 2; min-height: 44px; align-self: center; padding: 0 12px; }
 }
 
 .assigned-position-actions, .mobile-assigned-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin-top: 10px; }
 .assigned-position-actions .csp-btn { width: 100%; }
 .assigned-position-note { margin-top: 7px; color: #a07820; font-size: 9px; line-height: 1.4; }
+.assigned-position-status { align-self: center; color: #71839a; font-size: 9px; font-weight: 400; letter-spacing: .02em; }
 .mobile-assigned-actions .mobile-assigned-call-action { margin-top: 0; }
 .mobile-sell-shares-action { border-color: #4d82b8; background: #132033; color: #9db6ce; }
 .stock-sale-preview { display: grid; gap: 7px; margin-top: 14px; padding: 11px 12px; border: 1px solid #244d43; border-radius: 4px; background: #0c1a16; }

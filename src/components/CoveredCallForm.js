@@ -73,10 +73,9 @@ export function CoveredCallSummary({ call, onCloseEarly }) {
   const premium = call.creditTotal ?? call.premium * call.contracts * 100;
   return (
     <div className="covered-call-summary">
-      <span className="covered-call-badge">COVERED CALL</span>
-      <strong>${call.strike} · {call.expiry}</strong>
-      <span>{call.contracts} contract{call.contracts === 1 ? "" : "s"} · {fmt(premium)} collected</span>
-      {onCloseEarly && <button className="covered-call-close-action" onClick={() => onCloseEarly(call)}>CLOSE COVERED CALL EARLY</button>}
+      <span className="covered-call-primary">${call.strike} · {call.expiry}</span>
+      <span className="covered-call-secondary">{call.contracts} contract{call.contracts === 1 ? "" : "s"} · {fmt(premium)} collected</span>
+      {onCloseEarly && <button className="covered-call-close-action" onClick={() => onCloseEarly(call)}>CLOSE CALL</button>}
     </div>
   );
 }

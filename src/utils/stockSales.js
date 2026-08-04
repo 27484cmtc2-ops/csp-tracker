@@ -32,7 +32,7 @@ export function validateStockSale(trades, assignment, draft) {
     return "The assigned position has no shares to sell.";
   }
   if (getOpenCoveredCallsForAssignment(trades, assignment.id).length > 0) {
-    return "Resolve the open covered call before selling these shares.";
+    return "Close the call before selling shares.";
   }
   if (!draft.saleDate) return "Choose a sale date.";
   const price = Number(draft.salePricePerShare);

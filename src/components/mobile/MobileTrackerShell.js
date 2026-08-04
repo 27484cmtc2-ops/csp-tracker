@@ -199,13 +199,11 @@ function MobileAssignedCard({ trade, coveredCalls, onSellCoveredCall, onSellShar
       <div className="mobile-detail-row"><span>Total basis</span><strong>{fmt(trade.adjustedCostBasis)}</strong></div>
       {coveredCalls.map((call) => <CoveredCallSummary key={call.id} call={call} onCloseEarly={onCloseCoveredCall} />)}
       <div className="mobile-assigned-actions">
-        <button
-          className="mobile-assigned-call-action"
-          onClick={() => onSellCoveredCall(trade)}
-          disabled={availableContracts <= 0}
-        >
-          {availableContracts > 0 ? "SELL COVERED CALL" : "ALL SHARES COVERED"}
-        </button>
+        {availableContracts > 0 ? (
+          <button className="mobile-assigned-call-action" onClick={() => onSellCoveredCall(trade)}>SELL COVERED CALL</button>
+        ) : (
+          <span className="assigned-position-status">Fully covered</span>
+        )}
         <button
           className="mobile-assigned-call-action mobile-sell-shares-action"
           onClick={() => onSellShares(trade)}
@@ -215,7 +213,7 @@ function MobileAssignedCard({ trade, coveredCalls, onSellCoveredCall, onSellShar
           {coveredCalls.length > 0 ? "SELL SHARES — CALL OPEN" : "SELL SHARES"}
         </button>
       </div>
-      {coveredCalls.length > 0 && <div id={`share-sale-blocked-${trade.id}-mobile`} className="assigned-position-note">Resolve the open covered call before selling these shares.</div>}
+      {coveredCalls.length > 0 && <div id={`share-sale-blocked-${trade.id}-mobile`} className="assigned-position-note">Close the call before selling shares.</div>}
     </article>
   );
 }

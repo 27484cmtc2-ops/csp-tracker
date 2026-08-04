@@ -631,13 +631,11 @@ export default function App() {
 
                           <td style={{padding:"10px 12px",textAlign:"right"}}>
                             <div style={{display:"flex",gap:5,justifyContent:"flex-end"}}>
-                              <button
-                                className="csp-btn-sm"
-                                onClick={() => openCoveredCallModal(trade)}
-                                disabled={getAvailableCoveredCallContracts(trades, trade) <= 0}
-                              >
-                                {getAvailableCoveredCallContracts(trades, trade) > 0 ? "SELL CALL" : "FULLY COVERED"}
-                              </button>
+                              {getAvailableCoveredCallContracts(trades, trade) > 0 ? (
+                                <button className="csp-btn-sm" onClick={() => openCoveredCallModal(trade)}>SELL CALL</button>
+                              ) : (
+                                <span className="assigned-position-status">Fully covered</span>
+                              )}
                               <button
                                 className="csp-btn-sm"
                                 onClick={() => openStockSaleModal(trade)}
@@ -649,7 +647,7 @@ export default function App() {
                             </div>
                             {getOpenCoveredCallsForAssignment(trades, trade.id).length > 0 && (
                               <div id={`share-sale-blocked-${trade.id}-table`} className="assigned-position-note">
-                                Resolve the open covered call before selling these shares.
+                                Close the call before selling shares.
                               </div>
                             )}
                           </td>
@@ -724,13 +722,11 @@ export default function App() {
                         <CoveredCallSummary key={call.id} call={call} onCloseEarly={openCloseCoveredCallModal} />
                       ))}
                       <div className="assigned-position-actions">
-                        <button
-                          className="csp-btn"
-                          onClick={() => openCoveredCallModal(trade)}
-                          disabled={getAvailableCoveredCallContracts(trades, trade) <= 0}
-                        >
-                          {getAvailableCoveredCallContracts(trades, trade) > 0 ? "SELL COVERED CALL" : "ALL SHARES COVERED"}
-                        </button>
+                        {getAvailableCoveredCallContracts(trades, trade) > 0 ? (
+                          <button className="csp-btn" onClick={() => openCoveredCallModal(trade)}>SELL COVERED CALL</button>
+                        ) : (
+                          <span className="assigned-position-status">Fully covered</span>
+                        )}
                         <button
                           className="csp-btn"
                           onClick={() => openStockSaleModal(trade)}
@@ -741,7 +737,7 @@ export default function App() {
                         </button>
                       </div>
                       {getOpenCoveredCallsForAssignment(trades, trade.id).length > 0 && (
-                        <div id={`share-sale-blocked-${trade.id}-card`} className="assigned-position-note">Resolve the open covered call before selling these shares.</div>
+                        <div id={`share-sale-blocked-${trade.id}-card`} className="assigned-position-note">Close the call before selling shares.</div>
                       )}
                     </div>
                   ))}
