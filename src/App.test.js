@@ -6,6 +6,10 @@ jest.mock("./cloudStorage", () => ({
   loadCloudData: jest.fn(() => new Promise(() => {})),
 }));
 
+jest.mock("./feedbackStorage", () => ({
+  submitFeedback: jest.fn(),
+}));
+
 import App from "./App";
 import { loadCloudData } from "./cloudStorage";
 
@@ -50,6 +54,19 @@ test("opens mobile position actions from the more button", () => {
   expect(screen.getByRole("button", { name: "ROLL POSITION" })).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "RECORD ASSIGNMENT" })).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "DELETE TRADE" })).toBeInTheDocument();
+});
+
+test("opens authenticated beta feedback without exposing tracker data", () => {
+  render(<App />);
+
+  const feedbackButtons = screen.getAllByRole("button", { name: "Feedback" });
+  fireEvent.click(feedbackButtons[0]);
+
+  const dialog = screen.getByRole("dialog", { name: "Help improve Wheel App" });
+  expect(within(dialog).getByLabelText("Feedback type")).toBeInTheDocument();
+  expect(within(dialog).getByLabelText("Message")).toBeRequired();
+  expect(within(dialog).getByLabelText("Optional email")).toHaveAttribute("type", "email");
+  expect(within(dialog).queryByText("NVDA")).not.toBeInTheDocument();
 });
 
 test("persists a covered call with assignment-controlled wheel linkage", () => {

@@ -7,6 +7,7 @@ import ScreenerPage from "./components/ScreenerPage";
 import StrikesPage from "./components/StrikesPage";
 import MobileTrackerShell from "./components/mobile/MobileTrackerShell";
 import ActiveWheelCard from "./components/ActiveWheelCard";
+import FeedbackModal from "./components/FeedbackModal";
 import CoveredCallForm, {
   CloseCoveredCallForm,
   ClosedCoveredCallSummary,
@@ -37,6 +38,7 @@ import {
 
 export default function App() {
   const [tab, setTab] = useState("tracker");
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
   const {
     trades,
     target,
@@ -402,6 +404,7 @@ export default function App() {
           onSyncNow={syncNow}
           onUseCloud={useCloudData}
           onKeepLocal={keepLocalData}
+          onFeedback={() => setFeedbackOpen(true)}
         />
         
 
@@ -694,8 +697,11 @@ export default function App() {
             onSyncNow={syncNow}
             onUseCloud={useCloudData}
             onKeepLocal={keepLocalData}
+            onFeedback={() => setFeedbackOpen(true)}
           />
         </div>
+
+        {feedbackOpen && <FeedbackModal onClose={() => setFeedbackOpen(false)} />}
 
         {closeModal && (()=>{
           const t = trades.find(x=>x.id===closeModal.id);

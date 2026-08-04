@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { supabase } from "./supabaseClient";
+import "./Auth.css";
 
 export default function Auth({ onSignedIn }) {
   const [email, setEmail] = useState("");
@@ -51,84 +52,48 @@ export default function Auth({ onSignedIn }) {
   };
 
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        background: "#080c10",
-        color: "#c8d8c0",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        fontFamily: "'IBM Plex Mono','Courier New',monospace",
-        padding: 20,
-      }}
-    >
-      <div
-        style={{
-          width: 340,
-          background: "#0d1117",
-          border: "1px solid #1a2e1a",
-          borderRadius: 6,
-          padding: 24,
-        }}
-      >
-        <div
-          style={{
-            color: "#7aff7a",
-            fontSize: 18,
-            fontWeight: 600,
-            marginBottom: 18,
-          }}
-        >
-          CSP TRACKER LOGIN
-        </div>
+    <main className="auth-page">
+      <section className="auth-card" aria-labelledby="auth-title">
+        <header className="auth-header">
+          <span className="auth-eyebrow">{"// WHEEL STRATEGY TRACKER"}</span>
+          <h1 id="auth-title">Wheel App</h1>
+          <p>Track your wheel strategy from cash-secured puts to covered calls.</p>
+        </header>
 
-        <input
-          type="email"
-          placeholder="EMAIL"
-          value={email}
-          onChange={(event) => setEmail(event.target.value)}
-          style={{
-            width: "100%",
-            marginBottom: 10,
-            padding: 10,
-            background: "#080c10",
-            border: "1px solid #2a4a2a",
-            color: "#c8d8c0",
-          }}
-        />
+        <div className="auth-form">
+          <label className="auth-field">
+            <span>Email</span>
+            <input
+              type="email"
+              autoComplete="email"
+              placeholder="trader@example.com"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+            />
+          </label>
 
-        <input
-          type="password"
-          placeholder="PASSWORD"
-          value={password}
-          onChange={(event) => setPassword(event.target.value)}
-          style={{
-            width: "100%",
-            marginBottom: 14,
-            padding: 10,
-            background: "#080c10",
-            border: "1px solid #2a4a2a",
-            color: "#c8d8c0",
-          }}
-        />
+          <label className="auth-field">
+            <span>Password</span>
+            <input
+              type="password"
+              autoComplete="current-password"
+              placeholder="Enter your password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+            />
+          </label>
 
-        <div style={{ display: "flex", gap: 8 }}>
-          <button onClick={signIn} disabled={loading} style={{ flex: 1 }}>
+          <button className="auth-primary-action" onClick={signIn} disabled={loading}>
             SIGN IN
           </button>
 
-          <button onClick={signUp} disabled={loading} style={{ flex: 1 }}>
-            CREATE ACCOUNT
+          <button className="auth-secondary-action" onClick={signUp} disabled={loading}>
+            CREATE AN ACCOUNT
           </button>
         </div>
 
-        {message && (
-          <div style={{ marginTop: 14, fontSize: 11, color: "#f59e0b" }}>
-            {message}
-          </div>
-        )}
-      </div>
-    </div>
+        {message && <div className="auth-message" role="status">{message}</div>}
+      </section>
+    </main>
   );
 }

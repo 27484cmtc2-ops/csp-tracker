@@ -243,6 +243,7 @@ export default function MobileTrackerShell({
   onSyncNow,
   onUseCloud,
   onKeepLocal,
+  onFeedback,
 }) {
   const [assignedOpen, setAssignedOpen] = useState(false);
   const [closedOpen, setClosedOpen] = useState(false);
@@ -267,6 +268,7 @@ export default function MobileTrackerShell({
             onSyncNow={onSyncNow}
             onUseCloud={onUseCloud}
             onKeepLocal={onKeepLocal}
+            onFeedback={onFeedback}
             compact
           />
 
