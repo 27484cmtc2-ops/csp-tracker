@@ -26,7 +26,9 @@ test("validates required dividend fields and numeric values", () => {
   expect(validateDividendHolding({})).toBe("Ticker is required.");
   expect(validateDividendHolding(holding({ shares: 0 }))).toBe("Shares must be greater than zero.");
   expect(validateDividendHolding(holding({ dividendPerShare: -1 }))).toBe("Dividend per share must be greater than zero.");
-  expect(validateDividendHolding(holding({ frequency: "weekly" }))).toBe("Select a payment frequency.");
+  expect(validateDividendHolding(holding({ frequency: "unsupported" }))).toBe("Select a payment frequency.");
+  expect(validateDividendHolding(holding({ frequency: "weekly" }))).toBe("");
+  expect(validateDividendHolding(holding({ frequency: "semi_monthly" }))).toBe("");
   expect(validateDividendHolding(holding({ currency: "EUR" }))).toBe("Select CAD or USD.");
   expect(validateDividendHolding(holding({ account: "" }))).toBe("Account is required.");
   expect(validateDividendHolding(holding({ nextPaymentDate: "" }))).toBe("Next payment date is required.");
@@ -65,6 +67,8 @@ test("normalizes a dividend holding for storage", () => {
 });
 
 test.each([
+  ["weekly", 5200],
+  ["semi_monthly", 2400],
   ["monthly", 1200],
   ["quarterly", 400],
   ["semi_annual", 200],
@@ -99,4 +103,28 @@ test("projects upcoming payments from the next payment date", () => {
     "2026-01-31", "2026-04-30", "2026-07-30", "2026-10-30",
   ]);
   expect(payments[0].amountCad).toBe(100);
+});
+
+test("projects weekly payments seven calendar days apart", () => {
+  const payments = getUpcomingDividendPayments(
+    [holding({ frequency: "weekly", nextPaymentDate: "2026-01-28" })],
+    CAD,
+    new Date("2026-01-28T12:00:00"),
+    1
+  );
+  expect(payments.map((payment) => payment.date)).toEqual([
+    "2026-01-28", "2026-02-04", "2026-02-11", "2026-02-18", "2026-02-25",
+  ]);
+});
+
+test("projects semi-monthly payments from two safe monthly anchors", () => {
+  const payments = getUpcomingDividendPayments(
+    [holding({ frequency: "semi_monthly", nextPaymentDate: "2026-01-31" })],
+    CAD,
+    new Date("2026-01-01T12:00:00"),
+    3
+  );
+  expect(payments.map((payment) => payment.date)).toEqual([
+    "2026-01-31", "2026-02-15", "2026-02-28", "2026-03-15", "2026-03-31",
+  ]);
 });

@@ -166,10 +166,12 @@ test("adds, edits, and deletes a dividend holding from the desktop tracker", () 
   expect(within(desktop).getByText("No dividend holdings yet.")).toBeInTheDocument();
 
   fireEvent.click(within(desktop).getByRole("button", { name: "+ ADD HOLDING" }));
+  expect(screen.getByRole("option", { name: "Weekly" })).toBeInTheDocument();
+  expect(screen.getByRole("option", { name: "Semi-monthly" })).toBeInTheDocument();
   fireEvent.change(screen.getByLabelText("Ticker"), { target: { value: "enb" } });
   fireEvent.change(screen.getByLabelText("Number of shares"), { target: { value: "20" } });
   fireEvent.change(screen.getByLabelText("Dividend amount per share"), { target: { value: "0.9425" } });
-  fireEvent.change(screen.getByLabelText("Payment frequency"), { target: { value: "quarterly" } });
+  fireEvent.change(screen.getByLabelText("Payment frequency"), { target: { value: "semi_monthly" } });
   fireEvent.change(screen.getByLabelText("Currency"), { target: { value: "CAD" } });
   fireEvent.change(screen.getByLabelText("Account"), { target: { value: "TFSA" } });
   fireEvent.change(screen.getByLabelText("Next payment date"), { target: { value: "2026-09-01" } });
@@ -177,8 +179,9 @@ test("adds, edits, and deletes a dividend holding from the desktop tracker", () 
 
   expect(within(desktop).getAllByText("ENB").length).toBeGreaterThan(0);
   expect(JSON.parse(localStorage.getItem(TEST_KEYS.dividends))).toMatchObject([
-    { ticker: "ENB", shares: 20, account: "TFSA" },
+    { ticker: "ENB", shares: 20, frequency: "semi_monthly", account: "TFSA" },
   ]);
+  expect(within(desktop).getByText("Semi-monthly")).toBeInTheDocument();
 
   fireEvent.click(within(desktop).getByRole("button", { name: "EDIT" }));
   fireEvent.change(screen.getByLabelText("Number of shares"), { target: { value: "25" } });

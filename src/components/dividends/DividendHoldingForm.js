@@ -1,6 +1,8 @@
 import { DIVIDEND_FREQUENCIES } from "../../utils/dividends";
 
 const FREQUENCY_LABELS = {
+  weekly: "Weekly",
+  semi_monthly: "Semi-monthly",
   monthly: "Monthly",
   quarterly: "Quarterly",
   semi_annual: "Semi-annual",

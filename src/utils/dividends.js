@@ -1,4 +1,6 @@
 export const DIVIDEND_FREQUENCIES = {
+  weekly: 52,
+  semi_monthly: 24,
   monthly: 12,
   quarterly: 4,
   semi_annual: 2,
@@ -112,6 +114,55 @@ function dateString(date) {
   return date.toISOString().split("T")[0];
 }
 
+function addDays(date, days) {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return next;
+}
+
+function getProjectedDates(holding, start, end) {
+  const firstPayment = new Date(`${holding.nextPaymentDate}T00:00:00`);
+
+  if (holding.frequency === "weekly") {
+    const dates = [];
+    let paymentDate = firstPayment;
+    while (paymentDate < start) paymentDate = addDays(paymentDate, 7);
+    while (paymentDate < end) {
+      dates.push(paymentDate);
+      paymentDate = addDays(paymentDate, 7);
+    }
+    return dates;
+  }
+
+  if (holding.frequency === "semi_monthly") {
+    // The entered date and the date 15 days later become two independent
+    // monthly anchors. addMonths clamps each anchor safely for short months.
+    const secondAnchor = addDays(firstPayment, 15);
+    const dates = [];
+    for (const anchor of [firstPayment, secondAnchor]) {
+      let monthOffset = 0;
+      let paymentDate = anchor;
+      while (paymentDate < end) {
+        if (paymentDate >= start) dates.push(paymentDate);
+        monthOffset += 1;
+        paymentDate = addMonths(anchor, monthOffset);
+      }
+    }
+    return dates.sort((first, second) => first - second);
+  }
+
+  const paymentsPerYear = DIVIDEND_FREQUENCIES[holding.frequency];
+  const intervalMonths = 12 / paymentsPerYear;
+  const dates = [];
+  let paymentDate = firstPayment;
+  while (paymentDate < start) paymentDate = addMonths(paymentDate, intervalMonths);
+  while (paymentDate < end) {
+    dates.push(paymentDate);
+    paymentDate = addMonths(paymentDate, intervalMonths);
+  }
+  return dates;
+}
+
 export function getUpcomingDividendPayments(holdings, usdCad, fromDate = new Date(), months = 12) {
   const start = new Date(fromDate);
   start.setHours(0, 0, 0, 0);
@@ -120,12 +171,7 @@ export function getUpcomingDividendPayments(holdings, usdCad, fromDate = new Dat
   return holdings.flatMap((holding) => {
     const paymentsPerYear = DIVIDEND_FREQUENCIES[holding.frequency];
     if (!paymentsPerYear) return [];
-    const intervalMonths = 12 / paymentsPerYear;
-    let paymentDate = new Date(`${holding.nextPaymentDate}T00:00:00`);
-    const payments = [];
-    while (paymentDate < start) paymentDate = addMonths(paymentDate, intervalMonths);
-    while (paymentDate < end) {
-      payments.push({
+    return getProjectedDates(holding, start, end).map((paymentDate) => ({
         holdingId: holding.id,
         ticker: holding.ticker,
         account: holding.account,
@@ -133,9 +179,6 @@ export function getUpcomingDividendPayments(holdings, usdCad, fromDate = new Dat
         amountCad: toCad(getDividendPaymentAmount(holding), holding.currency, usdCad),
         originalAmount: getDividendPaymentAmount(holding),
         currency: holding.currency,
-      });
-      paymentDate = addMonths(paymentDate, intervalMonths);
-    }
-    return payments;
+      }));
   }).sort((first, second) => first.date.localeCompare(second.date));
 }
