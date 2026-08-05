@@ -1,9 +1,9 @@
 import { fmtCad } from "../../utils/formatters";
 import {
   getAnnualDividendIncome,
+  getCurrentMonthOptionPremium,
   getDividendPaymentAmount,
   getDividendSummary,
-  getEstimatedMonthlyInvestmentIncome,
   getUpcomingDividendPayments,
   groupDividendIncome,
 } from "../../utils/dividends";
@@ -29,7 +29,7 @@ function IncomeBreakdown({ title, groups }) {
 
 export default function DividendDashboard({ holdings, trades, usdCad, onAdd, onEdit, onDelete }) {
   const summary = getDividendSummary(holdings, usdCad);
-  const investmentIncome = getEstimatedMonthlyInvestmentIncome(holdings, trades, usdCad);
+  const currentMonthOptionPremiumCad = getCurrentMonthOptionPremium(trades) * usdCad;
   const upcoming = getUpcomingDividendPayments(holdings, usdCad).slice(0, 8);
   const byAccount = groupDividendIncome(holdings, "account", usdCad);
   const byTicker = groupDividendIncome(holdings, "ticker", usdCad);
@@ -48,12 +48,7 @@ export default function DividendDashboard({ holdings, trades, usdCad, onAdd, onE
       <section className="dividend-summary-grid" aria-label="Dividend income summary">
         <div><span>ANNUAL DIVIDENDS</span><strong>{fmtCad(summary.annualIncome)}</strong></div>
         <div><span>AVERAGE MONTHLY</span><strong>{fmtCad(summary.averageMonthlyIncome)}</strong></div>
-        <div><span>OPTION PREMIUM THIS MONTH</span><strong>{fmtCad(investmentIncome.currentMonthOptionPremiumCad)}</strong></div>
-        <div className="dividend-combined-metric">
-          <span>EST. MONTHLY INVESTMENT INCOME</span>
-          <strong>{fmtCad(investmentIncome.estimatedMonthlyInvestmentIncome)}</strong>
-          <small>Estimate only · not realized P&amp;L</small>
-        </div>
+        <div><span>OPTION PREMIUM THIS MONTH</span><strong>{fmtCad(currentMonthOptionPremiumCad)}</strong></div>
       </section>
 
       <section className="csp-panel dividend-holdings-panel">

@@ -1,8 +1,8 @@
 import {
   createDividendHolding,
   getAnnualDividendIncome,
+  getCurrentMonthOptionPremium,
   getDividendSummary,
-  getEstimatedMonthlyInvestmentIncome,
   getUpcomingDividendPayments,
   groupDividendIncome,
   normalizeDividendHoldings,
@@ -102,7 +102,7 @@ test("projects upcoming payments from the next payment date", () => {
   expect(payments[0].amountCad).toBe(100);
 });
 
-test("combines average dividends with current-month option premiums in CAD", () => {
+test("calculates current-month option premiums separately from dividend income", () => {
   const trades = [
     { id: 1, type: "CSP", status: "open", opened: "2026-08-02", premium: 1, contracts: 1 },
     { id: 2, type: "10/9 Spread", status: "closed", opened: "2026-08-03", premium: 0.5, contracts: 2 },
@@ -110,11 +110,5 @@ test("combines average dividends with current-month option premiums in CAD", () 
     { id: 4, kind: "stock_sale", status: "completed", opened: "2026-08-04", premium: 99, contracts: 1 },
     { id: 5, type: "CSP", status: "open", opened: "2026-07-31", premium: 10, contracts: 1 },
   ];
-  expect(getEstimatedMonthlyInvestmentIncome(
-    [holding({ frequency: "annual", shares: 12 })], trades, CAD, new Date("2026-08-05")
-  )).toEqual({
-    averageMonthlyDividendIncome: 1,
-    currentMonthOptionPremiumCad: 315,
-    estimatedMonthlyInvestmentIncome: 316,
-  });
+  expect(getCurrentMonthOptionPremium(trades, new Date("2026-08-05")) * CAD).toBe(315);
 });

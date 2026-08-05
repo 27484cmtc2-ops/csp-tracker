@@ -156,13 +156,3 @@ export function getCurrentMonthOptionPremium(trades, now = new Date()) {
     return sum + getCollectedPremium(trade);
   }, 0);
 }
-
-export function getEstimatedMonthlyInvestmentIncome(holdings, trades, usdCad, now = new Date()) {
-  const { averageMonthlyIncome } = getDividendSummary(holdings, usdCad);
-  const optionPremiumCad = getCurrentMonthOptionPremium(trades, now) * usdCad;
-  return {
-    averageMonthlyDividendIncome: averageMonthlyIncome,
-    currentMonthOptionPremiumCad: optionPremiumCad,
-    estimatedMonthlyInvestmentIncome: averageMonthlyIncome + optionPremiumCad,
-  };
-}

@@ -69,14 +69,12 @@ input, button { font-family: inherit; }
 .dividend-page-heading h1 { margin: 7px 0 5px; color: #d7e0ea; font-size: 24px; font-weight: 600; }
 .dividend-page-heading p { margin: 0; color: #71839a; font-size: 10px; }
 .dividend-add-button { flex: none; min-height: 36px; }
-.dividend-summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); overflow: hidden; border: 1px solid #223044; border-radius: 5px; background: #111821; }
+.dividend-summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); overflow: hidden; border: 1px solid #223044; border-radius: 5px; background: #111821; }
 .dividend-summary-grid > div { min-width: 0; padding: 15px; }
 .dividend-summary-grid > div + div { border-left: 1px solid #223044; }
 .dividend-summary-grid span { display: block; min-height: 22px; color: #71839a; font-size: 8px; letter-spacing: .08em; line-height: 1.4; }
 .dividend-summary-grid strong { display: block; color: #d7e0ea; font-size: 18px; }
 .dividend-summary-grid small { display: block; margin-top: 5px; color: #607086; font-size: 8px; }
-.dividend-summary-grid .dividend-combined-metric { background: #101d29; }
-.dividend-summary-grid .dividend-combined-metric strong { color: #5aa9ff; }
 .dividend-holdings-panel > header, .dividend-upcoming-panel > header, .dividend-breakdown > header { padding: 10px 14px; border-bottom: 1px solid #223044; color: #7f8ea3; font-size: 9px; letter-spacing: .12em; }
 .dividend-holdings-panel > header span, .dividend-upcoming-panel > header span { color: #607086; }
 .dividend-empty-state { padding: 28px 18px; text-align: center; }
