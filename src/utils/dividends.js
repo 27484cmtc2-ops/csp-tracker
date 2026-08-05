@@ -1,5 +1,3 @@
-import { getCollectedPremium } from "./trades";
-
 export const DIVIDEND_FREQUENCIES = {
   monthly: 12,
   quarterly: 4,
@@ -140,19 +138,4 @@ export function getUpcomingDividendPayments(holdings, usdCad, fromDate = new Dat
     }
     return payments;
   }).sort((first, second) => first.date.localeCompare(second.date));
-}
-
-export function getCurrentMonthOptionPremium(trades, now = new Date()) {
-  const month = now.getMonth();
-  const year = now.getFullYear();
-  return trades.reduce((sum, trade) => {
-    if (!trade.opened || trade.kind === "stock_sale" || trade.status === "assigned" || trade.status === "sold") {
-      return sum;
-    }
-    const isOption = trade.kind === "covered_call" || trade.type === "CSP" || trade.type?.includes("Spread");
-    if (!isOption) return sum;
-    const opened = new Date(`${trade.opened}T00:00:00`);
-    if (opened.getFullYear() !== year || opened.getMonth() !== month) return sum;
-    return sum + getCollectedPremium(trade);
-  }, 0);
 }

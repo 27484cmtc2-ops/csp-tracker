@@ -1,7 +1,7 @@
+import { useState } from "react";
 import { fmtCad } from "../../utils/formatters";
 import {
   getAnnualDividendIncome,
-  getCurrentMonthOptionPremium,
   getDividendPaymentAmount,
   getDividendSummary,
   getUpcomingDividendPayments,
@@ -27,10 +27,13 @@ function IncomeBreakdown({ title, groups }) {
   );
 }
 
-export default function DividendDashboard({ holdings, trades, usdCad, onAdd, onEdit, onDelete }) {
+const UPCOMING_PREVIEW_COUNT = 4;
+
+export default function DividendDashboard({ holdings, usdCad, onAdd, onEdit, onDelete }) {
+  const [showFullSchedule, setShowFullSchedule] = useState(false);
   const summary = getDividendSummary(holdings, usdCad);
-  const currentMonthOptionPremiumCad = getCurrentMonthOptionPremium(trades) * usdCad;
-  const upcoming = getUpcomingDividendPayments(holdings, usdCad).slice(0, 8);
+  const upcoming = getUpcomingDividendPayments(holdings, usdCad);
+  const visibleUpcoming = showFullSchedule ? upcoming : upcoming.slice(0, UPCOMING_PREVIEW_COUNT);
   const byAccount = groupDividendIncome(holdings, "account", usdCad);
   const byTicker = groupDividendIncome(holdings, "ticker", usdCad);
 
@@ -48,7 +51,6 @@ export default function DividendDashboard({ holdings, trades, usdCad, onAdd, onE
       <section className="dividend-summary-grid" aria-label="Dividend income summary">
         <div><span>ANNUAL DIVIDENDS</span><strong>{fmtCad(summary.annualIncome)}</strong></div>
         <div><span>AVERAGE MONTHLY</span><strong>{fmtCad(summary.averageMonthlyIncome)}</strong></div>
-        <div><span>OPTION PREMIUM THIS MONTH</span><strong>{fmtCad(currentMonthOptionPremiumCad)}</strong></div>
       </section>
 
       <section className="csp-panel dividend-holdings-panel">
@@ -85,7 +87,7 @@ export default function DividendDashboard({ holdings, trades, usdCad, onAdd, onE
 
       <section className="csp-panel dividend-upcoming-panel">
         <header>UPCOMING PAYMENTS <span>12-month projection</span></header>
-        {upcoming.length === 0 ? <p>No upcoming payments.</p> : upcoming.map((payment) => (
+        {upcoming.length === 0 ? <p>No upcoming payments.</p> : visibleUpcoming.map((payment) => (
           <div key={`${payment.holdingId}-${payment.date}`}>
             <time>{payment.date}</time>
             <strong>{payment.ticker}</strong>
@@ -93,6 +95,15 @@ export default function DividendDashboard({ holdings, trades, usdCad, onAdd, onE
             <b>{fmtCad(payment.amountCad)}</b>
           </div>
         ))}
+        {upcoming.length > UPCOMING_PREVIEW_COUNT && (
+          <button
+            className="dividend-schedule-toggle"
+            onClick={() => setShowFullSchedule((current) => !current)}
+            aria-expanded={showFullSchedule}
+          >
+            {showFullSchedule ? "SHOW LESS" : "VIEW FULL SCHEDULE"}
+          </button>
+        )}
       </section>
 
       <div className="dividend-breakdown-grid">

@@ -11,6 +11,7 @@ jest.mock("./feedbackStorage", () => ({
 }));
 
 import App from "./App";
+import DividendDashboard from "./components/dividends/DividendDashboard";
 import { loadCloudData, saveCloudData } from "./cloudStorage";
 import { DEFAULT_TRADES } from "./data/trackerData";
 import { getTrackerStorageKeys } from "./hooks/useTrackerData";
@@ -207,6 +208,38 @@ test("does not add Dividend Tracker controls to the existing mobile shell", () =
   expect(within(mobile).queryByText("Dividend Tracker")).not.toBeInTheDocument();
   expect(within(mobile).queryByRole("button", { name: "DIVIDENDS" })).not.toBeInTheDocument();
   expect(within(mobile).getByRole("button", { name: "Open add trade form" })).toBeInTheDocument();
+});
+
+test("keeps dividend analytics focused and expands the upcoming payment schedule", () => {
+  jest.useFakeTimers().setSystemTime(new Date("2026-08-05T12:00:00"));
+  const { container } = render(
+    <DividendDashboard
+      holdings={[{
+        id: 1,
+        ticker: "ENB",
+        shares: 100,
+        dividendPerShare: 1,
+        frequency: "monthly",
+        currency: "CAD",
+        account: "TFSA",
+        nextPaymentDate: "2026-08-10",
+        notes: "",
+      }]}
+      usdCad={1.4}
+      onAdd={jest.fn()}
+      onEdit={jest.fn()}
+      onDelete={jest.fn()}
+    />
+  );
+
+  expect(screen.queryByText("OPTION PREMIUM THIS MONTH")).not.toBeInTheDocument();
+  expect(container.querySelectorAll(".dividend-upcoming-panel > div")).toHaveLength(4);
+  const toggle = screen.getByRole("button", { name: "VIEW FULL SCHEDULE" });
+  expect(toggle).toHaveAttribute("aria-expanded", "false");
+
+  fireEvent.click(toggle);
+  expect(container.querySelectorAll(".dividend-upcoming-panel > div")).toHaveLength(12);
+  expect(screen.getByRole("button", { name: "SHOW LESS" })).toHaveAttribute("aria-expanded", "true");
 });
 
 test("opens the mobile add-trade sheet with labeled fields", () => {

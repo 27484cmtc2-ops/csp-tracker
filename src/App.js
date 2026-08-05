@@ -777,7 +777,6 @@ export default function App({ userId, userEmail, onLogOut, logoutError }) {
         {tab === "dividends" && (
           <DividendDashboard
             holdings={dividends}
-            trades={trades}
             usdCad={USD_CAD}
             onAdd={openDividendModal}
             onEdit={editDividendHolding}
