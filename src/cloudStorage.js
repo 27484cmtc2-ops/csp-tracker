@@ -1,4 +1,5 @@
 import { supabase } from "./supabaseClient";
+import { normalizeDividendHoldings } from "./utils/dividends";
 
 export class CloudConflictError extends Error {
   constructor(message = "Cloud data changed on another device.") {
@@ -32,6 +33,8 @@ export async function loadCloudData() {
   return {
     trades: data.data.trades,
     target: data.data.target,
+    dividends: normalizeDividendHoldings(data.data.dividends),
+    payloadVersion: data.data.payloadVersion ?? 1,
     updatedAt: data.updated_at,
   };
 }
@@ -39,10 +42,15 @@ export async function loadCloudData() {
 export async function saveCloudData(
   trades,
   target,
-  { expectedUpdatedAt = null, force = false } = {}
+  {
+    dividends = [],
+    payloadVersion = 2,
+    expectedUpdatedAt = null,
+    force = false,
+  } = {}
 ) {
   const user = await getCurrentUser();
-  const trackerData = { trades, target };
+  const trackerData = { trades, target, dividends, payloadVersion };
 
   if (force) {
     const { data, error } = await supabase

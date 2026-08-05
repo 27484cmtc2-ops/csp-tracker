@@ -155,6 +155,60 @@ test("renders the tracker with an empty portfolio by default", () => {
   expect(screen.getByRole("button", { name: /closed positions/i })).toHaveAttribute("aria-expanded", "false");
 });
 
+test("adds, edits, and deletes a dividend holding from the desktop tracker", () => {
+  const confirm = jest.spyOn(window, "confirm").mockReturnValue(true);
+  const { container } = render(<App userId={TEST_USER_ID} />);
+  const desktop = container.querySelector(".desktop-interface");
+
+  fireEvent.click(within(desktop).getByRole("button", { name: "DIVIDENDS" }));
+  expect(within(desktop).getByText("Dividend Tracker")).toBeInTheDocument();
+  expect(within(desktop).getByText("No dividend holdings yet.")).toBeInTheDocument();
+
+  fireEvent.click(within(desktop).getByRole("button", { name: "+ ADD HOLDING" }));
+  fireEvent.change(screen.getByLabelText("Ticker"), { target: { value: "enb" } });
+  fireEvent.change(screen.getByLabelText("Number of shares"), { target: { value: "20" } });
+  fireEvent.change(screen.getByLabelText("Dividend amount per share"), { target: { value: "0.9425" } });
+  fireEvent.change(screen.getByLabelText("Payment frequency"), { target: { value: "quarterly" } });
+  fireEvent.change(screen.getByLabelText("Currency"), { target: { value: "CAD" } });
+  fireEvent.change(screen.getByLabelText("Account"), { target: { value: "TFSA" } });
+  fireEvent.change(screen.getByLabelText("Next payment date"), { target: { value: "2026-09-01" } });
+  fireEvent.click(screen.getByRole("button", { name: "ADD HOLDING" }));
+
+  expect(within(desktop).getAllByText("ENB").length).toBeGreaterThan(0);
+  expect(JSON.parse(localStorage.getItem(TEST_KEYS.dividends))).toMatchObject([
+    { ticker: "ENB", shares: 20, account: "TFSA" },
+  ]);
+
+  fireEvent.click(within(desktop).getByRole("button", { name: "EDIT" }));
+  fireEvent.change(screen.getByLabelText("Number of shares"), { target: { value: "25" } });
+  fireEvent.click(screen.getByRole("button", { name: "SAVE HOLDING" }));
+  expect(JSON.parse(localStorage.getItem(TEST_KEYS.dividends))[0].shares).toBe(25);
+
+  fireEvent.click(within(desktop).getByRole("button", { name: "DELETE" }));
+  expect(confirm).toHaveBeenCalledWith("Delete this dividend holding? This cannot be undone.");
+  expect(JSON.parse(localStorage.getItem(TEST_KEYS.dividends))).toEqual([]);
+});
+
+test("shows dividend validation errors without saving invalid data", () => {
+  const { container } = render(<App userId={TEST_USER_ID} />);
+  const desktop = container.querySelector(".desktop-interface");
+  fireEvent.click(within(desktop).getByRole("button", { name: "DIVIDENDS" }));
+  fireEvent.click(within(desktop).getByRole("button", { name: "+ ADD HOLDING" }));
+  fireEvent.click(screen.getByRole("button", { name: "ADD HOLDING" }));
+
+  expect(screen.getByRole("alert")).toHaveTextContent("Ticker is required.");
+  expect(localStorage.getItem(TEST_KEYS.dividends)).toBeNull();
+});
+
+test("does not add Dividend Tracker controls to the existing mobile shell", () => {
+  const { container } = render(<App userId={TEST_USER_ID} />);
+  const mobile = container.querySelector(".mobile-interface");
+
+  expect(within(mobile).queryByText("Dividend Tracker")).not.toBeInTheDocument();
+  expect(within(mobile).queryByRole("button", { name: "DIVIDENDS" })).not.toBeInTheDocument();
+  expect(within(mobile).getByRole("button", { name: "Open add trade form" })).toBeInTheDocument();
+});
+
 test("opens the mobile add-trade sheet with labeled fields", () => {
   render(<App userId={TEST_USER_ID} />);
 
@@ -598,6 +652,8 @@ test("deleting completed history is uploaded through cloud synchronization", asy
   expect(saveCloudData.mock.calls[0][0].map((trade) => trade.id))
     .toEqual([300, 302, 303, 304, 305]);
   expect(saveCloudData.mock.calls[0][2]).toEqual({
+    dividends: [],
+    payloadVersion: 2,
     expectedUpdatedAt: "version-1",
     force: false,
   });

@@ -60,9 +60,68 @@ input, button { font-family: inherit; }
 .sync-conflict-actions .sync-keep-local { border-color: #7a4a1a; color: #f59e0b; }
 .mobile-interface { display: none; }
 
+.desktop-section-nav { display: flex; gap: 6px; margin: 0 0 12px; }
+.desktop-section-nav button { min-height: 34px; padding: 0 15px; border: 1px solid #30445b; border-radius: 3px; background: transparent; color: #8796aa; font-size: 9px; letter-spacing: .12em; cursor: pointer; }
+.desktop-section-nav button:hover, .desktop-section-nav button.active { border-color: #4d82b8; background: #18283a; color: #5aa9ff; }
+.dividend-dashboard { display: grid; gap: 12px; }
+.dividend-page-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; padding: 20px; border: 1px solid #223044; border-radius: 5px; background: #111821; }
+.dividend-eyebrow { color: #5aa9ff; font-size: 8px; letter-spacing: .18em; }
+.dividend-page-heading h1 { margin: 7px 0 5px; color: #d7e0ea; font-size: 24px; font-weight: 600; }
+.dividend-page-heading p { margin: 0; color: #71839a; font-size: 10px; }
+.dividend-add-button { flex: none; min-height: 36px; }
+.dividend-summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); overflow: hidden; border: 1px solid #223044; border-radius: 5px; background: #111821; }
+.dividend-summary-grid > div { min-width: 0; padding: 15px; }
+.dividend-summary-grid > div + div { border-left: 1px solid #223044; }
+.dividend-summary-grid span { display: block; min-height: 22px; color: #71839a; font-size: 8px; letter-spacing: .08em; line-height: 1.4; }
+.dividend-summary-grid strong { display: block; color: #d7e0ea; font-size: 18px; }
+.dividend-summary-grid small { display: block; margin-top: 5px; color: #607086; font-size: 8px; }
+.dividend-summary-grid .dividend-combined-metric { background: #101d29; }
+.dividend-summary-grid .dividend-combined-metric strong { color: #5aa9ff; }
+.dividend-holdings-panel > header, .dividend-upcoming-panel > header, .dividend-breakdown > header { padding: 10px 14px; border-bottom: 1px solid #223044; color: #7f8ea3; font-size: 9px; letter-spacing: .12em; }
+.dividend-holdings-panel > header span, .dividend-upcoming-panel > header span { color: #607086; }
+.dividend-empty-state { padding: 28px 18px; text-align: center; }
+.dividend-empty-state strong { color: #a6b3c2; font-size: 12px; }
+.dividend-empty-state p { margin: 6px 0 0; color: #607086; font-size: 10px; }
+.dividend-holding-row { position: relative; display: grid; grid-template-columns: 1.2fr repeat(6, minmax(80px, 1fr)) auto; gap: 10px; align-items: center; padding: 12px 14px; border-bottom: 1px solid #1c2735; }
+.dividend-holding-row:last-child { border-bottom: 0; }
+.dividend-holding-row > div > span { display: block; margin-bottom: 4px; color: #607086; font-size: 7px; letter-spacing: .07em; }
+.dividend-holding-row > div > strong { color: #a6b3c2; font-size: 10px; font-weight: 500; }
+.dividend-holding-title strong { display: block; color: #5aa9ff; font-size: 14px; }
+.dividend-holding-title span { margin-top: 3px; }
+.dividend-holding-row .dividend-positive { color: #6fdc8c; }
+.dividend-row-actions { display: flex; gap: 5px; }
+.dividend-holding-notes { grid-column: 1 / -1; margin: -2px 0 0; color: #71839a; font-size: 9px; line-height: 1.5; }
+.dividend-upcoming-panel > div { display: grid; grid-template-columns: 110px 90px 1fr auto; gap: 12px; align-items: center; padding: 9px 14px; border-bottom: 1px solid #1c2735; color: #71839a; font-size: 10px; }
+.dividend-upcoming-panel > div:last-child { border-bottom: 0; }
+.dividend-upcoming-panel time { color: #8796aa; }
+.dividend-upcoming-panel strong { color: #5aa9ff; }
+.dividend-upcoming-panel b { color: #6fdc8c; font-weight: 600; }
+.dividend-upcoming-panel > p, .dividend-breakdown > p { margin: 0; padding: 18px 14px; color: #607086; font-size: 10px; }
+.dividend-breakdown-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.dividend-breakdown > div { display: flex; justify-content: space-between; gap: 16px; padding: 9px 14px; border-bottom: 1px solid #1c2735; color: #8796aa; font-size: 10px; }
+.dividend-breakdown > div:last-child { border-bottom: 0; }
+.dividend-breakdown strong { color: #6fdc8c; font-weight: 500; }
+.dividend-breakdown small { color: #607086; font-size: 8px; }
+.dividend-modal-layer { position: fixed; inset: 0; z-index: 150; display: flex; align-items: center; justify-content: center; padding: 16px; }
+.dividend-modal-backdrop { position: absolute; inset: 0; width: 100%; border: 0; background: rgba(0,0,0,.86); }
+.dividend-form-card { position: relative; width: min(620px,100%); max-height: 92vh; overflow-y: auto; padding: 20px; border: 1px solid #30445b; border-radius: 8px; background: #111821; }
+.dividend-form-card > header { display: flex; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
+.dividend-form-card h2 { margin: 5px 0 0; color: #d7e0ea; font-size: 19px; }
+.dividend-form-close { border: 0; background: transparent; color: #8796aa; font-size: 26px; line-height: 1; cursor: pointer; }
+.dividend-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 13px; }
+.dividend-form-grid label > span { display: block; margin-bottom: 6px; color: #a6b3c2; font-size: 9px; letter-spacing: .06em; }
+.dividend-form-grid label small { color: #607086; }
+.dividend-form-grid input, .dividend-form-grid select, .dividend-form-grid textarea { width: 100%; min-height: 42px; padding: 9px 11px; border: 1px solid #30445b; border-radius: 4px; outline: none; background: #0b0f14; color: #d7e0ea; font: inherit; font-size: 11px; }
+.dividend-form-grid textarea { min-height: 80px; resize: vertical; }
+.dividend-form-grid input:focus, .dividend-form-grid select:focus, .dividend-form-grid textarea:focus { border-color: #4d82b8; }
+.dividend-notes-field { grid-column: 1 / -1; }
+.dividend-form-error { margin-top: 12px; color: #ff7b7b; font-size: 10px; }
+.dividend-form-card > footer { display: flex; align-items: center; gap: 8px; margin-top: 18px; }
+
 @media (max-width: 640px) {
   .desktop-interface { display: none; }
   .mobile-interface { display: block; }
+  .dividend-modal-layer { display: none; }
   .app-content { max-width: none !important; padding: 0 !important; }
   .mobile-shell { min-height: 100vh; background: #0b0f14; padding-bottom: calc(92px + env(safe-area-inset-bottom)); }
   .mobile-main { padding: 14px; }

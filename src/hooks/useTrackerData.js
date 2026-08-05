@@ -4,46 +4,68 @@ import {
   loadCloudData,
   saveCloudData,
 } from "../cloudStorage";
+import { normalizeDividendHoldings } from "../utils/dividends";
 const UPLOAD_DEBOUNCE_MS = 1000;
+export const TRACKER_PAYLOAD_VERSION = 2;
 
 export function getTrackerStorageKeys(userId) {
   if (!userId) throw new Error("An authenticated user ID is required.");
   return {
     trades: `csp_trades:${userId}`,
     target: `csp_target:${userId}`,
+    dividends: `csp_dividends:${userId}`,
     syncMeta: `csp_sync_meta:${userId}`,
   };
 }
 
-function serializeData(trades, target) {
-  return JSON.stringify({ trades, target });
+function serializeData(trades, target, dividends) {
+  return JSON.stringify({
+    trades,
+    target,
+    dividends,
+    payloadVersion: TRACKER_PAYLOAD_VERSION,
+  });
 }
 
 function loadLocalData(storage, storageKeys) {
   try {
     const savedTrades = storage.getItem(storageKeys.trades);
     const savedTarget = storage.getItem(storageKeys.target);
+    const savedDividends = storage.getItem(storageKeys.dividends);
     return {
       trades: savedTrades ? JSON.parse(savedTrades) : [],
       target: savedTarget ? parseFloat(savedTarget) : 500,
-      hasLocalData: savedTrades != null || savedTarget != null,
+      dividends: savedDividends ? normalizeDividendHoldings(JSON.parse(savedDividends)) : [],
+      hasLocalData: savedTrades != null || savedTarget != null || savedDividends != null,
     };
   } catch {
-    return { trades: [], target: 500, hasLocalData: false };
+    return { trades: [], target: 500, dividends: [], hasLocalData: false };
   }
 }
 
-function saveLocalData(trades, target, storage, storageKeys) {
+function saveLocalData(trades, target, dividends, storage, storageKeys) {
   try {
     storage.setItem(storageKeys.trades, JSON.stringify(trades));
     storage.setItem(storageKeys.target, String(target));
+    storage.setItem(storageKeys.dividends, JSON.stringify(dividends));
   } catch {}
 }
 
 function loadSyncMetadata(storage, storageKeys) {
   try {
     const saved = storage.getItem(storageKeys.syncMeta);
-    return saved ? JSON.parse(saved) : null;
+    if (!saved) return null;
+    const metadata = JSON.parse(saved);
+    if (!metadata.syncedSnapshot) return metadata;
+    const snapshot = JSON.parse(metadata.syncedSnapshot);
+    return {
+      ...metadata,
+      syncedSnapshot: serializeData(
+        snapshot.trades ?? [],
+        snapshot.target ?? 500,
+        snapshot.dividends ?? []
+      ),
+    };
   } catch {
     return null;
   }
@@ -69,6 +91,7 @@ export default function useTrackerData({ userId, storage = localStorage } = {}) 
   const [initialData] = useState(() => loadLocalData(storage, storageKeys));
   const [trades, setTradesRaw] = useState(initialData.trades);
   const [target, setTargetRaw] = useState(initialData.target);
+  const [dividends, setDividendsRaw] = useState(initialData.dividends);
   const [syncStatus, setSyncStatus] = useState("initializing");
   const [syncReady, setSyncReady] = useState(false);
   const [hasConflict, setHasConflict] = useState(false);
@@ -90,7 +113,7 @@ export default function useTrackerData({ userId, storage = localStorage } = {}) 
   const versionCheckPendingRef = useRef(false);
   const checkCloudVersionRef = useRef(null);
 
-  latestDataRef.current = { trades, target };
+  latestDataRef.current = { trades, target, dividends };
 
   const markConflict = useCallback(() => {
     conflictRef.current = true;
@@ -105,16 +128,19 @@ export default function useTrackerData({ userId, storage = localStorage } = {}) 
   }, [storage, storageKeys]);
 
   const applyCloudData = useCallback((cloudData) => {
-    const snapshot = serializeData(cloudData.trades, cloudData.target);
+    const cloudDividends = cloudData.dividends ?? [];
+    const snapshot = serializeData(cloudData.trades, cloudData.target, cloudDividends);
     applyingCloudRef.current = true;
     markSynchronized(cloudData.updatedAt, snapshot);
     latestDataRef.current = {
       trades: cloudData.trades,
       target: cloudData.target,
+      dividends: cloudDividends,
     };
     setTradesRaw(cloudData.trades);
     setTargetRaw(cloudData.target);
-    saveLocalData(cloudData.trades, cloudData.target, storage, storageKeys);
+    setDividendsRaw(cloudDividends);
+    saveLocalData(cloudData.trades, cloudData.target, cloudDividends, storage, storageKeys);
     applyingCloudRef.current = false;
   }, [markSynchronized, storage, storageKeys]);
 
@@ -157,7 +183,8 @@ export default function useTrackerData({ userId, storage = localStorage } = {}) 
     const dataToUpload = latestDataRef.current;
     const uploadedSnapshot = serializeData(
       dataToUpload.trades,
-      dataToUpload.target
+      dataToUpload.target,
+      dataToUpload.dividends
     );
 
     if (!force && uploadedSnapshot === lastSyncedSnapshotRef.current) {
@@ -174,6 +201,8 @@ export default function useTrackerData({ userId, storage = localStorage } = {}) 
         dataToUpload.trades,
         dataToUpload.target,
         {
+          dividends: dataToUpload.dividends,
+          payloadVersion: TRACKER_PAYLOAD_VERSION,
           expectedUpdatedAt: cloudVersionRef.current,
           force,
         }
@@ -186,7 +215,8 @@ export default function useTrackerData({ userId, storage = localStorage } = {}) 
 
       const latestSnapshot = serializeData(
         latestDataRef.current.trades,
-        latestDataRef.current.target
+        latestDataRef.current.target,
+        latestDataRef.current.dividends
       );
       if (queuedUploadRef.current || latestSnapshot !== uploadedSnapshot) {
         scheduleUploadRef.current?.();
@@ -223,7 +253,7 @@ export default function useTrackerData({ userId, storage = localStorage } = {}) 
       if (!mountedRef.current || run !== initializationRunRef.current) return;
 
       const localData = latestDataRef.current;
-      const localSnapshot = serializeData(localData.trades, localData.target);
+      const localSnapshot = serializeData(localData.trades, localData.target, localData.dividends);
       const metadata = loadSyncMetadata(storage, storageKeys);
 
       if (!cloudData) {
@@ -241,7 +271,7 @@ export default function useTrackerData({ userId, storage = localStorage } = {}) 
         return;
       }
 
-      const cloudSnapshot = serializeData(cloudData.trades, cloudData.target);
+      const cloudSnapshot = serializeData(cloudData.trades, cloudData.target, cloudData.dividends ?? []);
       if (!metadata) {
         if (hadLocalDataRef.current && localSnapshot !== cloudSnapshot) {
           cloudVersionRef.current = cloudData.updatedAt;
@@ -278,7 +308,8 @@ export default function useTrackerData({ userId, storage = localStorage } = {}) 
 
       const currentSnapshot = serializeData(
         latestDataRef.current.trades,
-        latestDataRef.current.target
+        latestDataRef.current.target,
+        latestDataRef.current.dividends
       );
       if (currentSnapshot === lastSyncedSnapshotRef.current) {
         setSyncStatus("saved");
@@ -322,7 +353,7 @@ export default function useTrackerData({ userId, storage = localStorage } = {}) 
         return;
       }
 
-      const cloudSnapshot = serializeData(cloudData.trades, cloudData.target);
+      const cloudSnapshot = serializeData(cloudData.trades, cloudData.target, cloudData.dividends ?? []);
       const versionUnchanged = cloudData.updatedAt === cloudVersionRef.current;
       const payloadUnchanged = cloudSnapshot === lastSyncedSnapshotRef.current;
       if (versionUnchanged && payloadUnchanged) {
@@ -332,7 +363,8 @@ export default function useTrackerData({ userId, storage = localStorage } = {}) 
 
       const localSnapshot = serializeData(
         latestDataRef.current.trades,
-        latestDataRef.current.target
+        latestDataRef.current.target,
+        latestDataRef.current.dividends
       );
       if (localSnapshot !== lastSyncedSnapshotRef.current) {
         clearTimeout(debounceTimerRef.current);
@@ -351,7 +383,8 @@ export default function useTrackerData({ userId, storage = localStorage } = {}) 
       versionCheckPendingRef.current = false;
       const latestSnapshot = serializeData(
         latestDataRef.current.trades,
-        latestDataRef.current.target
+        latestDataRef.current.target,
+        latestDataRef.current.dividends
       );
       if (
         queuedUploadRef.current &&
@@ -413,20 +446,31 @@ export default function useTrackerData({ userId, storage = localStorage } = {}) 
       !initializedRef.current
     ) return;
 
-    const snapshot = serializeData(trades, target);
+    const snapshot = serializeData(trades, target, dividends);
     if (snapshot !== lastSyncedSnapshotRef.current) {
       if (uploadInFlightRef.current) queuedUploadRef.current = true;
       else scheduleUpload();
     }
-  }, [trades, target, syncReady, hasConflict, scheduleUpload]);
+  }, [trades, target, dividends, syncReady, hasConflict, scheduleUpload]);
 
   const setTrades = useCallback((nextTrades) => {
     setTradesRaw(nextTrades);
     latestDataRef.current = {
       trades: nextTrades,
       target: latestDataRef.current.target,
+      dividends: latestDataRef.current.dividends,
     };
-    saveLocalData(nextTrades, latestDataRef.current.target, storage, storageKeys);
+    saveLocalData(nextTrades, latestDataRef.current.target, latestDataRef.current.dividends, storage, storageKeys);
+  }, [storage, storageKeys]);
+
+  const setDividends = useCallback((nextDividends) => {
+    setDividendsRaw(nextDividends);
+    latestDataRef.current = {
+      trades: latestDataRef.current.trades,
+      target: latestDataRef.current.target,
+      dividends: nextDividends,
+    };
+    saveLocalData(latestDataRef.current.trades, latestDataRef.current.target, nextDividends, storage, storageKeys);
   }, [storage, storageKeys]);
 
   const syncNow = useCallback(() => {
@@ -435,7 +479,8 @@ export default function useTrackerData({ userId, storage = localStorage } = {}) 
     if (conflictRef.current) return;
     const snapshot = serializeData(
       latestDataRef.current.trades,
-      latestDataRef.current.target
+      latestDataRef.current.target,
+      latestDataRef.current.dividends
     );
     if (snapshot !== lastSyncedSnapshotRef.current) {
       return performUploadRef.current?.();
@@ -474,7 +519,9 @@ export default function useTrackerData({ userId, storage = localStorage } = {}) 
   return {
     trades,
     target,
+    dividends,
     setTrades,
+    setDividends,
     syncStatus,
     hasConflict,
     syncNow,

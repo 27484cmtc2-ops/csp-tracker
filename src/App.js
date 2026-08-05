@@ -15,6 +15,8 @@ import CoveredCallForm, {
 } from "./components/CoveredCallForm";
 import StockSaleForm, { StockSaleSummary } from "./components/StockSaleForm";
 import UndoToast from "./components/UndoToast";
+import DividendDashboard from "./components/dividends/DividendDashboard";
+import DividendHoldingForm from "./components/dividends/DividendHoldingForm";
 import { EMPTY_NEW_TRADE, SAMPLE_TICKERS, USD_CAD } from "./data/trackerData";
 import useTrackerData from "./hooks/useTrackerData";
 import usePortfolioUndo from "./hooks/usePortfolioUndo";
@@ -22,6 +24,11 @@ import { generateStrikes } from "./utils/calculations";
 import { fmt } from "./utils/formatters";
 import { annualizedReturn, daysColor, daysLabel, daysUntil, getCollectedPremium } from "./utils/trades";
 import { validateNewTradeExpiry } from "./utils/newTrades";
+import {
+  EMPTY_DIVIDEND_HOLDING,
+  createDividendHolding,
+  validateDividendHolding,
+} from "./utils/dividends";
 import {
   EMPTY_COVERED_CALL,
   EMPTY_COVERED_CALL_CLOSE,
@@ -46,7 +53,9 @@ export default function App({ userId, userEmail, onLogOut, logoutError }) {
   const {
     trades,
     target,
+    dividends,
     setTrades,
+    setDividends,
     syncStatus,
     hasConflict,
     syncNow,
@@ -70,7 +79,51 @@ export default function App({ userId, userEmail, onLogOut, logoutError }) {
   const [closeCoveredCallError, setCloseCoveredCallError] = useState("");
   const [stockSaleModal, setStockSaleModal] = useState(null);
   const [stockSaleError, setStockSaleError] = useState("");
+  const [dividendModal, setDividendModal] = useState(null);
+  const [dividendError, setDividendError] = useState("");
   const targetUSD = target / USD_CAD;
+
+  const openDividendModal = () => {
+    setDividendError("");
+    setDividendModal({ id: null, value: { ...EMPTY_DIVIDEND_HOLDING } });
+  };
+
+  const editDividendHolding = (holding) => {
+    setDividendError("");
+    setDividendModal({
+      id: holding.id,
+      value: {
+        ...holding,
+        shares: String(holding.shares),
+        dividendPerShare: String(holding.dividendPerShare),
+      },
+    });
+  };
+
+  const saveDividendHolding = () => {
+    if (!dividendModal) return;
+    const error = validateDividendHolding(dividendModal.value);
+    if (error) {
+      setDividendError(error);
+      return;
+    }
+    const holding = createDividendHolding(
+      dividendModal.value,
+      dividendModal.id ?? Date.now()
+    );
+    setDividends(
+      dividendModal.id == null
+        ? [...dividends, holding]
+        : dividends.map((item) => item.id === dividendModal.id ? holding : item)
+    );
+    setDividendModal(null);
+    setDividendError("");
+  };
+
+  const deleteDividendHolding = (id) => {
+    if (!window.confirm("Delete this dividend holding? This cannot be undone.")) return;
+    setDividends(dividends.filter((holding) => holding.id !== id));
+  };
 
   const realized = useMemo(() => trades.filter(t=>t.status==="closed" && !isCoveredCall(t)).reduce((s,t)=>s+(t.pnl??0),0), [trades]);
   const openPremium = useMemo(() => trades.filter(t=>t.status==="open" && !isCoveredCall(t)).reduce((s,t)=>s+getCollectedPremium(t),0), [trades]);
@@ -440,7 +493,7 @@ export default function App({ userId, userEmail, onLogOut, logoutError }) {
 
   return (
     <div style={{minHeight:"100vh",background:"#0b0f14",fontFamily:"'IBM Plex Mono','Courier New',monospace",color:"#d7e0ea"}}>
-      <div className="app-content" style={{maxWidth:780,margin:"0 auto",padding:"24px 16px"}}>
+      <div className="app-content" style={{maxWidth:tab === "dividends" ? 1120 : 780,margin:"0 auto",padding:"24px 16px"}}>
         <div className="desktop-interface">
           <div className="desktop-account-row">
             <AccountMenu email={userEmail} onLogOut={onLogOut} error={logoutError} />
@@ -460,6 +513,11 @@ export default function App({ userId, userEmail, onLogOut, logoutError }) {
           onKeepLocal={keepLocalData}
           onFeedback={() => setFeedbackOpen(true)}
         />
+
+        <nav className="desktop-section-nav" aria-label="Application sections">
+          <button className={tab === "tracker" ? "active" : ""} onClick={() => setTab("tracker")}>TRACKER</button>
+          <button className={tab === "dividends" ? "active" : ""} onClick={() => setTab("dividends")}>DIVIDENDS</button>
+        </nav>
         
 
         {tab==="tracker" && (
@@ -715,6 +773,17 @@ export default function App({ userId, userEmail, onLogOut, logoutError }) {
             onSelectTicker={setSelectedTicker}
           />
         )}
+
+        {tab === "dividends" && (
+          <DividendDashboard
+            holdings={dividends}
+            trades={trades}
+            usdCad={USD_CAD}
+            onAdd={openDividendModal}
+            onEdit={editDividendHolding}
+            onDelete={deleteDividendHolding}
+          />
+        )}
         </div>
 
         <div className="mobile-interface">
@@ -758,6 +827,23 @@ export default function App({ userId, userEmail, onLogOut, logoutError }) {
         </div>
 
         {feedbackOpen && <FeedbackModal onClose={() => setFeedbackOpen(false)} />}
+
+        {dividendModal && (
+          <DividendHoldingForm
+            value={dividendModal.value}
+            error={dividendError}
+            editing={dividendModal.id != null}
+            onChange={(value) => {
+              setDividendError("");
+              setDividendModal({ ...dividendModal, value });
+            }}
+            onSubmit={saveDividendHolding}
+            onClose={() => {
+              setDividendModal(null);
+              setDividendError("");
+            }}
+          />
+        )}
 
         <UndoToast entry={undoEntry} error={undoError} onUndo={undo} />
 

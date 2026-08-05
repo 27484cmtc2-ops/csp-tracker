@@ -12,3 +12,11 @@ export const fmtShort = (number) =>
     currency: "USD",
     maximumFractionDigits: 0,
   }).format(number);
+
+export const fmtCad = (number, maximumFractionDigits = 2) =>
+  new Intl.NumberFormat("en-CA", {
+    style: "currency",
+    currency: "CAD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits,
+  }).format(number);

@@ -35,11 +35,19 @@ const cloudData = (data, updatedAt = "version-1") => ({
   updatedAt,
 });
 
-const snapshot = (data) => JSON.stringify(data);
+const snapshot = (data) => JSON.stringify({
+  trades: data.trades,
+  target: data.target,
+  dividends: data.dividends ?? [],
+  payloadVersion: 2,
+});
 
 function seedLocal(data, metadata = null) {
   localStorage.setItem(TEST_KEYS.trades, JSON.stringify(data.trades));
   localStorage.setItem(TEST_KEYS.target, String(data.target));
+  if (data.dividends) {
+    localStorage.setItem(TEST_KEYS.dividends, JSON.stringify(data.dividends));
+  }
   if (metadata) {
     localStorage.setItem(TEST_KEYS.syncMeta, JSON.stringify(metadata));
   }
@@ -49,6 +57,7 @@ function createDeviceStorage(data, metadata) {
   const values = new Map([
     [TEST_KEYS.trades, JSON.stringify(data.trades)],
     [TEST_KEYS.target, String(data.target)],
+    [TEST_KEYS.dividends, JSON.stringify(data.dividends ?? [])],
     [TEST_KEYS.syncMeta, JSON.stringify(metadata)],
   ]);
   return {
@@ -103,6 +112,86 @@ test("downloads cloud data during initialization without uploading it back", asy
   expect(JSON.parse(localStorage.getItem(TEST_KEYS.trades))).toEqual(changedData.trades);
 });
 
+test("loads and persists account-specific dividend holdings locally", async () => {
+  const dividends = [{ id: "div-1", ticker: "ENB", shares: 20 }];
+  seedLocal({ ...baseData, dividends });
+  loadCloudData.mockResolvedValue(cloudData({ ...baseData, dividends }, "version-1"));
+
+  const { result } = renderHook(() => useTrackerData({ userId: TEST_USER_ID }));
+  await flushAsync();
+
+  expect(result.current.dividends).toMatchObject(dividends);
+  act(() => result.current.setDividends([...dividends, { id: "div-2", ticker: "RY", shares: 10 }]));
+  expect(JSON.parse(localStorage.getItem(TEST_KEYS.dividends))).toHaveLength(2);
+  expect(localStorage.getItem(getTrackerStorageKeys("another-user").dividends)).toBeNull();
+});
+
+test("treats a version-one cloud payload as having no dividends without an upload loop", async () => {
+  loadCloudData.mockResolvedValue({ ...baseData, updatedAt: "legacy-version", payloadVersion: 1 });
+
+  const { result } = renderHook(() => useTrackerData({ userId: TEST_USER_ID }));
+  await flushAsync();
+  await advanceDebounce();
+
+  expect(result.current.dividends).toEqual([]);
+  expect(result.current.syncStatus).toBe("saved");
+  expect(saveCloudData).not.toHaveBeenCalled();
+});
+
+test("migrates legacy sync metadata so it does not create a false dividend conflict", async () => {
+  const legacySnapshot = JSON.stringify({ trades: baseData.trades, target: baseData.target });
+  seedLocal(baseData, { cloudVersion: "version-1", syncedSnapshot: legacySnapshot });
+  loadCloudData.mockResolvedValue(cloudData(baseData, "version-1"));
+
+  const { result } = renderHook(() => useTrackerData({ userId: TEST_USER_ID }));
+  await flushAsync();
+
+  expect(result.current.hasConflict).toBe(false);
+  expect(result.current.syncStatus).toBe("saved");
+  expect(saveCloudData).not.toHaveBeenCalled();
+});
+
+test("debounces dividend changes and uploads the complete versioned payload", async () => {
+  seedLocal(baseData, { cloudVersion: "version-1", syncedSnapshot: snapshot(baseData) });
+  loadCloudData.mockResolvedValue(cloudData(baseData, "version-1"));
+  const { result } = renderHook(() => useTrackerData({ userId: TEST_USER_ID }));
+  await flushAsync();
+
+  const first = [{ id: "div-1", ticker: "ENB" }];
+  const latest = [...first, { id: "div-2", ticker: "RY" }];
+  act(() => result.current.setDividends(first));
+  act(() => {
+    jest.advanceTimersByTime(500);
+    result.current.setDividends(latest);
+  });
+  await advanceDebounce();
+
+  expect(saveCloudData).toHaveBeenCalledTimes(1);
+  expect(saveCloudData).toHaveBeenCalledWith(baseData.trades, baseData.target, {
+    dividends: latest,
+    payloadVersion: 2,
+    expectedUpdatedAt: "version-1",
+    force: false,
+  });
+});
+
+test("a second device downloads the exact newer dividend collection on resume", async () => {
+  const dividend = { id: "div-1", ticker: "ENB", shares: 25 };
+  seedLocal(baseData, { cloudVersion: "version-1", syncedSnapshot: snapshot(baseData) });
+  loadCloudData
+    .mockResolvedValueOnce(cloudData(baseData, "version-1"))
+    .mockResolvedValueOnce(cloudData({ ...baseData, dividends: [dividend] }, "version-2"));
+
+  const { result } = renderHook(() => useTrackerData({ userId: TEST_USER_ID }));
+  await flushAsync();
+  act(() => window.dispatchEvent(new Event("focus")));
+  await flushAsync();
+
+  expect(result.current.dividends).toEqual([dividend]);
+  expect(JSON.parse(localStorage.getItem(TEST_KEYS.dividends))).toEqual([dividend]);
+  expect(result.current.hasConflict).toBe(false);
+});
+
 test("a new device without persisted local data accepts existing cloud data", async () => {
   loadCloudData.mockResolvedValue(cloudData(changedData, "version-2"));
 
@@ -129,6 +218,8 @@ test("a brand-new account starts with zero trades and creates an empty cloud row
   await advanceDebounce();
 
   expect(saveCloudData).toHaveBeenCalledWith([], 500, {
+    dividends: [],
+    payloadVersion: 2,
     expectedUpdatedAt: null,
     force: false,
   });
@@ -193,6 +284,8 @@ test("missing cloud data never falls back to legacy sample trades", async () => 
   expect(result.current.trades).toEqual([]);
   expect(result.current.target).toBe(500);
   expect(saveCloudData).toHaveBeenCalledWith([], 500, {
+    dividends: [],
+    payloadVersion: 2,
     expectedUpdatedAt: null,
     force: false,
   });
@@ -211,7 +304,7 @@ test("creates cloud data after a successful missing-row initialization", async (
   expect(saveCloudData).toHaveBeenCalledWith(
     baseData.trades,
     baseData.target,
-    { expectedUpdatedAt: null, force: false }
+    { dividends: [], payloadVersion: 2, expectedUpdatedAt: null, force: false }
   );
   expect(result.current.syncStatus).toBe("saved");
 });
@@ -231,7 +324,7 @@ test("keeps offline local changes and uploads them against the known cloud versi
   expect(saveCloudData).toHaveBeenCalledWith(
     changedData.trades,
     changedData.target,
-    { expectedUpdatedAt: "version-1", force: false }
+    { dividends: [], payloadVersion: 2, expectedUpdatedAt: "version-1", force: false }
   );
 });
 
@@ -315,7 +408,9 @@ test("mobile retries failed initialization, uploads its local trade, and desktop
     .mockRejectedValueOnce(new Error("mobile startup offline"))
     .mockImplementation(() => Promise.resolve(cloudRow));
   saveCloudData.mockImplementation(async (trades, target, options) => {
-    expect(options).toEqual({ expectedUpdatedAt: "version-1", force: false });
+    expect(options).toEqual({
+      dividends: [], payloadVersion: 2, expectedUpdatedAt: "version-1", force: false,
+    });
     cloudRow = cloudData({ trades, target }, "version-2");
     return { updatedAt: cloudRow.updatedAt };
   });
@@ -387,6 +482,8 @@ test("repeated resume events deduplicate initialization retries and the resultin
   expect(loadCloudData).toHaveBeenCalledTimes(2);
   expect(saveCloudData).toHaveBeenCalledTimes(1);
   expect(saveCloudData).toHaveBeenCalledWith(changedData.trades, changedData.target, {
+    dividends: [],
+    payloadVersion: 2,
     expectedUpdatedAt: "version-1",
     force: false,
   });
@@ -530,7 +627,7 @@ test("manual conflict resolution can explicitly keep local data", async () => {
   expect(saveCloudData).toHaveBeenCalledWith(
     changedData.trades,
     changedData.target,
-    { expectedUpdatedAt: "version-2", force: true }
+    { dividends: [], payloadVersion: 2, expectedUpdatedAt: "version-2", force: true }
   );
   expect(result.current.hasConflict).toBe(false);
 });
