@@ -85,6 +85,7 @@ export default function useTrackerData({ userId, storage = localStorage } = {}) 
   const queuedUploadRef = useRef(false);
   const debounceTimerRef = useRef(null);
   const initializationRunRef = useRef(0);
+  const initializationInFlightRef = useRef(false);
   const versionCheckInFlightRef = useRef(false);
   const versionCheckPendingRef = useRef(false);
   const checkCloudVersionRef = useRef(null);
@@ -210,6 +211,8 @@ export default function useTrackerData({ userId, storage = localStorage } = {}) 
   performUploadRef.current = performUpload;
 
   const initializeSync = useCallback(async () => {
+    if (initializationInFlightRef.current) return;
+    initializationInFlightRef.current = true;
     const run = ++initializationRunRef.current;
     initializedRef.current = false;
     setSyncReady(false);
@@ -287,6 +290,10 @@ export default function useTrackerData({ userId, storage = localStorage } = {}) 
       initializedRef.current = false;
       setSyncReady(false);
       setSyncStatus(failureStatus());
+    } finally {
+      if (run === initializationRunRef.current) {
+        initializationInFlightRef.current = false;
+      }
     }
   }, [applyCloudData, markConflict, storage, storageKeys]);
 
@@ -379,10 +386,14 @@ export default function useTrackerData({ userId, storage = localStorage } = {}) 
   }, [initializeSync]);
 
   useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible") checkCloudVersion();
+    const resumeSync = () => {
+      if (initializedRef.current) checkCloudVersion();
+      else initializeSync();
     };
-    const handleResume = () => checkCloudVersion();
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") resumeSync();
+    };
+    const handleResume = () => resumeSync();
 
     document.addEventListener("visibilitychange", handleVisibilityChange);
     window.addEventListener("focus", handleResume);
@@ -392,7 +403,7 @@ export default function useTrackerData({ userId, storage = localStorage } = {}) 
       window.removeEventListener("focus", handleResume);
       window.removeEventListener("pageshow", handleResume);
     };
-  }, [checkCloudVersion]);
+  }, [checkCloudVersion, initializeSync]);
 
   useEffect(() => {
     if (

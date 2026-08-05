@@ -298,6 +298,145 @@ test("failed initialization preserves local data and blocks uploads", async () =
   expect(saveCloudData).not.toHaveBeenCalled();
 });
 
+test("mobile retries failed initialization, uploads its local trade, and desktop downloads it on resume", async () => {
+  const metadata = {
+    cloudVersion: "version-1",
+    syncedSnapshot: snapshot(baseData),
+  };
+  const mobileData = {
+    trades: [...baseData.trades, { id: 22, ticker: "MOBILE ADD", status: "open" }],
+    target: baseData.target,
+  };
+  const mobileStorage = createDeviceStorage(baseData, metadata);
+  const desktopStorage = createDeviceStorage(baseData, metadata);
+  let cloudRow = cloudData(baseData, "version-1");
+
+  loadCloudData
+    .mockRejectedValueOnce(new Error("mobile startup offline"))
+    .mockImplementation(() => Promise.resolve(cloudRow));
+  saveCloudData.mockImplementation(async (trades, target, options) => {
+    expect(options).toEqual({ expectedUpdatedAt: "version-1", force: false });
+    cloudRow = cloudData({ trades, target }, "version-2");
+    return { updatedAt: cloudRow.updatedAt };
+  });
+
+  const mobile = renderHook(() =>
+    useTrackerData({ userId: TEST_USER_ID, storage: mobileStorage })
+  );
+  await flushAsync();
+  expect(mobile.result.current.syncStatus).toBe("error");
+
+  act(() => mobile.result.current.setTrades(mobileData.trades));
+  expect(JSON.parse(mobileStorage.getItem(TEST_KEYS.trades))).toEqual(mobileData.trades);
+
+  const desktop = renderHook(() =>
+    useTrackerData({ userId: TEST_USER_ID, storage: desktopStorage })
+  );
+  await flushAsync();
+  expect(desktop.result.current.trades).toEqual(baseData.trades);
+
+  act(() => window.dispatchEvent(new Event("focus")));
+  await flushAsync();
+  await advanceDebounce();
+
+  expect(saveCloudData).toHaveBeenCalledTimes(1);
+  expect(cloudRow.trades).toEqual(mobileData.trades);
+  expect(cloudRow.updatedAt).toBe("version-2");
+
+  mobile.unmount();
+  act(() => window.dispatchEvent(new Event("pageshow")));
+  await flushAsync();
+
+  expect(desktop.result.current.trades).toEqual(mobileData.trades);
+  expect(desktop.result.current.hasConflict).toBe(false);
+  expect(JSON.parse(desktopStorage.getItem(TEST_KEYS.trades))).toEqual(mobileData.trades);
+});
+
+test("repeated resume events deduplicate initialization retries and the resulting upload", async () => {
+  seedLocal(baseData, {
+    cloudVersion: "version-1",
+    syncedSnapshot: snapshot(baseData),
+  });
+  let resolveRetry;
+  loadCloudData
+    .mockRejectedValueOnce(new Error("startup offline"))
+    .mockImplementationOnce(() => new Promise((resolve) => { resolveRetry = resolve; }));
+
+  const { result } = renderHook(() => useTrackerData({ userId: TEST_USER_ID }));
+  await flushAsync();
+  act(() => result.current.setTrades(changedData.trades));
+  Object.defineProperty(document, "visibilityState", {
+    configurable: true,
+    value: "visible",
+  });
+
+  act(() => {
+    window.dispatchEvent(new Event("focus"));
+    window.dispatchEvent(new Event("pageshow"));
+    document.dispatchEvent(new Event("visibilitychange"));
+  });
+
+  expect(loadCloudData).toHaveBeenCalledTimes(2);
+  await act(async () => {
+    resolveRetry(cloudData(baseData, "version-1"));
+    await Promise.resolve();
+    await Promise.resolve();
+  });
+  await advanceDebounce();
+
+  expect(loadCloudData).toHaveBeenCalledTimes(2);
+  expect(saveCloudData).toHaveBeenCalledTimes(1);
+  expect(saveCloudData).toHaveBeenCalledWith(changedData.trades, changedData.target, {
+    expectedUpdatedAt: "version-1",
+    force: false,
+  });
+});
+
+test("a successful retry downloads cloud-only changes", async () => {
+  seedLocal(baseData, {
+    cloudVersion: "version-1",
+    syncedSnapshot: snapshot(baseData),
+  });
+  loadCloudData
+    .mockRejectedValueOnce(new Error("startup offline"))
+    .mockResolvedValueOnce(cloudData(changedData, "version-2"));
+
+  const { result } = renderHook(() => useTrackerData({ userId: TEST_USER_ID }));
+  await flushAsync();
+  act(() => window.dispatchEvent(new Event("pageshow")));
+  await flushAsync();
+
+  expect(result.current.trades).toEqual(changedData.trades);
+  expect(result.current.hasConflict).toBe(false);
+  expect(result.current.syncStatus).toBe("saved");
+  expect(saveCloudData).not.toHaveBeenCalled();
+});
+
+test("a successful retry preserves local data when both local and cloud changed", async () => {
+  seedLocal(baseData, {
+    cloudVersion: "version-1",
+    syncedSnapshot: snapshot(baseData),
+  });
+  const otherDeviceData = {
+    trades: [{ id: 44, ticker: "OTHER DEVICE", status: "open" }],
+    target: 700,
+  };
+  loadCloudData
+    .mockRejectedValueOnce(new Error("startup offline"))
+    .mockResolvedValueOnce(cloudData(otherDeviceData, "version-2"));
+
+  const { result } = renderHook(() => useTrackerData({ userId: TEST_USER_ID }));
+  await flushAsync();
+  act(() => result.current.setTrades(changedData.trades));
+  act(() => window.dispatchEvent(new Event("focus")));
+  await flushAsync();
+
+  expect(result.current.trades).toEqual(changedData.trades);
+  expect(result.current.hasConflict).toBe(true);
+  expect(result.current.syncStatus).toBe("conflict");
+  expect(saveCloudData).not.toHaveBeenCalled();
+});
+
 test("failed upload preserves local data and reports failure", async () => {
   seedLocal(baseData, {
     cloudVersion: "version-1",
