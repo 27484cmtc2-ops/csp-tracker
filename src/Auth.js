@@ -100,7 +100,7 @@ export default function Auth({ onSignedIn }) {
     <main className="auth-page">
       <section className="auth-card" aria-labelledby="auth-title">
         <header className="auth-header">
-          <span className="auth-eyebrow">{"// WHEEL STRATEGY TRACKER"}</span>
+          <span className="auth-eyebrow">WHEEL STRATEGY TRACKER</span>
           <h1 id="auth-title">Wheel App</h1>
           <p>Track your wheel strategy from cash-secured puts to covered calls.</p>
         </header>
@@ -150,7 +150,7 @@ export default function Auth({ onSignedIn }) {
           <section className="auth-reset-sheet" role="dialog" aria-modal="true" aria-labelledby="reset-title">
             <div className="auth-reset-handle" aria-hidden="true" />
             <header>
-              <span className="auth-eyebrow">{"// ACCOUNT RECOVERY"}</span>
+              <span className="auth-eyebrow">ACCOUNT RECOVERY</span>
               <h2 id="reset-title">Reset password</h2>
               <p>Enter your email and we'll send reset instructions if an account exists.</p>
             </header>

@@ -41,7 +41,7 @@ export default function CloudSyncControls({
   return (
     <div className={`sync-control${compact ? " sync-control-compact" : ""}`}>
       <div className="sync-control-row">
-        <span className={`sync-status sync-status-${status}`}>
+        <span className={`sync-status sync-status-${status}`} role="status" aria-live="polite">
           <span className="sync-status-dot" aria-hidden="true" />
           {STATUS_LABELS[status] ?? "Sync failed"}
         </span>

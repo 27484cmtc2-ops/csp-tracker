@@ -245,6 +245,24 @@ test("keeps dividend analytics focused and expands the upcoming payment schedule
   expect(screen.getByRole("button", { name: "SHOW LESS" })).toHaveAttribute("aria-expanded", "true");
 });
 
+test("shows wheel summary metrics only on the Tracker tab", () => {
+  const { container } = render(<App userId={TEST_USER_ID} />);
+  const desktop = container.querySelector(".desktop-interface");
+
+  expect(within(desktop).getByText("REALIZED P&L")).toBeInTheDocument();
+  expect(within(desktop).getByText("OPEN PREMIUM")).toBeInTheDocument();
+  expect(within(desktop).getByText("WIN RATE")).toBeInTheDocument();
+
+  fireEvent.click(within(desktop).getByRole("button", { name: "DIVIDENDS" }));
+
+  expect(within(desktop).queryByText("REALIZED P&L")).not.toBeInTheDocument();
+  expect(within(desktop).queryByText("OPEN PREMIUM")).not.toBeInTheDocument();
+  expect(within(desktop).queryByText("WIN RATE")).not.toBeInTheDocument();
+  expect(within(desktop).getByText("Dividend Tracker")).toBeInTheDocument();
+  expect(within(desktop).getByText("ANNUAL DIVIDENDS")).toBeInTheDocument();
+  expect(within(desktop).getByText("AVERAGE MONTHLY")).toBeInTheDocument();
+});
+
 test("opens the mobile add-trade sheet with labeled fields", () => {
   render(<App userId={TEST_USER_ID} />);
 

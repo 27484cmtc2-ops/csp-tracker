@@ -498,13 +498,15 @@ export default function App({ userId, userEmail, onLogOut, logoutError }) {
           <div className="desktop-account-row">
             <AccountMenu email={userEmail} onLogOut={onLogOut} error={logoutError} />
           </div>
-        <PortfolioSummary
-          realized={realized}
-          openPremium={openPremium}
-          winRate={winRate}
-          winningTrades={winningTrades}
-          closedTradeCount={closedTrades.length}
-        />
+        {tab === "tracker" && (
+          <PortfolioSummary
+            realized={realized}
+            openPremium={openPremium}
+            winRate={winRate}
+            winningTrades={winningTrades}
+            closedTradeCount={closedTrades.length}
+          />
+        )}
         <CloudSyncControls
           status={syncStatus}
           hasConflict={hasConflict}
@@ -515,8 +517,8 @@ export default function App({ userId, userEmail, onLogOut, logoutError }) {
         />
 
         <nav className="desktop-section-nav" aria-label="Application sections">
-          <button className={tab === "tracker" ? "active" : ""} onClick={() => setTab("tracker")}>TRACKER</button>
-          <button className={tab === "dividends" ? "active" : ""} onClick={() => setTab("dividends")}>DIVIDENDS</button>
+          <button className={`desktop-nav-tracker${tab === "tracker" ? " active" : ""}`} onClick={() => setTab("tracker")}>TRACKER</button>
+          <button className={`desktop-nav-dividends${tab === "dividends" ? " active" : ""}`} onClick={() => setTab("dividends")}>DIVIDENDS</button>
         </nav>
         
 
@@ -525,10 +527,10 @@ export default function App({ userId, userEmail, onLogOut, logoutError }) {
             <NewTradeForm value={newTrade} onChange={setNewTrade} onSubmit={addTrade} />
 
             <div className="csp-panel" style={{marginBottom:12}}>
-              <div style={{padding:"10px 14px",borderBottom:"1px solid #223044",fontSize:9,color:"#7f8ea3",letterSpacing:".12em"}}>
+              <div className="desktop-panel-heading desktop-heading-positions" style={{padding:"10px 14px",borderBottom:"1px solid #223044",fontSize:9,color:"#7f8ea3",letterSpacing:".12em"}}>
                 OPEN POSITIONS <span style={{color:"#2a5a2a"}}>({openTrades.length})</span>
               </div>
-              {openTrades.length===0 && <div style={{padding:20,textAlign:"center",color:"#607086",fontSize:11}}>No open positions.</div>}
+              {openTrades.length===0 && <div className="desktop-empty-state desktop-empty-positions" style={{padding:20,textAlign:"center",color:"#607086",fontSize:11}}>No open positions.</div>}
               {openTrades.length>0 && (
                 <div style={{display:"flex",gap:6,flexWrap:"wrap",padding:"10px 14px",borderBottom:"1px solid #223044"}}>
                   <span style={{fontSize:9,color:"#71839a",letterSpacing:".1em",alignSelf:"center"}}>SORT</span>
@@ -631,7 +633,7 @@ export default function App({ userId, userEmail, onLogOut, logoutError }) {
 
             {assignedTrades.length > 0 && (
               <div className="csp-panel" style={{marginBottom:12}}>
-                <div style={{
+                <div className="desktop-panel-heading desktop-heading-wheels" style={{
                   padding:"10px 14px",
                   borderBottom:"1px solid #223044",
                   fontSize:9,
@@ -662,7 +664,7 @@ export default function App({ userId, userEmail, onLogOut, logoutError }) {
 
             {stockSales.length > 0 && (
               <div className="csp-panel completed-stock-sales" style={{marginBottom:12}}>
-                <div style={{padding:"10px 14px",borderBottom:"1px solid #223044",fontSize:9,color:"#6fdc8c",letterSpacing:".12em"}}>
+                <div className="desktop-panel-heading desktop-heading-history" style={{padding:"10px 14px",borderBottom:"1px solid #223044",fontSize:9,color:"#6fdc8c",letterSpacing:".12em"}}>
                   COMPLETED SHARE SALES <span style={{color:"#3f7650"}}>({stockSales.length})</span>
                 </div>
                 <div className="stock-sale-grid">
@@ -673,7 +675,7 @@ export default function App({ userId, userEmail, onLogOut, logoutError }) {
 
             {closedCoveredCalls.length > 0 && (
               <div className="csp-panel" style={{marginBottom:12}}>
-                <div style={{padding:"10px 14px",borderBottom:"1px solid #223044",fontSize:9,color:"#6fdc8c",letterSpacing:".12em"}}>
+                <div className="desktop-panel-heading desktop-heading-history" style={{padding:"10px 14px",borderBottom:"1px solid #223044",fontSize:9,color:"#6fdc8c",letterSpacing:".12em"}}>
                   COVERED CALL HISTORY <span style={{color:"#3f7650"}}>({closedCoveredCalls.length})</span>
                 </div>
                 <div className="stock-sale-grid">
@@ -684,7 +686,7 @@ export default function App({ userId, userEmail, onLogOut, logoutError }) {
 
             {closedTrades.length>0 && (
               <div className="csp-panel">
-                <div style={{padding:"10px 14px",borderBottom:"1px solid #223044",fontSize:9,color:"#7f8ea3",letterSpacing:".12em"}}>
+                <div className="desktop-panel-heading desktop-heading-history" style={{padding:"10px 14px",borderBottom:"1px solid #223044",fontSize:9,color:"#7f8ea3",letterSpacing:".12em"}}>
                   CLOSED POSITIONS <span style={{color:"#4a4a1a"}}>({closedTrades.length})</span>
                 </div>
                 <div className="csp-table-wrap" style={{overflowX:"auto"}}>
