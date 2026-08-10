@@ -53,12 +53,12 @@ function seedLocal(data, metadata = null) {
   }
 }
 
-function createDeviceStorage(data, metadata) {
+function createDeviceStorage(data, metadata, keys = TEST_KEYS) {
   const values = new Map([
-    [TEST_KEYS.trades, JSON.stringify(data.trades)],
-    [TEST_KEYS.target, String(data.target)],
-    [TEST_KEYS.dividends, JSON.stringify(data.dividends ?? [])],
-    [TEST_KEYS.syncMeta, JSON.stringify(metadata)],
+    [keys.trades, JSON.stringify(data.trades)],
+    [keys.target, String(data.target)],
+    [keys.dividends, JSON.stringify(data.dividends ?? [])],
+    [keys.syncMeta, JSON.stringify(metadata)],
   ]);
   return {
     getItem: (key) => values.get(key) ?? null,
@@ -669,6 +669,190 @@ test("cleanup cancels a debounced local upload", async () => {
   expect(saveCloudData).not.toHaveBeenCalled();
 });
 
+test("a dividend saved locally survives an immediate refresh before autosync", async () => {
+  const dividend = { id: "div-refresh", ticker: "ENB", shares: 12 };
+  const metadata = { cloudVersion: "version-1", syncedSnapshot: snapshot(baseData) };
+  const deviceStorage = createDeviceStorage(baseData, metadata);
+  loadCloudData.mockResolvedValue(cloudData(baseData, "version-1"));
+
+  const firstLoad = renderHook(() =>
+    useTrackerData({ userId: TEST_USER_ID, storage: deviceStorage })
+  );
+  await flushAsync();
+  act(() => firstLoad.result.current.setDividends([dividend]));
+  expect(JSON.parse(deviceStorage.getItem(TEST_KEYS.dividends))).toEqual([dividend]);
+  firstLoad.unmount();
+
+  const refreshed = renderHook(() =>
+    useTrackerData({ userId: TEST_USER_ID, storage: deviceStorage })
+  );
+  await flushAsync();
+
+  expect(refreshed.result.current.dividends).toMatchObject([dividend]);
+});
+
+test("rapid dividend add edit and delete changes persist only the final collection", async () => {
+  seedLocal(baseData, {
+    cloudVersion: "version-1",
+    syncedSnapshot: snapshot(baseData),
+  });
+  loadCloudData.mockResolvedValue(cloudData(baseData, "version-1"));
+  const { result } = renderHook(() => useTrackerData({ userId: TEST_USER_ID }));
+  await flushAsync();
+
+  act(() => result.current.setDividends([{ id: "one", ticker: "ENB", shares: 10 }]));
+  act(() => {
+    jest.advanceTimersByTime(300);
+    result.current.setDividends([{ id: "one", ticker: "ENB", shares: 20 }]);
+  });
+  act(() => {
+    jest.advanceTimersByTime(300);
+    result.current.setDividends([{ id: "final", ticker: "RY", shares: 30 }]);
+  });
+  await advanceDebounce();
+
+  expect(saveCloudData).toHaveBeenCalledTimes(1);
+  expect(saveCloudData.mock.calls[0][2].dividends).toEqual([
+    { id: "final", ticker: "RY", shares: 30 },
+  ]);
+  expect(JSON.parse(localStorage.getItem(TEST_KEYS.dividends))).toEqual([
+    { id: "final", ticker: "RY", shares: 30 },
+  ]);
+});
+
+test("switching accounts does not leak dividend holdings", async () => {
+  const accountADividends = [{ id: "a-div", ticker: "ENB", shares: 10 }];
+  const accountBDividends = [{ id: "b-div", ticker: "RY", shares: 20 }];
+  const accountAStorage = createDeviceStorage(
+    { ...baseData, dividends: accountADividends },
+    { cloudVersion: "version-a", syncedSnapshot: snapshot({ ...baseData, dividends: accountADividends }) },
+    getTrackerStorageKeys("account-a")
+  );
+  const accountBStorage = createDeviceStorage(
+    { ...baseData, dividends: accountBDividends },
+    { cloudVersion: "version-b", syncedSnapshot: snapshot({ ...baseData, dividends: accountBDividends }) },
+    getTrackerStorageKeys("account-b")
+  );
+  loadCloudData
+    .mockResolvedValueOnce(cloudData({ ...baseData, dividends: accountADividends }, "version-a"))
+    .mockResolvedValueOnce(cloudData({ ...baseData, dividends: accountBDividends }, "version-b"));
+
+  const accountA = renderHook(() =>
+    useTrackerData({ userId: "account-a", storage: accountAStorage })
+  );
+  await flushAsync();
+  expect(accountA.result.current.dividends).toMatchObject(accountADividends);
+  accountA.unmount();
+
+  const accountB = renderHook(() =>
+    useTrackerData({ userId: "account-b", storage: accountBStorage })
+  );
+  await flushAsync();
+  expect(accountB.result.current.dividends).toMatchObject(accountBDividends);
+  expect(accountB.result.current.dividends).not.toMatchObject(accountADividends);
+});
+
+test("a failed offline dividend upload retries on resume after connectivity returns", async () => {
+  const dividend = { id: "offline-div", ticker: "BCE", shares: 40 };
+  let cloudRow = cloudData(baseData, "version-1");
+  seedLocal(baseData, {
+    cloudVersion: "version-1",
+    syncedSnapshot: snapshot(baseData),
+  });
+  loadCloudData.mockImplementation(() => Promise.resolve(cloudRow));
+  saveCloudData
+    .mockRejectedValueOnce(new Error("offline"))
+    .mockImplementationOnce(async (trades, target, options) => {
+      cloudRow = cloudData({ trades, target, dividends: options.dividends }, "version-2");
+      return { updatedAt: cloudRow.updatedAt };
+    });
+
+  const { result } = renderHook(() => useTrackerData({ userId: TEST_USER_ID }));
+  await flushAsync();
+  act(() => result.current.setDividends([dividend]));
+  await advanceDebounce();
+  expect(result.current.syncStatus).toBe("error");
+  expect(saveCloudData).toHaveBeenCalledTimes(1);
+
+  act(() => window.dispatchEvent(new Event("online")));
+  await flushAsync();
+  await advanceDebounce();
+
+  expect(saveCloudData).toHaveBeenCalledTimes(2);
+  expect(saveCloudData.mock.calls[1][2].dividends).toEqual([dividend]);
+  expect(result.current.syncStatus).toBe("saved");
+
+  act(() => window.dispatchEvent(new Event("focus")));
+  await flushAsync();
+  expect(saveCloudData).toHaveBeenCalledTimes(2);
+  expect(result.current.syncStatus).toBe("saved");
+});
+
+test("a failed offline trade upload has the same resume retry requirement", async () => {
+  const offlineTrades = [...baseData.trades, { id: "offline-trade", ticker: "BCE" }];
+  seedLocal(baseData, {
+    cloudVersion: "version-1",
+    syncedSnapshot: snapshot(baseData),
+  });
+  loadCloudData.mockResolvedValue(cloudData(baseData, "version-1"));
+  saveCloudData
+    .mockRejectedValueOnce(new Error("offline"))
+    .mockResolvedValueOnce({ updatedAt: "version-2" });
+
+  const { result } = renderHook(() => useTrackerData({ userId: TEST_USER_ID }));
+  await flushAsync();
+  act(() => result.current.setTrades(offlineTrades));
+  await advanceDebounce();
+  expect(saveCloudData).toHaveBeenCalledTimes(1);
+
+  act(() => window.dispatchEvent(new Event("focus")));
+  await flushAsync();
+  await advanceDebounce();
+
+  expect(saveCloudData).toHaveBeenCalledTimes(2);
+  expect(saveCloudData.mock.calls[1][0]).toEqual(offlineTrades);
+});
+
+test("repeated focus and online events retry one failed upload without duplicates", async () => {
+  const dividend = { id: "dedup-div", ticker: "TD", shares: 15 };
+  seedLocal(baseData, {
+    cloudVersion: "version-1",
+    syncedSnapshot: snapshot(baseData),
+  });
+  let resolveCheck;
+  loadCloudData
+    .mockResolvedValueOnce(cloudData(baseData, "version-1"))
+    .mockImplementationOnce(() => new Promise((resolve) => { resolveCheck = resolve; }))
+    .mockResolvedValue(cloudData(baseData, "version-1"));
+  saveCloudData
+    .mockRejectedValueOnce(new Error("offline"))
+    .mockResolvedValueOnce({ updatedAt: "version-2" });
+
+  const { result } = renderHook(() => useTrackerData({ userId: TEST_USER_ID }));
+  await flushAsync();
+  act(() => result.current.setDividends([dividend]));
+  await advanceDebounce();
+  expect(saveCloudData).toHaveBeenCalledTimes(1);
+
+  act(() => {
+    window.dispatchEvent(new Event("focus"));
+    window.dispatchEvent(new Event("online"));
+    window.dispatchEvent(new Event("pageshow"));
+  });
+  expect(loadCloudData).toHaveBeenCalledTimes(2);
+  await act(async () => {
+    resolveCheck(cloudData(baseData, "version-1"));
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+  });
+  await advanceDebounce();
+
+  expect(saveCloudData).toHaveBeenCalledTimes(2);
+  expect(saveCloudData.mock.calls[1][2].dividends).toEqual([dividend]);
+  expect(result.current.syncStatus).toBe("saved");
+});
+
 test("checks for newer cloud data when the app becomes visible again", async () => {
   seedLocal(baseData, {
     cloudVersion: "version-1",
@@ -843,6 +1027,7 @@ test("coalesces simultaneous resume events into one cloud check", async () => {
   await flushAsync();
   act(() => {
     window.dispatchEvent(new Event("focus"));
+    window.dispatchEvent(new Event("online"));
     window.dispatchEvent(new Event("pageshow"));
     document.dispatchEvent(new Event("visibilitychange"));
   });
@@ -886,6 +1071,7 @@ test("removes all resume listeners during cleanup", async () => {
   await flushAsync();
   unmount();
   window.dispatchEvent(new Event("focus"));
+  window.dispatchEvent(new Event("online"));
   window.dispatchEvent(new Event("pageshow"));
   document.dispatchEvent(new Event("visibilitychange"));
   await flushAsync();

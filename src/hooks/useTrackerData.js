@@ -354,18 +354,22 @@ export default function useTrackerData({ userId, storage = localStorage } = {}) 
       }
 
       const cloudSnapshot = serializeData(cloudData.trades, cloudData.target, cloudData.dividends ?? []);
-      const versionUnchanged = cloudData.updatedAt === cloudVersionRef.current;
-      const payloadUnchanged = cloudSnapshot === lastSyncedSnapshotRef.current;
-      if (versionUnchanged && payloadUnchanged) {
-        setSyncStatus("saved");
-        return;
-      }
-
       const localSnapshot = serializeData(
         latestDataRef.current.trades,
         latestDataRef.current.target,
         latestDataRef.current.dividends
       );
+      const versionUnchanged = cloudData.updatedAt === cloudVersionRef.current;
+      const payloadUnchanged = cloudSnapshot === lastSyncedSnapshotRef.current;
+      if (versionUnchanged && payloadUnchanged) {
+        if (localSnapshot === lastSyncedSnapshotRef.current) {
+          setSyncStatus("saved");
+        } else {
+          scheduleUploadRef.current?.();
+        }
+        return;
+      }
+
       if (localSnapshot !== lastSyncedSnapshotRef.current) {
         clearTimeout(debounceTimerRef.current);
         cloudVersionRef.current = cloudData.updatedAt;
@@ -431,10 +435,12 @@ export default function useTrackerData({ userId, storage = localStorage } = {}) 
     document.addEventListener("visibilitychange", handleVisibilityChange);
     window.addEventListener("focus", handleResume);
     window.addEventListener("pageshow", handleResume);
+    window.addEventListener("online", handleResume);
     return () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       window.removeEventListener("focus", handleResume);
       window.removeEventListener("pageshow", handleResume);
+      window.removeEventListener("online", handleResume);
     };
   }, [checkCloudVersion, initializeSync]);
 
