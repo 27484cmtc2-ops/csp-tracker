@@ -7,11 +7,19 @@ export function createDividendImportRows(parsedCsv, existingHoldings, adapterId 
   if (parsedCsv.errors.length) throw new Error(parsedCsv.errors[0].message);
   const adapter = DIVIDEND_IMPORT_ADAPTERS.find((item) => item.id === adapterId);
   if (!adapter) throw new Error("Select a supported import format.");
-  if (!adapter.recognizes(parsedCsv.headers)) {
-    throw new Error("This CSV does not match the Wheel App dividend template headers.");
+  const renamedHeaders = Object.values(parsedCsv.renamedHeaders ?? {});
+  if (renamedHeaders.length) {
+    throw new Error(`Duplicate CSV headers are not supported: ${[...new Set(renamedHeaders)].join(", ")}.`);
+  }
+  const inspection = adapter.inspectHeaders(parsedCsv.headers);
+  if (inspection.missing.length) {
+    throw new Error(`Could not recognize required columns: ${inspection.missing.join(", ")}.`);
+  }
+  if (inspection.ambiguous.length) {
+    throw new Error(`Ambiguous CSV columns: ${inspection.ambiguous.join(", ")}. Keep only one column for each required field.`);
   }
   if (parsedCsv.rows.length === 0) throw new Error("The CSV does not contain any holdings.");
-  return reviewDividendImportRows(adapter.parse(parsedCsv.rows), existingHoldings);
+  return reviewDividendImportRows(adapter.parse(parsedCsv.rows, inspection.fieldMap), existingHoldings);
 }
 
 function comparable(value) {

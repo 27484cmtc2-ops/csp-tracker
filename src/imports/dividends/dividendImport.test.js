@@ -5,7 +5,10 @@ import {
   getDividendImportSummary,
   reviewDividendImportRows,
 } from "./dividendImport";
-import { WHEEL_APP_DIVIDEND_HEADERS } from "./wheelAppAdapter";
+import {
+  normalizeDividendImportHeader,
+  WHEEL_APP_DIVIDEND_HEADERS,
+} from "./wheelAppAdapter";
 
 const csv = (rows, headers = WHEEL_APP_DIVIDEND_HEADERS) =>
   parseCsvText(`${headers.join(",")}\n${rows.join("\n")}`);
@@ -47,9 +50,82 @@ test.each(["CAD", "USD"])("maps %s holdings and custom accounts", (currency) => 
   expect(rows[0].candidate).toMatchObject({ currency, account: "Family Trust", notes: "Legacy" });
 });
 
-test("rejects missing or unrecognized headers", () => {
+test("accepts exact canonical headers", () => {
+  const rows = createDividendImportRows(csv(["ENB,10,1,Monthly,CAD,TFSA,2026-09-01,Income"]), []);
+  expect(rows[0].candidate).toMatchObject({ ticker: "ENB", dividendPerShare: "1", nextPaymentDate: "2026-09-01" });
+});
+
+test("accepts a BOM-prefixed first header and CRLF line endings", () => {
+  const parsed = parseCsvText(`\uFEFF${WHEEL_APP_DIVIDEND_HEADERS.join(",")}\r\nENB,10,1,Monthly,CAD,TFSA,2026-09-01,Income\r\n`);
+  const rows = createDividendImportRows(parsed, []);
+  expect(parsed.headers[0]).toBe("Ticker");
+  expect(rows[0].candidate.ticker).toBe("ENB");
+});
+
+test("accepts capitalization differences and uses the matched source keys", () => {
+  const headers = WHEEL_APP_DIVIDEND_HEADERS.map((header) => header.toUpperCase());
+  const rows = createDividendImportRows(csv(["ENB,10,1,Monthly,CAD,TFSA,2026-09-01,Income"], headers), []);
+  expect(rows[0].candidate).toMatchObject({ ticker: "ENB", account: "TFSA", notes: "Income" });
+});
+
+test("accepts leading, trailing and repeated internal header spaces", () => {
+  const headers = [
+    " Ticker ", " Shares ", " Dividend   Per   Share ", " Frequency ",
+    " Currency ", " Account ", " Next   Payment   Date ", " Notes ",
+  ];
+  const rows = createDividendImportRows(csv(["ENB,10,1,Monthly,CAD,TFSA,2026-09-01,Income"], headers), []);
+  expect(rows[0].candidate.dividendPerShare).toBe("1");
+});
+
+test.each([
+  ["Dividend / Share", "Next Payment Date"],
+  ["Dividend/Share", "Next Payment"],
+  ["Dividend-Per-Share", "Next-Payment-Date"],
+])("accepts unambiguous punctuation variants %s and %s", (dividendHeader, dateHeader) => {
+  const headers = ["Ticker", "Shares", dividendHeader, "Frequency", "Currency", "Account", dateHeader, "Notes"];
+  const rows = createDividendImportRows(csv(["ENB,10,1,Monthly,CAD,TFSA,2026-09-01,Income"], headers), []);
+  expect(rows[0].candidate).toMatchObject({ dividendPerShare: "1", nextPaymentDate: "2026-09-01" });
+});
+
+test("accepts extra unknown and empty columns without importing them", () => {
+  const headers = [...WHEEL_APP_DIVIDEND_HEADERS, "Broker ID", ""];
+  const rows = createDividendImportRows(csv(["ENB,10,1,Monthly,CAD,TFSA,2026-09-01,Income,ABC,"] , headers), []);
+  expect(rows[0].candidate).toEqual({
+    ticker: "ENB", shares: "10", dividendPerShare: "1", frequency: "monthly",
+    currency: "CAD", account: "TFSA", nextPaymentDate: "2026-09-01", notes: "Income",
+  });
+});
+
+test("reports exactly which required headers are missing", () => {
+  const headers = WHEEL_APP_DIVIDEND_HEADERS.filter((header) => !["Dividend Per Share", "Next Payment Date"].includes(header));
+  expect(() => createDividendImportRows(csv(["ENB,10,Monthly,CAD,TFSA,Income"], headers), []))
+    .toThrow("Could not recognize required columns: Dividend Per Share, Next Payment Date.");
+});
+
+test("rejects truly unrelated CSV headers without accepting ambiguous guesses", () => {
+  expect(() => createDividendImportRows(csv(["2026-09-01,Deposit,10"], ["Date", "Description", "Amount"]), []))
+    .toThrow("Could not recognize required columns: Ticker, Shares, Dividend Per Share, Frequency, Currency, Account, Next Payment Date, Notes.");
+});
+
+test("rejects duplicate and semantically ambiguous headers", () => {
+  const warning = jest.spyOn(console, "warn").mockImplementation(() => {});
+  const exactDuplicate = parseCsvText(`${WHEEL_APP_DIVIDEND_HEADERS.join(",")},Ticker\nENB,10,1,Monthly,CAD,TFSA,2026-09-01,Income,ENB`);
+  expect(() => createDividendImportRows(exactDuplicate, [])).toThrow("Duplicate CSV headers are not supported: Ticker.");
+  warning.mockRestore();
+
+  const ambiguousHeaders = [...WHEEL_APP_DIVIDEND_HEADERS, "Dividend / Share"];
+  expect(() => createDividendImportRows(csv(["ENB,10,1,Monthly,CAD,TFSA,2026-09-01,Income,1"], ambiguousHeaders), []))
+    .toThrow("Ambiguous CSV columns: Dividend Per Share.");
+});
+
+test("normalizes harmless header formatting predictably", () => {
+  expect(normalizeDividendImportHeader("\uFEFF  Dividend  /  Share  ")).toBe("dividend share");
+  expect(normalizeDividendImportHeader("NEXT-PAYMENT_DATE")).toBe("next payment date");
+});
+
+test("rejects missing required headers", () => {
   expect(() => createDividendImportRows(csv(["ENB,10"], ["Ticker", "Shares"]), []))
-    .toThrow("does not match");
+    .toThrow("Could not recognize required columns:");
 });
 
 test("marks invalid and formula-like values for review without evaluating them", () => {

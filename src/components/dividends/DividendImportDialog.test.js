@@ -67,7 +67,9 @@ test("cancellation and parsing failure cause zero writes", async () => {
   const onClose = jest.fn();
   render(<DividendImportDialog holdings={[]} onConfirm={onConfirm} onClose={onClose} />);
   upload("Ticker,Shares\nENB,10");
-  expect(await screen.findByRole("alert")).toHaveTextContent("does not match");
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    "Could not recognize required columns: Dividend Per Share, Frequency, Currency, Account, Next Payment Date, Notes."
+  );
   fireEvent.click(screen.getByRole("button", { name: "CANCEL" }));
   expect(onClose).toHaveBeenCalledTimes(1);
   expect(onConfirm).not.toHaveBeenCalled();

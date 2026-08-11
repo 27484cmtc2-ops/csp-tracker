@@ -15,6 +15,20 @@ test("skips empty rows for LF files", () => {
   expect(parsed.rows).toHaveLength(1);
 });
 
+test("allows a harmless empty trailing column", () => {
+  const parsed = parseCsvText(`${header},\r\nENB,10,1,Monthly,CAD,TFSA,2026-09-01,Income\r\n`);
+  expect(parsed.headers).toEqual([...header.split(","), ""]);
+  expect(parsed.errors).toEqual([]);
+  expect(parsed.rows).toHaveLength(1);
+});
+
+test("reports Papa Parse duplicate-header renaming", () => {
+  const warning = jest.spyOn(console, "warn").mockImplementation(() => {});
+  const parsed = parseCsvText(`${header},Ticker\nENB,10,1,Monthly,CAD,TFSA,2026-09-01,Income,ENB`);
+  expect(parsed.renamedHeaders).toEqual({ Ticker_1: "Ticker" });
+  warning.mockRestore();
+});
+
 test("reports malformed CSV without exposing row contents", () => {
   const parsed = parseCsvText(`${header}\n"ENB,10,1,Monthly,CAD,TFSA,2026-09-01,notes`);
   expect(parsed.errors.length).toBeGreaterThan(0);

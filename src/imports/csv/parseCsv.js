@@ -11,7 +11,12 @@ export function parseCsvText(text) {
   });
 
   const errors = result.errors
-    .filter((error) => error.code !== "UndetectableDelimiter")
+    .filter((error) => {
+      if (error.code === "UndetectableDelimiter") return false;
+      if (error.code !== "TooFewFields" || !Number.isInteger(error.row)) return true;
+      const nonEmptyHeaders = (result.meta.fields ?? []).filter((header) => header.trim()).length;
+      return Object.keys(result.data[error.row] ?? {}).length < nonEmptyHeaders;
+    })
     .map((error) => ({
       code: error.code,
       row: Number.isInteger(error.row) ? error.row + 2 : null,
@@ -28,6 +33,7 @@ export function parseCsvText(text) {
 
   return {
     headers: result.meta.fields ?? [],
+    renamedHeaders: result.meta.renamedHeaders ?? {},
     rows: result.data.slice(0, MAX_CSV_ROWS),
     errors,
   };

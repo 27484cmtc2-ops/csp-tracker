@@ -24,8 +24,51 @@ const FREQUENCY_VALUES = {
   annual: "annual",
 };
 
-function canonicalHeader(header) {
-  return String(header).trim().toLowerCase();
+const HEADER_FIELDS = {
+  ticker: { label: "Ticker", aliases: ["ticker"] },
+  shares: { label: "Shares", aliases: ["shares"] },
+  dividendPerShare: {
+    label: "Dividend Per Share",
+    aliases: ["dividend per share", "dividend share"],
+  },
+  frequency: { label: "Frequency", aliases: ["frequency"] },
+  currency: { label: "Currency", aliases: ["currency"] },
+  account: { label: "Account", aliases: ["account"] },
+  nextPaymentDate: {
+    label: "Next Payment Date",
+    aliases: ["next payment date", "next payment"],
+  },
+  notes: { label: "Notes", aliases: ["notes"] },
+};
+
+export function normalizeDividendImportHeader(header) {
+  return String(header ?? "")
+    .replace(/^\uFEFF/, "")
+    .trim()
+    .toLowerCase()
+    .replace(/[\/_-]+/g, " ")
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+export function inspectDividendImportHeaders(headers) {
+  const fieldMap = {};
+  const ambiguous = [];
+
+  Object.entries(HEADER_FIELDS).forEach(([field, definition]) => {
+    const matches = headers.filter((header) =>
+      definition.aliases.includes(normalizeDividendImportHeader(header))
+    );
+    if (matches.length === 1) fieldMap[field] = matches[0];
+    if (matches.length > 1) ambiguous.push(definition.label);
+  });
+
+  const missing = Object.entries(HEADER_FIELDS)
+    .filter(([field]) => !fieldMap[field] && !ambiguous.includes(HEADER_FIELDS[field].label))
+    .map(([, definition]) => definition.label);
+
+  return { fieldMap, missing, ambiguous };
 }
 
 function cleanCell(value) {
@@ -42,21 +85,23 @@ export const wheelAppDividendAdapter = {
   id: "wheel_app_dividend_holdings",
   label: "Wheel App dividend holdings",
   recognizes(headers) {
-    const received = headers.map(canonicalHeader);
-    return WHEEL_APP_DIVIDEND_HEADERS.every((header) => received.includes(canonicalHeader(header)));
+    const inspection = inspectDividendImportHeaders(headers);
+    return inspection.missing.length === 0 && inspection.ambiguous.length === 0;
   },
-  parse(rows) {
+  inspectHeaders: inspectDividendImportHeaders,
+  parse(rows, fieldMap) {
     return rows.map((row, index) => {
-      const frequencyInput = cleanCell(row["Frequency"]).toLowerCase();
+      const value = (field) => cleanCell(row[fieldMap[field]]);
+      const frequencyInput = value("frequency").toLowerCase();
       const candidate = {
-        ticker: cleanCell(row["Ticker"]),
-        shares: cleanCell(row["Shares"]),
-        dividendPerShare: cleanCell(row["Dividend Per Share"]),
+        ticker: value("ticker"),
+        shares: value("shares"),
+        dividendPerShare: value("dividendPerShare"),
         frequency: FREQUENCY_VALUES[frequencyInput] ?? frequencyInput,
-        currency: cleanCell(row["Currency"]).toUpperCase(),
-        account: cleanCell(row["Account"]),
-        nextPaymentDate: cleanCell(row["Next Payment Date"]),
-        notes: cleanCell(row["Notes"]),
+        currency: value("currency").toUpperCase(),
+        account: value("account"),
+        nextPaymentDate: value("nextPaymentDate"),
+        notes: value("notes"),
       };
       const issues = Object.entries(candidate).flatMap(([field, value]) =>
         formulaIssue(String(value), field)
