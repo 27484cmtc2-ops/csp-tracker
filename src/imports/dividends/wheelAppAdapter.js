@@ -46,7 +46,7 @@ export function normalizeDividendImportHeader(header) {
     .replace(/^\uFEFF/, "")
     .trim()
     .toLowerCase()
-    .replace(/[\/_-]+/g, " ")
+    .replace(/[/_-]+/g, " ")
     .replace(/[^a-z0-9\s]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
