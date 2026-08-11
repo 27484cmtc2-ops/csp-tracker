@@ -1,4 +1,5 @@
-import { DIVIDEND_FREQUENCIES } from "../../utils/dividends";
+import { useState } from "react";
+import { DIVIDEND_ACCOUNT_OPTIONS, DIVIDEND_FREQUENCIES } from "../../utils/dividends";
 
 const FREQUENCY_LABELS = {
   weekly: "Weekly",
@@ -11,6 +12,22 @@ const FREQUENCY_LABELS = {
 
 export default function DividendHoldingForm({ value, error, editing, onChange, onSubmit, onClose }) {
   const update = (field) => (event) => onChange({ ...value, [field]: event.target.value });
+  const existingAccountIsCustom = Boolean(
+    value.account && !DIVIDEND_ACCOUNT_OPTIONS.includes(value.account)
+  );
+  const [accountOption, setAccountOption] = useState(
+    existingAccountIsCustom ? "Other" : value.account
+  );
+
+  const updateAccountOption = (event) => {
+    const option = event.target.value;
+    setAccountOption(option);
+    if (option !== "Other") {
+      onChange({ ...value, account: option });
+    } else if (!existingAccountIsCustom) {
+      onChange({ ...value, account: "" });
+    }
+  };
 
   return (
     <div className="dividend-modal-layer" role="dialog" aria-modal="true" aria-labelledby="dividend-form-title">
@@ -54,8 +71,20 @@ export default function DividendHoldingForm({ value, error, editing, onChange, o
           </label>
           <label>
             <span>Account</span>
-            <input type="text" value={value.account} onChange={update("account")} placeholder="e.g. TFSA" />
+            <select value={accountOption} onChange={updateAccountOption}>
+              <option value="">Select account</option>
+              {DIVIDEND_ACCOUNT_OPTIONS.map((account) => (
+                <option key={account} value={account}>{account}</option>
+              ))}
+              <option value="Other">Other</option>
+            </select>
           </label>
+          {accountOption === "Other" && (
+            <label>
+              <span>Custom account name</span>
+              <input type="text" value={value.account} onChange={update("account")} placeholder="Enter account name" />
+            </label>
+          )}
           <label>
             <span>Next payment date</span>
             <input type="date" value={value.nextPaymentDate} onChange={update("nextPaymentDate")} />

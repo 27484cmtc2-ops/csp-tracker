@@ -58,6 +58,12 @@ test("normalizes legacy or malformed dividend collections safely", () => {
   }]);
 });
 
+test("preserves custom legacy account names during normalization", () => {
+  expect(normalizeDividendHoldings([
+    holding({ account: "Family Trust" }),
+  ])[0].account).toBe("Family Trust");
+});
+
 test("normalizes a dividend holding for storage", () => {
   expect(createDividendHolding({
     ...holding(), ticker: " enb ", shares: "25", dividendPerShare: "0.75", notes: " DRIP ",

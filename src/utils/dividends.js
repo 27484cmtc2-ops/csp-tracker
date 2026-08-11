@@ -7,6 +7,17 @@ export const DIVIDEND_FREQUENCIES = {
   annual: 1,
 };
 
+export const DIVIDEND_ACCOUNT_OPTIONS = [
+  "TFSA",
+  "RRSP",
+  "FHSA",
+  "Non-Registered",
+  "Margin",
+  "LIRA",
+  "RESP",
+  "Corporate",
+];
+
 export const EMPTY_DIVIDEND_HOLDING = {
   ticker: "",
   shares: "",
