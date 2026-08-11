@@ -156,6 +156,31 @@ test("renders the tracker with an empty portfolio by default", () => {
   expect(screen.getByRole("button", { name: /closed positions/i })).toHaveAttribute("aria-expanded", "false");
 });
 
+test("guest mode shows local-only status, hides cloud controls, and gates CSV import", () => {
+  render(<App mode="guest" onSignIn={jest.fn()} onCreateAccount={jest.fn()} onExitGuest={jest.fn()} />);
+
+  expect(screen.getAllByText("Guest mode — data is stored only on this device.").length).toBeGreaterThan(0);
+  expect(screen.queryByRole("button", { name: "SYNC NOW" })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "DIVIDENDS" }));
+  fireEvent.click(screen.getByRole("button", { name: "IMPORT" }));
+  expect(screen.getByRole("dialog", { name: "Import needs a free account" })).toBeInTheDocument();
+  expect(screen.queryByLabelText(/CSV file/i)).not.toBeInTheDocument();
+});
+
+test("guest trade and dividend changes persist only to guest keys", () => {
+  render(<App mode="guest" />);
+  fireEvent.change(screen.getByPlaceholderText("TICKER"), { target: { value: "GME" } });
+  fireEvent.change(screen.getByPlaceholderText("SHORT STRIKE"), { target: { value: "10" } });
+  fireEvent.change(screen.getByPlaceholderText("PREMIUM"), { target: { value: "1" } });
+  fireEvent.change(screen.getByPlaceholderText("CONTRACTS"), { target: { value: "1" } });
+  const dateInput = document.querySelector('.desktop-interface input[type="date"]');
+  fireEvent.change(dateInput, { target: { value: "2027-01-15" } });
+  fireEvent.click(screen.getByRole("button", { name: "+ ADD TRADE" }));
+  expect(JSON.parse(localStorage.getItem("csp_guest_trades:v1"))).toHaveLength(1);
+  expect(localStorage.getItem(TEST_KEYS.trades)).toBeNull();
+  expect(saveCloudData).not.toHaveBeenCalled();
+});
+
 test("adds, edits, and deletes a dividend holding from the desktop tracker", () => {
   const confirm = jest.spyOn(window, "confirm").mockReturnValue(true);
   const { container } = render(<App userId={TEST_USER_ID} />);

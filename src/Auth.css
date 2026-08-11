@@ -95,6 +95,12 @@
   letter-spacing: .1em;
   cursor: pointer;
 }
+
+.auth-guest-divider { display:flex; align-items:center; gap:12px; color:#65758b; font-size:11px; letter-spacing:.12em; }
+.auth-guest-divider::before,.auth-guest-divider::after { content:""; height:1px; background:#263447; flex:1; }
+.auth-guest-action { min-height:44px; border:1px solid #39516d; border-radius:var(--radius-control,8px); background:transparent; color:#b8c6d8; cursor:pointer; transition:background 180ms ease,border-color 180ms ease; }
+.auth-guest-action:hover { background:#152130; border-color:#5b7898; }
+.auth-guest-note { margin:0; color:#77889e; text-align:center; font-size:12px; line-height:1.5; }
 .auth-primary-action {
   margin-top: 4px;
   border: 1px solid #4d82b8;

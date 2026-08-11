@@ -4,6 +4,7 @@ import CloudSyncControls from "../CloudSyncControls";
 import { ClosedCoveredCallSummary } from "../CoveredCallForm";
 import { StockSaleSummary } from "../StockSaleForm";
 import AccountMenu from "../AccountMenu";
+import GuestModeControls from "../GuestModeControls";
 import { fmt, fmtShort } from "../../utils/formatters";
 import {
   annualizedReturn,
@@ -248,6 +249,10 @@ export default function MobileTrackerShell({
   userEmail,
   onLogOut,
   logoutError,
+  mode = "authenticated",
+  onSignIn,
+  onCreateAccount,
+  onExitGuest,
 }) {
   const [assignedOpen, setAssignedOpen] = useState(false);
   const [closedOpen, setClosedOpen] = useState(false);
@@ -260,7 +265,7 @@ export default function MobileTrackerShell({
     <div className="mobile-shell">
       <main className="mobile-main">
           <div className="mobile-account-row">
-            <AccountMenu email={userEmail} onLogOut={onLogOut} error={logoutError} mobile />
+            <AccountMenu email={userEmail} onLogOut={onLogOut} error={logoutError} mode={mode} onSignIn={onSignIn} onCreateAccount={onCreateAccount} onExitGuest={onExitGuest} mobile />
           </div>
           <MobilePortfolioSummary
             realized={realized}
@@ -269,7 +274,7 @@ export default function MobileTrackerShell({
             winningTrades={winningTrades}
             closedTradeCount={closedTrades.length}
           />
-          <CloudSyncControls
+          {mode === "guest" ? <GuestModeControls onSignIn={onSignIn} onCreateAccount={onCreateAccount} compact /> : <CloudSyncControls
             status={syncStatus}
             hasConflict={hasConflict}
             onSyncNow={onSyncNow}
@@ -277,7 +282,7 @@ export default function MobileTrackerShell({
             onKeepLocal={onKeepLocal}
             onFeedback={onFeedback}
             compact
-          />
+          />}
 
           <section className="mobile-open-section">
             <div className="mobile-section-heading">

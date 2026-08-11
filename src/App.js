@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useEffect, useState, useMemo } from "react";
 import "./App.css";
 import PortfolioSummary from "./components/PortfolioSummary";
 import CloudSyncControls from "./components/CloudSyncControls";
@@ -9,6 +9,9 @@ import MobileTrackerShell from "./components/mobile/MobileTrackerShell";
 import ActiveWheelCard from "./components/ActiveWheelCard";
 import FeedbackModal from "./components/FeedbackModal";
 import AccountMenu from "./components/AccountMenu";
+import GuestModeControls from "./components/GuestModeControls";
+import GuestAccountGate from "./components/GuestAccountGate";
+import GuestMigrationDialog from "./components/GuestMigrationDialog";
 import CoveredCallForm, {
   CloseCoveredCallForm,
   ClosedCoveredCallSummary,
@@ -49,7 +52,8 @@ import {
   validateStockSale,
 } from "./utils/stockSales";
 
-export default function App({ userId, userEmail, onLogOut, logoutError }) {
+export default function App({ userId, userEmail, onLogOut, logoutError, mode = "authenticated", onSignIn, onCreateAccount, onExitGuest, guestMigration, onGuestMigrationSaved, onClearGuestData, onDismissGuestMigration, onReturnToGuest }) {
+  const isGuest = mode === "guest";
   const [tab, setTab] = useState("tracker");
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const {
@@ -57,15 +61,17 @@ export default function App({ userId, userEmail, onLogOut, logoutError }) {
     target,
     dividends,
     setTrades,
+    replacePortfolio,
     setDividends,
     syncStatus,
+    syncReady,
     hasConflict,
     syncNow,
     useCloudData,
     keepLocalData,
-  } = useTrackerData({ userId });
+  } = useTrackerData({ userId, mode });
   const { undoEntry, undoError, commitTrades, undo } = usePortfolioUndo({
-    userId,
+    userId: isGuest ? "guest" : userId,
     trades,
     setTrades,
   });
@@ -84,7 +90,56 @@ export default function App({ userId, userEmail, onLogOut, logoutError }) {
   const [dividendModal, setDividendModal] = useState(null);
   const [dividendError, setDividendError] = useState("");
   const [dividendImportOpen, setDividendImportOpen] = useState(false);
+  const [guestGateOpen, setGuestGateOpen] = useState(false);
+  const [migrationOpen, setMigrationOpen] = useState(Boolean(guestMigration));
+  const [migrationBusy, setMigrationBusy] = useState(false);
+  const [migrationSawSync, setMigrationSawSync] = useState(false);
+  const [migrationError, setMigrationError] = useState("");
+  const [migrationComplete, setMigrationComplete] = useState(false);
   const targetUSD = target / USD_CAD;
+
+  const accountEmpty = trades.length === 0 && dividends.length === 0 && target === 500;
+
+  useEffect(() => {
+    if (guestMigration) setMigrationOpen(true);
+  }, [guestMigration]);
+  useEffect(() => {
+    if (!migrationBusy) return;
+    if (syncStatus === "syncing") setMigrationSawSync(true);
+    if (hasConflict) {
+      setMigrationBusy(false);
+      setMigrationError("The account changed in the cloud. Your guest data is still safe; resolve the sync conflict before trying again.");
+      return;
+    }
+    if (syncStatus === "error" || syncStatus === "offline") {
+      setMigrationBusy(false);
+      setMigrationError("Guest data is still safe on this device. Reconnect and try again after cloud sync is available.");
+      return;
+    }
+    if (migrationSawSync && syncStatus === "saved") {
+      setMigrationBusy(false);
+      setMigrationComplete(true);
+      onGuestMigrationSaved?.(guestMigration.snapshotHash);
+    }
+  }, [guestMigration, hasConflict, migrationBusy, migrationSawSync, onGuestMigrationSaved, syncStatus]);
+
+  const migrateGuestPortfolio = () => {
+    if (!guestMigration || hasConflict) return;
+    setMigrationError("");
+    setMigrationSawSync(false);
+    setMigrationBusy(true);
+    replacePortfolio(guestMigration.portfolio);
+  };
+
+  const replaceWithGuestPortfolio = () => {
+    if (!window.confirm("Replace this account's entire portfolio with the guest portfolio? The current account trades, target, and dividends will be replaced after cloud synchronization.")) return;
+    migrateGuestPortfolio();
+  };
+
+  const closeMigration = () => {
+    setMigrationOpen(false);
+    onDismissGuestMigration?.();
+  };
 
   const openDividendModal = () => {
     setDividendError("");
@@ -505,7 +560,7 @@ export default function App({ userId, userEmail, onLogOut, logoutError }) {
       <div className="app-content" style={{maxWidth:tab === "dividends" ? 1120 : 780,margin:"0 auto",padding:"24px 16px"}}>
         <div className="desktop-interface">
           <div className="desktop-account-row">
-            <AccountMenu email={userEmail} onLogOut={onLogOut} error={logoutError} />
+            <AccountMenu email={userEmail} onLogOut={onLogOut} error={logoutError} mode={mode} onSignIn={onSignIn} onCreateAccount={onCreateAccount} onExitGuest={onExitGuest} />
           </div>
         {tab === "tracker" && (
           <PortfolioSummary
@@ -516,14 +571,14 @@ export default function App({ userId, userEmail, onLogOut, logoutError }) {
             closedTradeCount={closedTrades.length}
           />
         )}
-        <CloudSyncControls
+        {isGuest ? <GuestModeControls onSignIn={onSignIn} onCreateAccount={onCreateAccount} /> : <CloudSyncControls
           status={syncStatus}
           hasConflict={hasConflict}
           onSyncNow={syncNow}
           onUseCloud={useCloudData}
           onKeepLocal={keepLocalData}
           onFeedback={() => setFeedbackOpen(true)}
-        />
+        />}
 
         <nav className="desktop-section-nav" aria-label="Application sections">
           <button className={`desktop-nav-tracker${tab === "tracker" ? " active" : ""}`} onClick={() => setTab("tracker")}>TRACKER</button>
@@ -790,7 +845,7 @@ export default function App({ userId, userEmail, onLogOut, logoutError }) {
             holdings={dividends}
             usdCad={USD_CAD}
             onAdd={openDividendModal}
-            onImport={() => setDividendImportOpen(true)}
+            onImport={() => isGuest ? setGuestGateOpen(true) : setDividendImportOpen(true)}
             onEdit={editDividendHolding}
             onDelete={deleteDividendHolding}
           />
@@ -834,10 +889,34 @@ export default function App({ userId, userEmail, onLogOut, logoutError }) {
             userEmail={userEmail}
             onLogOut={onLogOut}
             logoutError={logoutError}
+            mode={mode}
+            onSignIn={onSignIn}
+            onCreateAccount={onCreateAccount}
+            onExitGuest={onExitGuest}
           />
         </div>
 
-        {feedbackOpen && <FeedbackModal onClose={() => setFeedbackOpen(false)} />}
+        {!isGuest && feedbackOpen && <FeedbackModal onClose={() => setFeedbackOpen(false)} />}
+
+        {guestGateOpen && <GuestAccountGate onClose={() => setGuestGateOpen(false)} onSignIn={onSignIn} onCreateAccount={onCreateAccount} />}
+
+        {migrationOpen && guestMigration && syncReady && !hasConflict && (
+          <GuestMigrationDialog
+            accountEmpty={accountEmpty}
+            guestTradeCount={guestMigration.portfolio.trades.length}
+            guestDividendCount={guestMigration.portfolio.dividends.length}
+            busy={migrationBusy}
+            error={migrationError}
+            completed={migrationComplete}
+            onMove={migrateGuestPortfolio}
+            onKeepAccount={closeMigration}
+            onReplace={replaceWithGuestPortfolio}
+            onCancel={closeMigration}
+            onReturnToGuest={onReturnToGuest}
+            onClearGuest={() => { onClearGuestData?.(); closeMigration(); }}
+            onKeepGuestCopy={closeMigration}
+          />
+        )}
 
         {dividendModal && (
           <DividendHoldingForm

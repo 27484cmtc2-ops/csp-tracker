@@ -15,17 +15,23 @@ jest.mock("./supabaseClient", () => ({
   },
 }));
 
-jest.mock("./Auth", () => () => <main><h1>Login screen</h1></main>);
+jest.mock("./Auth", () => ({ onContinueAsGuest, guestDataAvailable }) => <main>
+  <h1>Login screen</h1>
+  <span>{guestDataAvailable ? "Guest data available" : "No guest data"}</span>
+  <button onClick={onContinueAsGuest}>Continue as Guest</button>
+</main>);
 jest.mock("./PasswordRecovery", () => ({ onUpdated }) => (
   <main><h1>Set new password</h1><button onClick={onUpdated}>Finish recovery</button></main>
 ));
-jest.mock("./App", () => ({ userId, userEmail, onLogOut }) => {
-  const trades = JSON.parse(globalThis.localStorage.getItem(`csp_trades:${userId}`) || "[]");
+jest.mock("./App", () => ({ userId, userEmail, onLogOut, mode, onExitGuest, guestMigration, onGuestMigrationSaved }) => {
+  const key = mode === "guest" ? "csp_guest_trades:v1" : `csp_trades:${userId}`;
+  const trades = JSON.parse(globalThis.localStorage.getItem(key) || "[]");
   return (
     <main>
-      <span>{userEmail}</span>
+      <span>{mode === "guest" ? "Guest application" : userEmail}</span>
       <span>{trades.map((trade) => trade.ticker).join(",") || "No trades"}</span>
-      <button onClick={onLogOut}>Log Out</button>
+      {guestMigration && <><span>Migration offered</span><button onClick={() => onGuestMigrationSaved(guestMigration.snapshotHash)}>Complete Migration</button></>}
+      {mode === "guest" ? <button onClick={onExitGuest}>Exit Guest</button> : <button onClick={onLogOut}>Log Out</button>}
     </main>
   );
 });
@@ -96,4 +102,56 @@ test("a password recovery session shows the update screen and returns to login",
   fireEvent.click(screen.getByRole("button", { name: "Finish recovery" }));
 
   expect(await screen.findByRole("heading", { name: "Login screen" })).toBeInTheDocument();
+});
+
+test("signed-out users can enter guest mode and reopen it after refresh", async () => {
+  mockGetSession.mockResolvedValue({ data: { session: null } });
+  localStorage.setItem("csp_guest_trades:v1", JSON.stringify([{ ticker: "GUEST" }]));
+  const first = render(<AppRoot />);
+  fireEvent.click(await screen.findByRole("button", { name: "Continue as Guest" }));
+  expect(await screen.findByText("Guest application")).toBeInTheDocument();
+  expect(screen.getByText("GUEST")).toBeInTheDocument();
+  first.unmount();
+
+  render(<AppRoot />);
+  expect(await screen.findByText("Guest application")).toBeInTheDocument();
+  expect(screen.getByText("GUEST")).toBeInTheDocument();
+});
+
+test("exiting guest mode returns to auth without deleting guest data", async () => {
+  mockGetSession.mockResolvedValue({ data: { session: null } });
+  localStorage.setItem("csp_guest_trades:v1", JSON.stringify([{ ticker: "SAFE" }]));
+  localStorage.setItem("csp_guest_mode:v1", "true");
+  render(<AppRoot />);
+  fireEvent.click(await screen.findByRole("button", { name: "Exit Guest" }));
+  expect(await screen.findByRole("heading", { name: "Login screen" })).toBeInTheDocument();
+  expect(JSON.parse(localStorage.getItem("csp_guest_trades:v1"))).toEqual([{ ticker: "SAFE" }]);
+});
+
+test("an authenticated session takes precedence over a saved guest-mode marker", async () => {
+  localStorage.setItem("csp_guest_mode:v1", "true");
+  render(<AppRoot />);
+  expect(await screen.findByText("a@example.com")).toBeInTheDocument();
+  expect(screen.queryByText("Guest application")).not.toBeInTheDocument();
+});
+
+test("logging out never enters guest mode automatically", async () => {
+  localStorage.setItem("csp_guest_trades:v1", JSON.stringify([{ ticker: "GUEST" }]));
+  render(<AppRoot />);
+  fireEvent.click(await screen.findByRole("button", { name: "Log Out" }));
+  expect(await screen.findByRole("heading", { name: "Login screen" })).toBeInTheDocument();
+  expect(screen.queryByText("Guest application")).not.toBeInTheDocument();
+});
+
+test("guest migration is offered once per account and exact migrated snapshot", async () => {
+  localStorage.setItem("csp_guest_trades:v1", JSON.stringify([{ ticker: "MOVE-ME" }]));
+  render(<AppRoot />);
+  expect(await screen.findByText("Migration offered")).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Complete Migration" }));
+  fireEvent.click(screen.getByRole("button", { name: "Log Out" }));
+  await screen.findByRole("heading", { name: "Login screen" });
+  act(() => mockAuthChangeHandler("SIGNED_IN", accountA));
+  await screen.findByText("a@example.com");
+  expect(screen.queryByText("Migration offered")).not.toBeInTheDocument();
+  expect(JSON.parse(localStorage.getItem("csp_guest_trades:v1"))).toEqual([{ ticker: "MOVE-ME" }]);
 });

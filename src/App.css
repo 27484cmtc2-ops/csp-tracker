@@ -770,3 +770,29 @@ input, button { font-family: inherit; }
     animation-iteration-count: 1 !important;
   }
 }
+/* Guest mode uses the existing tracker UI with local-only persistence. */
+.guest-mode-status { display:flex; align-items:center; justify-content:space-between; gap:16px; margin:0 0 16px; padding:12px 14px; border:1px solid #2d4662; border-radius:10px; background:#101a26; }
+.guest-mode-status > div:first-child { display:flex; flex-direction:column; gap:3px; }
+.guest-mode-status strong { color:#c8d8e9; font-size:12px; }
+.guest-mode-status span { color:#7f93aa; font-size:11px; }
+.guest-mode-status-actions { display:flex; gap:8px; flex-shrink:0; }
+.account-menu-guest-note { color:#7f93aa; font-size:11px; line-height:1.4; }
+.guest-gate-layer { position:fixed; inset:0; z-index:1000; display:grid; place-items:center; padding:20px; }
+.guest-gate-backdrop { position:absolute; inset:0; border:0; background:rgba(3,7,12,.78); }
+.guest-gate-dialog { position:relative; width:min(100%,460px); padding:26px; border:1px solid #2a3a4f; border-radius:12px; background:#111923; box-shadow:0 20px 60px rgba(0,0,0,.45); }
+.guest-gate-dialog h2 { margin:8px 0; color:#e7edf5; font:600 22px/1.25 Inter,system-ui,sans-serif; }
+.guest-gate-dialog p { color:#91a1b5; font:400 13px/1.6 Inter,system-ui,sans-serif; }
+.guest-gate-actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:20px; }
+.guest-migration-error { color:#ff9292 !important; }
+.guest-migration-counts { display:flex; gap:10px; margin-top:14px; }
+.guest-migration-counts span { padding:8px 10px; border-radius:8px; background:#0c141e; color:#8598ae; font-size:12px; }
+.guest-migration-counts strong { color:#d8e4f1; }
+
+@media (max-width:640px) {
+  .guest-mode-status-compact { margin:0 0 14px; padding:10px 12px; }
+  .guest-mode-status-compact span { font-size:10px; }
+  .guest-gate-layer { align-items:end; padding:0; }
+  .guest-gate-dialog { width:100%; border-radius:14px 14px 0 0; padding:22px 18px max(22px,env(safe-area-inset-bottom)); }
+  .guest-gate-actions { flex-direction:column; }
+  .guest-gate-actions button { min-height:44px; }
+}

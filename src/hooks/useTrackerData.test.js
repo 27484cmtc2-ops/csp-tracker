@@ -126,6 +126,69 @@ test("loads and persists account-specific dividend holdings locally", async () =
   expect(localStorage.getItem(getTrackerStorageKeys("another-user").dividends)).toBeNull();
 });
 
+test("guest mode loads and persists trades, target, and dividends without any cloud activity", async () => {
+  localStorage.setItem("csp_guest_trades:v1", JSON.stringify([{ id: 9, ticker: "GUEST" }]));
+  localStorage.setItem("csp_guest_target:v1", "900");
+  localStorage.setItem("csp_guest_dividends:v1", JSON.stringify([{ id: "d1", ticker: "ENB", shares: 2 }]));
+
+  const { result } = renderHook(() => useTrackerData({ mode: "guest" }));
+  await flushAsync();
+
+  expect(result.current.syncStatus).toBe("guest");
+  expect(result.current.trades).toMatchObject([{ ticker: "GUEST" }]);
+  expect(result.current.target).toBe(900);
+  expect(result.current.dividends).toMatchObject([{ ticker: "ENB" }]);
+
+  act(() => result.current.setTrades([{ id: 10, ticker: "LOCAL" }]));
+  act(() => result.current.setTarget(1200));
+  act(() => result.current.setDividends([{ id: "d2", ticker: "RY", shares: 3 }]));
+  await advanceDebounce();
+
+  expect(loadCloudData).not.toHaveBeenCalled();
+  expect(saveCloudData).not.toHaveBeenCalled();
+  expect(JSON.parse(localStorage.getItem("csp_guest_trades:v1"))).toMatchObject([{ ticker: "LOCAL" }]);
+  expect(localStorage.getItem("csp_guest_target:v1")).toBe("1200");
+  expect(JSON.parse(localStorage.getItem("csp_guest_dividends:v1"))).toMatchObject([{ ticker: "RY" }]);
+});
+
+test("guest mode registers no cloud resume or reconnect listeners", async () => {
+  const documentSpy = jest.spyOn(document, "addEventListener");
+  const windowSpy = jest.spyOn(window, "addEventListener");
+  renderHook(() => useTrackerData({ mode: "guest" }));
+  await flushAsync();
+
+  expect(documentSpy).not.toHaveBeenCalledWith("visibilitychange", expect.any(Function));
+  expect(windowSpy).not.toHaveBeenCalledWith("focus", expect.any(Function));
+  expect(windowSpy).not.toHaveBeenCalledWith("pageshow", expect.any(Function));
+  expect(windowSpy).not.toHaveBeenCalledWith("online", expect.any(Function));
+  documentSpy.mockRestore();
+  windowSpy.mockRestore();
+});
+
+test("replacePortfolio applies guest migration as one complete local snapshot", async () => {
+  loadCloudData.mockResolvedValue(null);
+  const { result } = renderHook(() => useTrackerData({ userId: TEST_USER_ID }));
+  await flushAsync();
+  const guestPortfolio = {
+    trades: [{ id: 44, ticker: "MOVED" }],
+    target: 1400,
+    dividends: [{ id: "d44", ticker: "BCE", shares: 4 }],
+  };
+  act(() => result.current.replacePortfolio(guestPortfolio));
+  expect(result.current.trades).toEqual(guestPortfolio.trades);
+  expect(result.current.target).toBe(1400);
+  expect(result.current.dividends).toMatchObject(guestPortfolio.dividends);
+  expect(JSON.parse(localStorage.getItem(TEST_KEYS.trades))).toEqual(guestPortfolio.trades);
+  expect(localStorage.getItem(TEST_KEYS.target)).toBe("1400");
+  expect(JSON.parse(localStorage.getItem(TEST_KEYS.dividends))).toMatchObject(guestPortfolio.dividends);
+  await advanceDebounce();
+  expect(saveCloudData).toHaveBeenCalledTimes(1);
+  expect(saveCloudData).toHaveBeenCalledWith(guestPortfolio.trades, 1400, expect.objectContaining({
+    dividends: expect.arrayContaining([expect.objectContaining({ ticker: "BCE" })]),
+    payloadVersion: 2,
+  }));
+});
+
 test("treats a version-one cloud payload as having no dividends without an upload loop", async () => {
   loadCloudData.mockResolvedValue({ ...baseData, updatedAt: "legacy-version", payloadVersion: 1 });
 

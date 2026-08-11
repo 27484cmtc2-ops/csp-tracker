@@ -33,6 +33,16 @@ test("presents Wheel App with clear sign-in, account, and forgot-password action
   expect(screen.getByRole("button", { name: "Forgot Password?" })).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "SIGN IN" })).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "CREATE AN ACCOUNT" })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "CONTINUE AS GUEST" })).toBeInTheDocument();
+});
+
+test("enters guest mode without making an authentication request", () => {
+  const onContinueAsGuest = jest.fn();
+  render(<Auth onContinueAsGuest={onContinueAsGuest} />);
+  fireEvent.click(screen.getByRole("button", { name: "CONTINUE AS GUEST" }));
+  expect(onContinueAsGuest).toHaveBeenCalledTimes(1);
+  expect(supabase.auth.signInWithPassword).not.toHaveBeenCalled();
+  expect(supabase.auth.signUp).not.toHaveBeenCalled();
 });
 
 test("opens and closes the password-reset dialog", () => {

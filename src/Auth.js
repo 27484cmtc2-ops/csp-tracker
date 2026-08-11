@@ -2,7 +2,7 @@ import { useState } from "react";
 import { supabase } from "./supabaseClient";
 import "./Auth.css";
 
-export default function Auth({ onSignedIn }) {
+export default function Auth({ onSignedIn, onContinueAsGuest, guestDataAvailable = false }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
@@ -139,6 +139,11 @@ export default function Auth({ onSignedIn }) {
           <button className="auth-secondary-action" onClick={signUp} disabled={loading}>
             CREATE AN ACCOUNT
           </button>
+          <div className="auth-guest-divider"><span>OR</span></div>
+          <button className="auth-guest-action" type="button" onClick={onContinueAsGuest} disabled={loading}>
+            {guestDataAvailable ? "RETURN TO GUEST MODE" : "CONTINUE AS GUEST"}
+          </button>
+          <p className="auth-guest-note">Guest data stays only on this browser and is not backed up to the cloud.</p>
         </div>
 
         {message && <div className="auth-message" role="status">{message}</div>}

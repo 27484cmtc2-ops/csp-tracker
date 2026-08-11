@@ -5,6 +5,7 @@ import {
   saveCloudData,
 } from "../cloudStorage";
 import { normalizeDividendHoldings } from "../utils/dividends";
+import { GUEST_STORAGE_KEYS, normalizePortfolioSnapshot } from "../guestStorage";
 const UPLOAD_DEBOUNCE_MS = 1000;
 export const TRACKER_PAYLOAD_VERSION = 2;
 
@@ -48,6 +49,17 @@ function saveLocalData(trades, target, dividends, storage, storageKeys) {
     storage.setItem(storageKeys.trades, JSON.stringify(trades));
     storage.setItem(storageKeys.target, String(target));
     storage.setItem(storageKeys.dividends, JSON.stringify(dividends));
+    if (storageKeys.metadata) {
+      let metadata = {};
+      try {
+        metadata = JSON.parse(storage.getItem(storageKeys.metadata) || "{}");
+      } catch {}
+      storage.setItem(storageKeys.metadata, JSON.stringify({
+        ...metadata,
+        schemaVersion: 1,
+        updatedAt: new Date().toISOString(),
+      }));
+    }
   } catch {}
 }
 
@@ -86,13 +98,14 @@ function failureStatus() {
     : "error";
 }
 
-export default function useTrackerData({ userId, storage = localStorage } = {}) {
-  const [storageKeys] = useState(() => getTrackerStorageKeys(userId));
+export default function useTrackerData({ userId, mode = "authenticated", storage = localStorage } = {}) {
+  const cloudEnabled = mode === "authenticated";
+  const [storageKeys] = useState(() => cloudEnabled ? getTrackerStorageKeys(userId) : GUEST_STORAGE_KEYS);
   const [initialData] = useState(() => loadLocalData(storage, storageKeys));
   const [trades, setTradesRaw] = useState(initialData.trades);
   const [target, setTargetRaw] = useState(initialData.target);
   const [dividends, setDividendsRaw] = useState(initialData.dividends);
-  const [syncStatus, setSyncStatus] = useState("initializing");
+  const [syncStatus, setSyncStatus] = useState(cloudEnabled ? "initializing" : "guest");
   const [syncReady, setSyncReady] = useState(false);
   const [hasConflict, setHasConflict] = useState(false);
 
@@ -149,6 +162,7 @@ export default function useTrackerData({ userId, storage = localStorage } = {}) 
 
   const scheduleUpload = useCallback((delay = UPLOAD_DEBOUNCE_MS) => {
     if (
+      !cloudEnabled ||
       !mountedRef.current ||
       !initializedRef.current ||
       conflictRef.current ||
@@ -160,11 +174,12 @@ export default function useTrackerData({ userId, storage = localStorage } = {}) 
     debounceTimerRef.current = setTimeout(() => {
       if (mountedRef.current) performUploadRef.current?.();
     }, delay);
-  }, []);
+  }, [cloudEnabled]);
   scheduleUploadRef.current = scheduleUpload;
 
   const performUpload = useCallback(async ({ force = false } = {}) => {
     if (
+      !cloudEnabled ||
       !mountedRef.current ||
       (!initializedRef.current && !force) ||
       (conflictRef.current && !force)
@@ -237,10 +252,11 @@ export default function useTrackerData({ userId, storage = localStorage } = {}) 
         checkCloudVersionRef.current?.();
       }
     }
-  }, [markConflict, markSynchronized]);
+  }, [cloudEnabled, markConflict, markSynchronized]);
   performUploadRef.current = performUpload;
 
   const initializeSync = useCallback(async () => {
+    if (!cloudEnabled) return;
     if (initializationInFlightRef.current) return;
     initializationInFlightRef.current = true;
     const run = ++initializationRunRef.current;
@@ -326,10 +342,11 @@ export default function useTrackerData({ userId, storage = localStorage } = {}) 
         initializationInFlightRef.current = false;
       }
     }
-  }, [applyCloudData, markConflict, storage, storageKeys]);
+  }, [applyCloudData, cloudEnabled, markConflict, storage, storageKeys]);
 
   const checkCloudVersion = useCallback(async () => {
     if (
+      !cloudEnabled ||
       !mountedRef.current ||
       !initializedRef.current ||
       conflictRef.current
@@ -409,20 +426,22 @@ export default function useTrackerData({ userId, storage = localStorage } = {}) 
         checkCloudVersionRef.current?.();
       }
     }
-  }, [applyCloudData, markConflict]);
+  }, [applyCloudData, cloudEnabled, markConflict]);
   checkCloudVersionRef.current = checkCloudVersion;
 
   useEffect(() => {
     mountedRef.current = true;
-    initializeSync();
+    if (cloudEnabled) initializeSync();
+    else setSyncStatus("guest");
     return () => {
       mountedRef.current = false;
       initializationRunRef.current += 1;
       clearTimeout(debounceTimerRef.current);
     };
-  }, [initializeSync]);
+  }, [cloudEnabled, initializeSync]);
 
   useEffect(() => {
+    if (!cloudEnabled) return undefined;
     const resumeSync = () => {
       if (initializedRef.current) checkCloudVersion();
       else initializeSync();
@@ -442,10 +461,11 @@ export default function useTrackerData({ userId, storage = localStorage } = {}) 
       window.removeEventListener("pageshow", handleResume);
       window.removeEventListener("online", handleResume);
     };
-  }, [checkCloudVersion, initializeSync]);
+  }, [checkCloudVersion, cloudEnabled, initializeSync]);
 
   useEffect(() => {
     if (
+      !cloudEnabled ||
       !syncReady ||
       hasConflict ||
       applyingCloudRef.current ||
@@ -457,7 +477,7 @@ export default function useTrackerData({ userId, storage = localStorage } = {}) 
       if (uploadInFlightRef.current) queuedUploadRef.current = true;
       else scheduleUpload();
     }
-  }, [trades, target, dividends, syncReady, hasConflict, scheduleUpload]);
+  }, [cloudEnabled, trades, target, dividends, syncReady, hasConflict, scheduleUpload]);
 
   const setTrades = useCallback((nextTrades) => {
     setTradesRaw(nextTrades);
@@ -479,7 +499,27 @@ export default function useTrackerData({ userId, storage = localStorage } = {}) 
     saveLocalData(latestDataRef.current.trades, latestDataRef.current.target, nextDividends, storage, storageKeys);
   }, [storage, storageKeys]);
 
+  const setTarget = useCallback((nextTarget) => {
+    setTargetRaw(nextTarget);
+    latestDataRef.current = {
+      trades: latestDataRef.current.trades,
+      target: nextTarget,
+      dividends: latestDataRef.current.dividends,
+    };
+    saveLocalData(latestDataRef.current.trades, nextTarget, latestDataRef.current.dividends, storage, storageKeys);
+  }, [storage, storageKeys]);
+
+  const replacePortfolio = useCallback((nextPortfolio) => {
+    const normalized = normalizePortfolioSnapshot(nextPortfolio);
+    latestDataRef.current = normalized;
+    setTradesRaw(normalized.trades);
+    setTargetRaw(normalized.target);
+    setDividendsRaw(normalized.dividends);
+    saveLocalData(normalized.trades, normalized.target, normalized.dividends, storage, storageKeys);
+  }, [storage, storageKeys]);
+
   const syncNow = useCallback(() => {
+    if (!cloudEnabled) return undefined;
     clearTimeout(debounceTimerRef.current);
     if (!initializedRef.current) return initializeSync();
     if (conflictRef.current) return;
@@ -492,9 +532,10 @@ export default function useTrackerData({ userId, storage = localStorage } = {}) 
       return performUploadRef.current?.();
     }
     return initializeSync();
-  }, [initializeSync]);
+  }, [cloudEnabled, initializeSync]);
 
   const useCloudData = useCallback(async () => {
+    if (!cloudEnabled) return;
     clearTimeout(debounceTimerRef.current);
     setSyncStatus("syncing");
     try {
@@ -513,22 +554,26 @@ export default function useTrackerData({ userId, storage = localStorage } = {}) 
     } catch {
       if (mountedRef.current) setSyncStatus(failureStatus());
     }
-  }, [applyCloudData]);
+  }, [applyCloudData, cloudEnabled]);
 
   const keepLocalData = useCallback(async () => {
+    if (!cloudEnabled) return;
     clearTimeout(debounceTimerRef.current);
     initializedRef.current = true;
     setSyncReady(true);
     await performUploadRef.current?.({ force: true });
-  }, []);
+  }, [cloudEnabled]);
 
   return {
     trades,
     target,
     dividends,
     setTrades,
+    setTarget,
     setDividends,
+    replacePortfolio,
     syncStatus,
+    syncReady,
     hasConflict,
     syncNow,
     useCloudData,
