@@ -29,6 +29,50 @@ function IncomeBreakdown({ title, groups }) {
   );
 }
 
+const ACCOUNT_SORT_OPTIONS = {
+  annual: "Annual income, highest to lowest",
+  monthly: "Monthly income, highest to lowest",
+  name: "Account name, A–Z",
+};
+
+function AccountIncomeBreakdown({ groups }) {
+  const [sortBy, setSortBy] = useState("annual");
+  const entries = Object.entries(groups).sort((first, second) => {
+    if (sortBy === "name") return first[0].localeCompare(second[0], undefined, { sensitivity: "base" });
+    return second[1] - first[1];
+  });
+
+  return (
+    <section className="csp-panel dividend-breakdown dividend-account-breakdown" aria-label="Income by account">
+      <header>
+        <span>INCOME BY ACCOUNT</span>
+        <label>
+          <span>SORT</span>
+          <select aria-label="Sort income by account" value={sortBy} onChange={(event) => setSortBy(event.target.value)}>
+            {Object.entries(ACCOUNT_SORT_OPTIONS).map(([value, label]) => (
+              <option key={value} value={value}>{label}</option>
+            ))}
+          </select>
+        </label>
+      </header>
+      {entries.length === 0 ? <p>No dividend income yet.</p> : (
+        <div className="dividend-account-table">
+          <div className="dividend-account-columns" aria-hidden="true">
+            <span>ACCOUNT</span><span>MONTHLY</span><span>ANNUAL</span>
+          </div>
+          {entries.map(([label, annualIncome]) => (
+            <div className="dividend-account-row" key={label}>
+              <strong>{label}</strong>
+              <span><b>{fmtCad(annualIncome / 12)}</b><small>/ month</small></span>
+              <span><b>{fmtCad(annualIncome)}</b><small>/ year</small></span>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
 const UPCOMING_PREVIEW_COUNT = 4;
 
 export default function DividendDashboard({ holdings, usdCad, onAdd, onImport, onEdit, onDelete }) {
@@ -112,7 +156,7 @@ export default function DividendDashboard({ holdings, usdCad, onAdd, onImport, o
       </section>
 
       <div className="dividend-breakdown-grid">
-        <IncomeBreakdown title="INCOME BY ACCOUNT" groups={byAccount} />
+        <AccountIncomeBreakdown groups={byAccount} />
         <IncomeBreakdown title="INCOME BY TICKER" groups={byTicker} />
       </div>
     </div>
