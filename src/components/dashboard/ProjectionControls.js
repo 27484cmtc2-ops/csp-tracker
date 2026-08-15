@@ -40,17 +40,20 @@ export default function ProjectionControls({ settings, onChange }) {
         <label><input type="checkbox" checked={settings.includeWheelIncome} onChange={(event) => update("includeWheelIncome", event.target.checked)} /> Include Wheel income</label>
         <label className="projection-display-mode"><span>DISPLAY</span><select aria-label="Projection dollar display" value={settings.displayMode} onChange={(event) => update("displayMode", event.target.value)}><option value="today">Today’s dollars</option><option value="future">Future dollars</option></select></label>
       </div>
-      <div className="projection-scenario-controls">
-        {PROJECTION_SCENARIOS.map(({ id, label, accent }) => (
-          <fieldset key={id}>
-            <legend><i aria-hidden="true">{accent}</i>{label} assumptions</legend>
-            {RATE_FIELDS.map(([field, fieldLabel]) => (
-              <NumericControl key={field} label={fieldLabel} ariaLabel={`${label} ${fieldLabel.toLowerCase()}`} value={(settings.scenarios[id][field] * 100).toFixed(1)} onChange={(value) => updateScenario(id, field, value)} max="50" step="0.1" suffix="%" />
-            ))}
-          </fieldset>
-        ))}
-      </div>
-      <p className="projection-assumption-note">These editable scenarios are planning assumptions, not guarantees. Gross option premium is not realized P&amp;L.</p>
+      <details className="projection-assumptions-panel">
+        <summary>EDIT ASSUMPTIONS <span>Safe, Base, and Aggressive rates</span></summary>
+        <div className="projection-scenario-controls">
+          {PROJECTION_SCENARIOS.map(({ id, label, accent }) => (
+            <fieldset key={id}>
+              <legend><i aria-hidden="true">{accent}</i>{label} assumptions</legend>
+              {RATE_FIELDS.map(([field, fieldLabel]) => (
+                <NumericControl key={field} label={fieldLabel} ariaLabel={`${label} ${fieldLabel.toLowerCase()}`} value={(settings.scenarios[id][field] * 100).toFixed(1)} onChange={(value) => updateScenario(id, field, value)} max="50" step="0.1" suffix="%" />
+              ))}
+            </fieldset>
+          ))}
+        </div>
+        <p className="projection-assumption-note">Planning assumptions, not guarantees. Gross option premium is not realized P&amp;L.</p>
+      </details>
     </section>
   );
 }

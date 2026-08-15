@@ -38,11 +38,11 @@ export default function DashboardPage({ trades, dividends, usdCad, onNavigate, a
       <DashboardKpiGrid income={income} goal={projection.goal} goalProgress={projection.goalProgress} />
       <p className="dashboard-income-disclaimer">Estimated average monthly income. Option premium represents gross collected premium, not realized P&amp;L.</p>
       <PassiveIncomeProjectionCard projection={projection} settings={settings} onSettingsChange={onSettingsChange} />
-      <div className="dashboard-two-column">
+      <div className="dashboard-summary-grid">
         <DashboardAccountBreakdown accounts={accounts} />
         <DashboardUpcomingPayments payments={payments} onViewDividends={() => onNavigate("dividends")} />
+        <DashboardOpenWheels positions={positions} onViewTracker={() => onNavigate("tracker")} />
       </div>
-      <DashboardOpenWheels positions={positions} onViewTracker={() => onNavigate("tracker")} />
     </main>
   );
 }

@@ -21,8 +21,9 @@ test("renders the read-only Dashboard foundation and honest income definitions",
   expect(screen.getByRole("heading", { name: "Investing Dashboard" })).toBeInTheDocument();
   expect(screen.getByText("ESTIMATED MONTHLY PASSIVE INCOME")).toBeInTheDocument();
   expect(screen.getByText(/gross collected premium, not realized P&L/i)).toBeInTheDocument();
-  expect(screen.getByText(/does not have confirmed dividend-payment history/i)).toBeInTheDocument();
+  expect(screen.getByText(/no confirmed dividend-payment history/i)).toBeInTheDocument();
   expect(screen.getByText("Set your goal")).toBeInTheDocument();
+  expect(screen.queryByText("VIEW ACCESSIBLE PROJECTION DATA")).not.toBeInTheDocument();
   expect(screen.getByText("PLTR")).toBeInTheDocument();
   expect(screen.getAllByText("TFSA").length).toBeGreaterThan(0);
   expect(screen.getAllByText("2026-09-01").length).toBeGreaterThan(0);
@@ -32,11 +33,22 @@ test("projection controls are session-only and update goal, toggle Wheel income,
   render(<StatefulDashboard trades={trades} dividends={dividends} usdCad={1} asOf={asOf} onNavigate={jest.fn()} />);
   fireEvent.change(screen.getByLabelText("Monthly passive-income goal"), { target: { value: "100" } });
   expect(screen.getByText("42%")).toBeInTheDocument();
-  expect(screen.getByText(/of \$100.00 monthly/)).toBeInTheDocument();
+  expect(screen.getByLabelText("42% of monthly passive-income goal")).toBeInTheDocument();
+  expect(screen.getByText("VIEW ACCESSIBLE PROJECTION DATA")).toBeInTheDocument();
 
   fireEvent.click(screen.getByLabelText("Include Wheel income"));
   expect(screen.getByText("33%")).toBeInTheDocument();
   expect(screen.getByText("Session only · assumptions are not saved")).toBeInTheDocument();
+});
+
+test("keeps detailed scenario assumptions behind an expandable control", () => {
+  render(<StatefulDashboard trades={trades} dividends={dividends} usdCad={1} asOf={asOf} onNavigate={jest.fn()} />);
+  const assumptions = screen.getByText("EDIT ASSUMPTIONS").closest("details");
+  expect(assumptions).not.toHaveAttribute("open");
+  fireEvent.click(screen.getByText("EDIT ASSUMPTIONS"));
+  expect(assumptions).toHaveAttribute("open");
+  fireEvent.change(within(assumptions).getByLabelText("Base dividend growth"), { target: { value: "5" } });
+  expect(within(assumptions).getByLabelText("Base dividend growth")).toHaveValue(5);
 });
 
 test("navigation actions point to the existing dedicated sections", () => {

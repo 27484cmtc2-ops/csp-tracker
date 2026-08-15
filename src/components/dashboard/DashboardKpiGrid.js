@@ -11,6 +11,10 @@ function DashboardKpiCard({ accent, label, value, detail, className = "" }) {
 }
 
 export default function DashboardKpiGrid({ income, goal, goalProgress }) {
+  const goalIsSet = goal != null;
+  const progress = Math.min(100, Math.max(0, goalProgress));
+  const remaining = goalIsSet ? Math.max(0, goal - income.estimatedMonthlyIncome) : null;
+
   return (
     <section className="dashboard-kpi-grid" aria-label="Investing summary">
       <DashboardKpiCard
@@ -30,16 +34,26 @@ export default function DashboardKpiGrid({ income, goal, goalProgress }) {
         value={`${fmtCad(income.averageMonthlyDividendIncome)} / mo`}
         detail={`${fmtCad(income.annualDividendIncome)} projected annually`}
       />
-      <DashboardKpiCard
-        accent="🎯"
-        label="GOAL PROGRESS"
-        value={goal == null ? "Set your goal" : `${goalProgress.toFixed(0)}%`}
-        detail={goal == null ? "Choose a monthly passive-income goal below" : `${fmtCad(income.estimatedMonthlyIncome)} of ${fmtCad(goal)} monthly`}
-        className={goal == null ? "dashboard-kpi-unset" : ""}
-      />
+      <article className={`dashboard-kpi-card dashboard-goal-kpi${goalIsSet ? "" : " dashboard-kpi-unset"}`}>
+        <span className="dashboard-kpi-label"><i aria-hidden="true">🎯</i>GOAL PROGRESS</span>
+        {goalIsSet ? (
+          <>
+            <div className="dashboard-goal-gauge" aria-label={`${progress.toFixed(0)}% of monthly passive-income goal`}>
+              <div><span style={{ width: `${progress}%` }} /></div>
+              <strong>{progress.toFixed(0)}%</strong>
+            </div>
+            <div className="dashboard-goal-values">
+              <span><small>CURRENT</small>{fmtCad(income.estimatedMonthlyIncome)}</span>
+              <span><small>TARGET</small>{fmtCad(goal)}</span>
+              <span><small>REMAINING</small>{fmtCad(remaining)}</span>
+            </div>
+          </>
+        ) : (
+          <><strong>Set your goal</strong><small>Choose a monthly passive-income goal below</small></>
+        )}
+      </article>
     </section>
   );
 }
 
 export { DashboardKpiCard };
-
