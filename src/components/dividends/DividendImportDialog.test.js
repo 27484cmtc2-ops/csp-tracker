@@ -17,7 +17,7 @@ function upload(content) {
 test("shows the client-side privacy notice and downloadable template", () => {
   render(<DividendImportDialog holdings={[]} onConfirm={jest.fn()} onClose={jest.fn()} />);
   expect(screen.getByText("Your CSV is processed on this device. The original file is not uploaded.")).toBeInTheDocument();
-  expect(screen.getByRole("link", { name: "DOWNLOAD EXAMPLE TEMPLATE" })).toHaveAttribute("download", "wheel-app-dividend-template.csv");
+  expect(screen.getByRole("link", { name: "DOWNLOAD EXAMPLE TEMPLATE" })).toHaveAttribute("download", "investing-dashboard-dividend-template.csv");
 });
 
 test("parses, edits, excludes and confirms ready rows once", async () => {

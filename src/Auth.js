@@ -100,9 +100,9 @@ export default function Auth({ onSignedIn, onContinueAsGuest, guestDataAvailable
     <main className="auth-page">
       <section className="auth-card" aria-labelledby="auth-title">
         <header className="auth-header">
-          <span className="auth-eyebrow">WHEEL STRATEGY TRACKER</span>
-          <h1 id="auth-title">Wheel App</h1>
-          <p>Track your wheel strategy from cash-secured puts to covered calls.</p>
+          <span className="auth-eyebrow">PERSONAL INVESTING WORKSPACE</span>
+          <h1 id="auth-title">Investing Dashboard</h1>
+          <p>Track wheel-strategy positions, dividend income, and portfolio activity in one place.</p>
         </header>
 
         <div className="auth-form">

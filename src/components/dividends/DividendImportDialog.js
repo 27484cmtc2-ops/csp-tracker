@@ -111,14 +111,14 @@ export default function DividendImportDialog({ holdings, onConfirm, onClose }) {
           <label>
             <span>Import format</span>
             <select aria-label="Import format" value="wheel_app_dividend_holdings" disabled>
-              <option value="wheel_app_dividend_holdings">Wheel App dividend holdings</option>
+              <option value="wheel_app_dividend_holdings">Investing Dashboard dividend holdings</option>
             </select>
           </label>
           <label className="dividend-import-file">
             <span>CSV file</span>
             <input type="file" accept=".csv,text/csv" onChange={selectFile} />
           </label>
-          <a className="csp-btn-sm dividend-template-link" href={templateHref} download="wheel-app-dividend-template.csv">
+          <a className="csp-btn-sm dividend-template-link" href={templateHref} download="investing-dashboard-dividend-template.csv">
             DOWNLOAD EXAMPLE TEMPLATE
           </a>
         </div>

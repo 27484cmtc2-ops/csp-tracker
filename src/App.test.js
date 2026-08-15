@@ -140,13 +140,15 @@ function undoAndExpect(expectedTrades) {
 
 test("renders the tracker with an empty portfolio by default", () => {
   render(<App userId={TEST_USER_ID} />);
+  const desktop = document.querySelector(".desktop-interface");
 
   expect(screen.getByText("LOG NEW TRADE")).toBeInTheDocument();
   expect(screen.getByText(/OPEN POSITIONS/)).toBeInTheDocument();
   expect(screen.getAllByText("No open positions.")).toHaveLength(2);
   expect(screen.getAllByText(/CLOSED POSITIONS/)).toHaveLength(1);
   expect(screen.getByRole("button", { name: "Open add trade form" })).toBeInTheDocument();
-  expect(screen.queryByText("CSP TRACKER")).not.toBeInTheDocument();
+  expect(within(desktop).getByRole("button", { name: "WHEEL TRACKER" })).toBeInTheDocument();
+  expect(screen.queryByText("Investing Dashboard")).not.toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "tracker" })).not.toBeInTheDocument();
   expect(screen.getByRole("button", { name: /active wheels/i })).toHaveAttribute("aria-expanded", "false");
   expect(screen.getByRole("button", { name: /closed positions/i })).toHaveAttribute("aria-expanded", "false");

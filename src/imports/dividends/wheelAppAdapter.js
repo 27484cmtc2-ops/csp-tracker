@@ -83,7 +83,7 @@ function formulaIssue(value, field) {
 
 export const wheelAppDividendAdapter = {
   id: "wheel_app_dividend_holdings",
-  label: "Wheel App dividend holdings",
+  label: "Investing Dashboard dividend holdings",
   recognizes(headers) {
     const inspection = inspectDividendImportHeaders(headers);
     return inspection.missing.length === 0 && inspection.ambiguous.length === 0;

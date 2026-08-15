@@ -570,8 +570,8 @@ export default function App({ userId, userEmail, onLogOut, logoutError, mode = "
           onKeepLocal={keepLocalData}
         />}
 
-        <nav className="desktop-section-nav" aria-label="Application sections">
-          <button className={`desktop-nav-tracker${tab === "tracker" ? " active" : ""}`} onClick={() => setTab("tracker")}>TRACKER</button>
+        <nav className="desktop-section-nav" aria-label="Investing Dashboard sections">
+          <button className={`desktop-nav-tracker${tab === "tracker" ? " active" : ""}`} onClick={() => setTab("tracker")}>WHEEL TRACKER</button>
           <button className={`desktop-nav-dividends${tab === "dividends" ? " active" : ""}`} onClick={() => setTab("dividends")}>DIVIDENDS</button>
         </nav>
         

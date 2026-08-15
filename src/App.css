@@ -9,7 +9,6 @@ input, button { font-family: inherit; }
 .tab-btn:hover { color: #a6b3c2; border-color: #30445b; }
 .tab-btn.active { background: #223044; border-color: #4d82b8; color: #5aa9ff; }
 .row-hover:hover { background: #151f2b !important; }
-.strike-row:hover { background: #151f2b !important; cursor: pointer; }
 .csp-input { background: #0b0f14; border: 1px solid #1c2735; border-radius: 2px; padding: 7px 10px; color: #d7e0ea; font-size: 11px; outline: none; width: 100%; min-width: 0; box-sizing: border-box; }
 .csp-form-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; }
 .csp-input:focus { border-color: #4d82b8; }

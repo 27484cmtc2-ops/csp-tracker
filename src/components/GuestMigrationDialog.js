@@ -8,7 +8,7 @@ export default function GuestMigrationDialog({ accountEmpty, guestTradeCount, gu
         ? "Your trades, target, and dividend holdings are now backed up and available across devices."
         : accountEmpty
           ? "Move the guest trades, target, and dividend holdings into this account."
-          : "This account already contains portfolio data. Choose which complete portfolio to keep; Wheel App will not merge them automatically."}</p>
+          : "This account already contains portfolio data. Choose which complete portfolio to keep; Investing Dashboard will not merge them automatically."}</p>
       {!completed && <div className="guest-migration-counts">
         <span><strong>{guestTradeCount}</strong> guest trades</span>
         <span><strong>{guestDividendCount}</strong> guest dividend holdings</span>

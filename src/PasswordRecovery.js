@@ -37,7 +37,7 @@ export default function PasswordRecovery({ onUpdated }) {
         <header className="auth-header">
           <span className="auth-eyebrow">{"// ACCOUNT RECOVERY"}</span>
           <h1 id="recovery-title">Set new password</h1>
-          <p>Choose a new password for your Wheel App account.</p>
+          <p>Choose a new password for your Investing Dashboard account.</p>
         </header>
         <div className="auth-form">
           <label className="auth-field">

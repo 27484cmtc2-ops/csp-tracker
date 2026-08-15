@@ -23,11 +23,11 @@ function openResetDialog() {
   return screen.getByRole("dialog", { name: "Reset password" });
 }
 
-test("presents Wheel App with clear sign-in, account, and forgot-password actions", () => {
+test("presents Investing Dashboard with clear sign-in, account, and forgot-password actions", () => {
   render(<Auth />);
 
-  expect(screen.getByRole("heading", { name: "Wheel App" })).toBeInTheDocument();
-  expect(screen.getByText("Track your wheel strategy from cash-secured puts to covered calls.")).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: "Investing Dashboard" })).toBeInTheDocument();
+  expect(screen.getByText("Track wheel-strategy positions, dividend income, and portfolio activity in one place.")).toBeInTheDocument();
   expect(screen.getByLabelText("Email")).toHaveAttribute("type", "email");
   expect(screen.getByLabelText("Password")).toHaveAttribute("type", "password");
   expect(screen.getByRole("button", { name: "Forgot Password?" })).toBeInTheDocument();
