@@ -245,7 +245,6 @@ export default function MobileTrackerShell({
   onSyncNow,
   onUseCloud,
   onKeepLocal,
-  onFeedback,
   userEmail,
   onLogOut,
   logoutError,
@@ -280,7 +279,6 @@ export default function MobileTrackerShell({
             onSyncNow={onSyncNow}
             onUseCloud={onUseCloud}
             onKeepLocal={onKeepLocal}
-            onFeedback={onFeedback}
             compact
           />}
 

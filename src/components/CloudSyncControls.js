@@ -16,7 +16,6 @@ export default function CloudSyncControls({
   onSyncNow,
   onUseCloud,
   onKeepLocal,
-  onFeedback,
   compact = false,
 }) {
   const [showConflictChoices, setShowConflictChoices] = useState(false);
@@ -49,7 +48,6 @@ export default function CloudSyncControls({
         </span>
         <div className="sync-control-buttons">
           <button className="sync-now-button" onClick={syncNow} disabled={busy || invariantViolation}>Sync now</button>
-          <button className="feedback-entry-button" onClick={onFeedback}>Feedback</button>
         </div>
       </div>
 

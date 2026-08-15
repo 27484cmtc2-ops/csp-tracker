@@ -31,7 +31,6 @@ input, button { font-family: inherit; }
 .panel-note { padding: 8px 14px; font-size: 9px; color: #30445b; }
 .table-heading { padding: 9px 12px; text-align: right; color: #71839a; font-weight: 400; font-size: 9px; letter-spacing: .08em; border-bottom: 1px solid #223044; }
 .numeric-cell { padding: 9px 12px; text-align: right; color: #d7e0ea; }
-.strikes-heading { padding: 10px 14px; border-bottom: 1px solid #223044; display: flex; justify-content: space-between; align-items: center; }
 .sync-control { margin-bottom: 12px; padding: 8px 10px; border: 1px solid #223044; border-radius: 5px; background: #111821; }
 .sync-control-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .sync-status { display: inline-flex; align-items: center; gap: 7px; color: #8796aa; font-size: 9px; letter-spacing: .04em; }
@@ -43,8 +42,6 @@ input, button { font-family: inherit; }
 .sync-now-button { min-height: 30px; padding: 0 10px; border: 1px solid #30445b; border-radius: 4px; background: transparent; color: #5aa9ff; font-size: 9px; cursor: pointer; }
 .sync-now-button:disabled { color: #607086; cursor: default; }
 .sync-control-buttons { display: flex; gap: 6px; }
-.feedback-entry-button { min-height: 30px; padding: 0 10px; border: 1px solid #30445b; border-radius: 4px; background: transparent; color: #a6b3c2; font-size: 9px; cursor: pointer; }
-.feedback-entry-button:hover { border-color: #4d82b8; color: #d7e0ea; }
 .desktop-account-row, .mobile-account-row { position: relative; z-index: 40; display: flex; justify-content: flex-end; margin-bottom: 8px; }
 .account-menu { position: relative; }
 .account-menu-trigger { min-height: 28px; padding: 0 9px; border: 1px solid #30445b; border-radius: 3px; background: transparent; color: #8796aa; font-size: 8px; letter-spacing: .1em; cursor: pointer; }
@@ -248,7 +245,6 @@ input, button { font-family: inherit; }
   .mobile-summary-secondary small { display: block; margin-top: 3px; color: #71839a; font-size: 9px; }
   .sync-control-compact { margin: -12px 0 18px; border-radius: 7px; }
   .sync-control-compact .sync-now-button { min-height: 38px; }
-  .sync-control-compact .feedback-entry-button { min-height: 38px; }
   .sync-control-compact .sync-conflict-actions { display: grid; grid-template-columns: 1fr; }
   .sync-control-compact .sync-conflict-actions button { min-height: 42px; }
   .mobile-eyebrow { display: block; color: #71839a; font-size: 9px; letter-spacing: .12em; }
@@ -317,33 +313,6 @@ input, button { font-family: inherit; }
   .mobile-action-list .mobile-roll-action { border-color: #7a4a1a; color: #f59e0b; }
   .mobile-action-list .mobile-assign-action { border-color: #5a3a7a; color: #c084fc; }
   .mobile-action-list .mobile-delete-action { border-color: #4a2222; color: #ff7b7b; }
-}
-
-.feedback-layer { position: fixed; inset: 0; z-index: 150; display: flex; align-items: center; justify-content: center; padding: 16px; }
-.feedback-backdrop { position: absolute; inset: 0; width: 100%; border: 0; background: rgba(0,0,0,.86); }
-.feedback-dialog { position: relative; width: min(420px,100%); max-height: 92vh; overflow-y: auto; padding: 20px; border: 1px solid #30445b; border-radius: 8px; background: #111821; font-family: "IBM Plex Mono",monospace; }
-.feedback-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
-.feedback-header h2 { margin: 4px 0 0; color: #d7e0ea; font-size: 19px; }
-.feedback-close { border: 0; background: transparent; color: #8796aa; font-size: 26px; line-height: 1; cursor: pointer; }
-.feedback-form { display: grid; gap: 13px; }
-.feedback-form label > span { display: block; margin-bottom: 6px; color: #a6b3c2; font-size: 9px; letter-spacing: .06em; }
-.feedback-form select, .feedback-form input, .feedback-form textarea { width: 100%; padding: 10px 12px; border: 1px solid #30445b; border-radius: 4px; outline: none; background: #0b0f14; color: #d7e0ea; font: inherit; font-size: 12px; }
-.feedback-form select, .feedback-form input { min-height: 44px; }
-.feedback-form textarea { min-height: 120px; resize: vertical; line-height: 1.5; }
-.feedback-form select:focus, .feedback-form input:focus, .feedback-form textarea:focus { border-color: #4d82b8; }
-.feedback-submit { min-height: 46px; border: 1px solid #4d82b8; border-radius: 4px; background: #223e5a; color: #e0efff; font: inherit; font-size: 10px; font-weight: 600; letter-spacing: .08em; cursor: pointer; }
-.feedback-submit:disabled { opacity: .55; cursor: default; }
-.feedback-error { color: #ff7b7b; font-size: 10px; line-height: 1.5; }
-.feedback-success { color: #d7e0ea; font-size: 11px; }
-.feedback-success strong { color: #6fdc8c; font-size: 14px; }
-.feedback-success p { margin: 7px 0 18px; color: #8796aa; }
-
-@media (max-width: 640px) {
-  .feedback-layer { align-items: flex-end; padding: 0; }
-  .feedback-dialog { width: 100%; max-height: 94vh; padding: 20px 18px calc(20px + env(safe-area-inset-bottom)); border-width: 1px 0 0; border-radius: 18px 18px 0 0; }
-  .feedback-form select, .feedback-form input { min-height: 48px; font-size: 16px; }
-  .feedback-form textarea { font-size: 16px; }
-  .feedback-submit { min-height: 50px; }
 }
 
 .covered-call-layer { position: fixed; inset: 0; z-index: 130; display: flex; align-items: center; justify-content: center; padding: 16px; }
@@ -469,7 +438,7 @@ input, button { font-family: inherit; }
   }
   .sync-control { margin-bottom: 20px; padding: 11px 12px; }
   .sync-status { color: var(--desktop-muted); font-size: 11px; }
-  .sync-now-button, .feedback-entry-button, .account-menu-trigger {
+  .sync-now-button, .account-menu-trigger {
     min-height: 36px;
     padding: 0 13px;
     border-color: var(--desktop-border-strong);
@@ -479,7 +448,7 @@ input, button { font-family: inherit; }
     letter-spacing: .02em;
     transition: background-color .16s ease, border-color .16s ease, color .16s ease, transform .16s ease;
   }
-  .sync-now-button:hover, .feedback-entry-button:hover, .account-menu-trigger:hover {
+  .sync-now-button:hover, .account-menu-trigger:hover {
     border-color: rgba(96, 165, 250, .55);
     background: rgba(96, 165, 250, .08);
   }
@@ -601,7 +570,7 @@ input, button { font-family: inherit; }
   .dividend-summary-grid strong { font-size: 30px; letter-spacing: -.03em; }
   .dividend-holding-row { padding: 17px 18px; border-color: var(--desktop-border); }
   .dividend-upcoming-panel > div, .dividend-breakdown > div { border-color: var(--desktop-border); }
-  .dividend-form-card, .dividend-import-dialog, .feedback-dialog, .covered-call-dialog {
+  .dividend-form-card, .dividend-import-dialog, .covered-call-dialog {
     border-color: var(--desktop-border-strong);
     border-radius: 12px;
     background: var(--desktop-surface-raised);
@@ -611,7 +580,6 @@ input, button { font-family: inherit; }
   .dividend-form-grid input, .dividend-form-grid select, .dividend-form-grid textarea,
   .dividend-import-source input, .dividend-import-source select,
   .dividend-import-table input:not([type="checkbox"]), .dividend-import-table select,
-  .feedback-form select, .feedback-form input, .feedback-form textarea,
   .covered-call-fields input {
     border-color: var(--desktop-border-strong);
     border-radius: 8px;
@@ -746,10 +714,6 @@ input, button { font-family: inherit; }
   .dividend-form-card input:focus-visible,
   .dividend-form-card select:focus-visible,
   .dividend-form-card textarea:focus-visible,
-  .feedback-dialog button:focus-visible,
-  .feedback-dialog input:focus-visible,
-  .feedback-dialog select:focus-visible,
-  .feedback-dialog textarea:focus-visible,
   .covered-call-dialog button:focus-visible,
   .covered-call-dialog input:focus-visible {
     outline: none;
@@ -758,12 +722,10 @@ input, button { font-family: inherit; }
   .desktop-interface button:active:not(:disabled),
   .dividend-form-card button:active:not(:disabled),
   .dividend-import-dialog button:active:not(:disabled),
-  .feedback-dialog button:active:not(:disabled),
   .covered-call-dialog button:active:not(:disabled) { transform: translateY(0) scale(.985); }
   .desktop-interface button:disabled,
   .dividend-form-card button:disabled,
   .dividend-import-dialog button:disabled,
-  .feedback-dialog button:disabled,
   .covered-call-dialog button:disabled { opacity: .48; cursor: not-allowed; }
   .active-wheel-card,
   .stock-sale-summary,

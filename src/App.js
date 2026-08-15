@@ -3,11 +3,8 @@ import "./App.css";
 import PortfolioSummary from "./components/PortfolioSummary";
 import CloudSyncControls from "./components/CloudSyncControls";
 import NewTradeForm from "./components/NewTradeForm";
-import ScreenerPage from "./components/ScreenerPage";
-import StrikesPage from "./components/StrikesPage";
 import MobileTrackerShell from "./components/mobile/MobileTrackerShell";
 import ActiveWheelCard from "./components/ActiveWheelCard";
-import FeedbackModal from "./components/FeedbackModal";
 import AccountMenu from "./components/AccountMenu";
 import GuestModeControls from "./components/GuestModeControls";
 import GuestAccountGate from "./components/GuestAccountGate";
@@ -21,10 +18,9 @@ import UndoToast from "./components/UndoToast";
 import DividendDashboard from "./components/dividends/DividendDashboard";
 import DividendHoldingForm from "./components/dividends/DividendHoldingForm";
 import DividendImportDialog from "./components/dividends/DividendImportDialog";
-import { EMPTY_NEW_TRADE, SAMPLE_TICKERS, USD_CAD } from "./data/trackerData";
+import { EMPTY_NEW_TRADE, USD_CAD } from "./data/trackerData";
 import useTrackerData from "./hooks/useTrackerData";
 import usePortfolioUndo from "./hooks/usePortfolioUndo";
-import { generateStrikes } from "./utils/calculations";
 import { fmt } from "./utils/formatters";
 import { annualizedReturn, daysColor, daysLabel, daysUntil, getCollectedPremium } from "./utils/trades";
 import { validateNewTradeExpiry } from "./utils/newTrades";
@@ -55,7 +51,6 @@ import {
 export default function App({ userId, userEmail, onLogOut, logoutError, mode = "authenticated", onSignIn, onCreateAccount, onExitGuest, guestMigration, onGuestMigrationSaved, onClearGuestData, onDismissGuestMigration, onReturnToGuest }) {
   const isGuest = mode === "guest";
   const [tab, setTab] = useState("tracker");
-  const [feedbackOpen, setFeedbackOpen] = useState(false);
   const {
     trades,
     target,
@@ -75,7 +70,6 @@ export default function App({ userId, userEmail, onLogOut, logoutError, mode = "
     trades,
     setTrades,
   });
-  const [selectedTicker, setSelectedTicker] = useState(SAMPLE_TICKERS[4]);
   const [newTrade, setNewTrade] = useState(EMPTY_NEW_TRADE);
   const [closeModal, setCloseModal] = useState(null);
   const [editModal, setEditModal] = useState(null);
@@ -96,8 +90,6 @@ export default function App({ userId, userEmail, onLogOut, logoutError, mode = "
   const [migrationSawSync, setMigrationSawSync] = useState(false);
   const [migrationError, setMigrationError] = useState("");
   const [migrationComplete, setMigrationComplete] = useState(false);
-  const targetUSD = target / USD_CAD;
-
   const accountEmpty = trades.length === 0 && dividends.length === 0 && target === 500;
 
   useEffect(() => {
@@ -191,7 +183,6 @@ export default function App({ userId, userEmail, onLogOut, logoutError, mode = "
 
   const realized = useMemo(() => trades.filter(t=>t.status==="closed" && !isCoveredCall(t)).reduce((s,t)=>s+(t.pnl??0),0), [trades]);
   const openPremium = useMemo(() => trades.filter(t=>t.status==="open" && !isCoveredCall(t)).reduce((s,t)=>s+getCollectedPremium(t),0), [trades]);
-  const strikes = useMemo(() => generateStrikes(selectedTicker, targetUSD), [selectedTicker, targetUSD]);
 
   const addTrade = () => {
     const { ticker, strike, longStrike, expiry, premium, contracts } = newTrade;
@@ -577,7 +568,6 @@ export default function App({ userId, userEmail, onLogOut, logoutError, mode = "
           onSyncNow={syncNow}
           onUseCloud={useCloudData}
           onKeepLocal={keepLocalData}
-          onFeedback={() => setFeedbackOpen(true)}
         />}
 
         <nav className="desktop-section-nav" aria-label="Application sections">
@@ -817,29 +807,6 @@ export default function App({ userId, userEmail, onLogOut, logoutError, mode = "
           </div>
         )}
 
-        {tab==="screener" && (
-          <ScreenerPage
-            tickers={SAMPLE_TICKERS}
-            target={target}
-            targetUSD={targetUSD}
-            onSelectTicker={(ticker) => {
-              setSelectedTicker(ticker);
-              setTab("strikes");
-            }}
-          />
-        )}
-
-        {tab==="strikes" && (
-          <StrikesPage
-            tickers={SAMPLE_TICKERS}
-            selectedTicker={selectedTicker}
-            target={target}
-            targetUSD={targetUSD}
-            strikes={strikes}
-            onSelectTicker={setSelectedTicker}
-          />
-        )}
-
         {tab === "dividends" && (
           <DividendDashboard
             holdings={dividends}
@@ -885,7 +852,6 @@ export default function App({ userId, userEmail, onLogOut, logoutError, mode = "
             onSyncNow={syncNow}
             onUseCloud={useCloudData}
             onKeepLocal={keepLocalData}
-            onFeedback={() => setFeedbackOpen(true)}
             userEmail={userEmail}
             onLogOut={onLogOut}
             logoutError={logoutError}
@@ -895,8 +861,6 @@ export default function App({ userId, userEmail, onLogOut, logoutError, mode = "
             onExitGuest={onExitGuest}
           />
         </div>
-
-        {!isGuest && feedbackOpen && <FeedbackModal onClose={() => setFeedbackOpen(false)} />}
 
         {guestGateOpen && <GuestAccountGate onClose={() => setGuestGateOpen(false)} onSignIn={onSignIn} onCreateAccount={onCreateAccount} />}
 

@@ -12,7 +12,6 @@ test("shows a blocking explanation and no overwrite choices for a version invari
       onSyncNow={onSyncNow}
       onUseCloud={onUseCloud}
       onKeepLocal={onKeepLocal}
-      onFeedback={jest.fn()}
     />
   );
 
