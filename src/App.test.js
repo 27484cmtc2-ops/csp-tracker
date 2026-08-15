@@ -6,7 +6,7 @@ jest.mock("./cloudStorage", () => ({
   loadCloudData: jest.fn(() => new Promise(() => {})),
 }));
 
-import App from "./App";
+import AppComponent from "./App";
 import DividendDashboard from "./components/dividends/DividendDashboard";
 import { loadCloudData, saveCloudData } from "./cloudStorage";
 import { DEFAULT_TRADES } from "./testFixtures/trades";
@@ -14,6 +14,10 @@ import { getTrackerStorageKeys } from "./hooks/useTrackerData";
 
 const TEST_USER_ID = "test-user";
 const TEST_KEYS = getTrackerStorageKeys(TEST_USER_ID);
+
+function App(props) {
+  return <AppComponent initialTab="tracker" {...props} />;
+}
 
 beforeEach(() => {
   localStorage.clear();
@@ -137,6 +141,20 @@ function undoAndExpect(expectedTrades) {
   expect(JSON.parse(localStorage.getItem(TEST_KEYS.trades))).toEqual(expectedTrades);
   expect(screen.queryByRole("button", { name: "UNDO" })).not.toBeInTheDocument();
 }
+
+test("opens the new Dashboard by default on desktop without changing the mobile shell", () => {
+  const { container } = render(<AppComponent userId={TEST_USER_ID} />);
+  const desktop = container.querySelector(".desktop-interface");
+  const mobile = container.querySelector(".mobile-interface");
+  expect(within(desktop).getByRole("button", { name: "DASHBOARD" })).toHaveClass("active");
+  expect(within(desktop).getByRole("heading", { name: "Investing Dashboard" })).toBeInTheDocument();
+  expect(within(mobile).queryByRole("button", { name: "DASHBOARD" })).not.toBeInTheDocument();
+  expect(within(mobile).getByRole("button", { name: "Open add trade form" })).toBeInTheDocument();
+  fireEvent.change(within(desktop).getByLabelText("Monthly passive-income goal"), { target: { value: "3500" } });
+  fireEvent.click(within(desktop).getByRole("button", { name: "WHEEL TRACKER" }));
+  fireEvent.click(within(desktop).getByRole("button", { name: "DASHBOARD" }));
+  expect(within(desktop).getByLabelText("Monthly passive-income goal")).toHaveValue(3500);
+});
 
 test("renders the tracker with an empty portfolio by default", () => {
   render(<App userId={TEST_USER_ID} />);

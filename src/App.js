@@ -18,6 +18,8 @@ import UndoToast from "./components/UndoToast";
 import DividendDashboard from "./components/dividends/DividendDashboard";
 import DividendHoldingForm from "./components/dividends/DividendHoldingForm";
 import DividendImportDialog from "./components/dividends/DividendImportDialog";
+import DashboardPage from "./components/dashboard/DashboardPage";
+import { DEFAULT_PROJECTION_SETTINGS } from "./utils/passiveIncomeProjection";
 import { EMPTY_NEW_TRADE, USD_CAD } from "./data/trackerData";
 import useTrackerData from "./hooks/useTrackerData";
 import usePortfolioUndo from "./hooks/usePortfolioUndo";
@@ -48,9 +50,10 @@ import {
   validateStockSale,
 } from "./utils/stockSales";
 
-export default function App({ userId, userEmail, onLogOut, logoutError, mode = "authenticated", onSignIn, onCreateAccount, onExitGuest, guestMigration, onGuestMigrationSaved, onClearGuestData, onDismissGuestMigration, onReturnToGuest }) {
+export default function App({ userId, userEmail, onLogOut, logoutError, mode = "authenticated", initialTab = "dashboard", onSignIn, onCreateAccount, onExitGuest, guestMigration, onGuestMigrationSaved, onClearGuestData, onDismissGuestMigration, onReturnToGuest }) {
   const isGuest = mode === "guest";
-  const [tab, setTab] = useState("tracker");
+  const [tab, setTab] = useState(initialTab);
+  const [dashboardSettings, setDashboardSettings] = useState(DEFAULT_PROJECTION_SETTINGS);
   const {
     trades,
     target,
@@ -548,7 +551,7 @@ export default function App({ userId, userEmail, onLogOut, logoutError, mode = "
 
   return (
     <div style={{minHeight:"100vh",background:"#0b0f14",fontFamily:"'IBM Plex Mono','Courier New',monospace",color:"#d7e0ea"}}>
-      <div className="app-content" style={{maxWidth:tab === "dividends" ? 1120 : 780,margin:"0 auto",padding:"24px 16px"}}>
+      <div className="app-content" style={{maxWidth:tab === "tracker" ? 780 : 1120,margin:"0 auto",padding:"24px 16px"}}>
         <div className="desktop-interface">
           <div className="desktop-account-row">
             <AccountMenu email={userEmail} onLogOut={onLogOut} error={logoutError} mode={mode} onSignIn={onSignIn} onCreateAccount={onCreateAccount} onExitGuest={onExitGuest} />
@@ -571,10 +574,21 @@ export default function App({ userId, userEmail, onLogOut, logoutError, mode = "
         />}
 
         <nav className="desktop-section-nav" aria-label="Investing Dashboard sections">
+          <button className={`desktop-nav-dashboard${tab === "dashboard" ? " active" : ""}`} onClick={() => setTab("dashboard")}>DASHBOARD</button>
           <button className={`desktop-nav-tracker${tab === "tracker" ? " active" : ""}`} onClick={() => setTab("tracker")}>WHEEL TRACKER</button>
           <button className={`desktop-nav-dividends${tab === "dividends" ? " active" : ""}`} onClick={() => setTab("dividends")}>DIVIDENDS</button>
         </nav>
-        
+
+        {tab === "dashboard" && (
+          <DashboardPage
+            trades={trades}
+            dividends={dividends}
+            usdCad={USD_CAD}
+            onNavigate={setTab}
+            settings={dashboardSettings}
+            onSettingsChange={setDashboardSettings}
+          />
+        )}
 
         {tab==="tracker" && (
           <div>
