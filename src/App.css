@@ -39,7 +39,7 @@ input, button { font-family: inherit; }
 .sync-status-saved .sync-status-dot { background: #6fdc8c; }
 .sync-status-syncing .sync-status-dot, .sync-status-initializing .sync-status-dot { background: #5aa9ff; }
 .sync-status-offline .sync-status-dot { background: #f59e0b; }
-.sync-status-error .sync-status-dot, .sync-status-conflict .sync-status-dot { background: #ff7b7b; }
+.sync-status-error .sync-status-dot, .sync-status-conflict .sync-status-dot, .sync-status-invariant_error .sync-status-dot { background: #ff7b7b; }
 .sync-now-button { min-height: 30px; padding: 0 10px; border: 1px solid #30445b; border-radius: 4px; background: transparent; color: #5aa9ff; font-size: 9px; cursor: pointer; }
 .sync-now-button:disabled { color: #607086; cursor: default; }
 .sync-control-buttons { display: flex; gap: 6px; }
@@ -58,6 +58,7 @@ input, button { font-family: inherit; }
 .sync-conflict-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 9px; padding-top: 9px; border-top: 1px solid #223044; }
 .sync-conflict-actions button { min-height: 32px; padding: 0 9px; border: 1px solid #30445b; border-radius: 4px; background: transparent; color: #a6b3c2; font-size: 8px; cursor: pointer; }
 .sync-conflict-actions .sync-keep-local { border-color: #7a4a1a; color: #f59e0b; }
+.sync-invariant-message { max-width: 560px; margin: 8px 0 0; color: #ffbf69; font-size: 10px; line-height: 1.5; }
 .mobile-interface { display: none; }
 
 .desktop-section-nav { display: flex; gap: 6px; margin: 0 0 12px; }
@@ -732,7 +733,7 @@ input, button { font-family: inherit; }
   .sync-status-syncing, .sync-status-initializing { color: #a9cefb; border-color: rgba(96,165,250,.2); background: rgba(96,165,250,.06); }
   .sync-status-syncing .sync-status-dot, .sync-status-initializing .sync-status-dot { box-shadow: 0 0 0 3px rgba(96,165,250,.12); }
   .sync-status-offline { color: #e9bd73; border-color: rgba(245,158,11,.22); background: rgba(245,158,11,.06); }
-  .sync-status-error, .sync-status-conflict { color: #f0a0a0; border-color: rgba(255,123,123,.22); background: rgba(255,123,123,.06); }
+  .sync-status-error, .sync-status-conflict, .sync-status-invariant_error { color: #f0a0a0; border-color: rgba(255,123,123,.22); background: rgba(255,123,123,.06); }
   .desktop-interface button:focus-visible,
   .desktop-interface input:focus-visible,
   .desktop-interface select:focus-visible,

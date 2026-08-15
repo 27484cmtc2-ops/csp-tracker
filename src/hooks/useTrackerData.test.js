@@ -30,6 +30,18 @@ const changedData = {
   target: 500,
 };
 
+const safeDividend = {
+  id: "safe-dividend",
+  ticker: "ENB",
+  shares: 10,
+  dividendPerShare: 1,
+  frequency: "quarterly",
+  currency: "CAD",
+  account: "TFSA",
+  nextPaymentDate: "2026-09-01",
+  notes: "",
+};
+
 const cloudData = (data, updatedAt = "version-1") => ({
   ...data,
   updatedAt,
@@ -943,7 +955,7 @@ test("checks for newer cloud data when the app becomes visible again", async () 
   expect(saveCloudData).not.toHaveBeenCalled();
 });
 
-test("Device B applies Device A's uploaded data on resume even when version metadata matches", async () => {
+test("Device B stops instead of applying changed cloud data when version metadata matches", async () => {
   seedLocal(baseData, {
     cloudVersion: "version-2",
     syncedSnapshot: snapshot(baseData),
@@ -971,12 +983,17 @@ test("Device B applies Device A's uploaded data on resume even when version meta
     await Promise.resolve();
   });
 
-  expect(result.current.trades).toEqual(deviceAData.trades);
-  expect(result.current.target).toBe(deviceAData.target);
-  expect(result.current.syncStatus).toBe("saved");
-  expect(result.current.hasConflict).toBe(false);
-  expect(JSON.parse(localStorage.getItem(TEST_KEYS.trades))).toEqual(deviceAData.trades);
-  expect(localStorage.getItem(TEST_KEYS.target)).toBe(String(deviceAData.target));
+  expect(result.current.trades).toEqual(baseData.trades);
+  expect(result.current.target).toBe(baseData.target);
+  expect(result.current.syncStatus).toBe("invariant_error");
+  expect(result.current.hasConflict).toBe(true);
+  expect(result.current.syncConflict).toEqual(expect.objectContaining({
+    type: "version_invariant",
+    localSnapshot: snapshot(baseData),
+    remoteSnapshot: snapshot(deviceAData),
+  }));
+  expect(JSON.parse(localStorage.getItem(TEST_KEYS.trades))).toEqual(baseData.trades);
+  expect(localStorage.getItem(TEST_KEYS.target)).toBe(String(baseData.target));
   expect(saveCloudData).not.toHaveBeenCalled();
 });
 
@@ -1051,6 +1068,112 @@ test("leaves local state unchanged when a focus check finds the same cloud versi
   expect(result.current.trades).toEqual(baseData.trades);
   expect(result.current.hasConflict).toBe(false);
   expect(saveCloudData).not.toHaveBeenCalled();
+});
+
+test("same cloud version and same normalized payload initializes as saved", async () => {
+  seedLocal(baseData, {
+    cloudVersion: "version-1",
+    syncedSnapshot: snapshot(baseData),
+  });
+  loadCloudData.mockResolvedValue(cloudData(baseData, "version-1"));
+
+  const { result } = renderHook(() => useTrackerData({ userId: TEST_USER_ID }));
+  await flushAsync();
+
+  expect(result.current.syncStatus).toBe("saved");
+  expect(result.current.hasConflict).toBe(false);
+  expect(result.current.syncConflict).toBeNull();
+  expect(saveCloudData).not.toHaveBeenCalled();
+});
+
+test.each([
+  ["trades", { ...baseData, trades: [{ id: 7, ticker: "REMOTE" }] }],
+  ["target", { ...baseData, target: 975 }],
+  ["dividends", { ...baseData, dividends: [{ ...safeDividend, id: "remote-dividend" }] }],
+  ["dividends becoming empty", { ...baseData, dividends: [] }],
+])("same updated_at with different %s stops startup synchronization", async (_field, remoteData) => {
+  const localData = _field === "dividends becoming empty"
+    ? { ...baseData, dividends: [{ ...safeDividend, id: "preserved", ticker: "RY" }] }
+    : baseData;
+  seedLocal(localData, {
+    cloudVersion: "version-1",
+    syncedSnapshot: snapshot(localData),
+  });
+  loadCloudData.mockResolvedValue(cloudData(remoteData, "version-1"));
+
+  const { result } = renderHook(() => useTrackerData({ userId: TEST_USER_ID }));
+  await flushAsync();
+  await advanceDebounce();
+
+  expect(result.current.syncStatus).toBe("invariant_error");
+  expect(result.current.hasConflict).toBe(true);
+  expect(result.current.syncConflict).toEqual(expect.objectContaining({
+    type: "version_invariant",
+    cloudVersion: "version-1",
+    localSnapshot: snapshot(localData),
+    remoteSnapshot: snapshot(remoteData),
+  }));
+  expect(result.current.trades).toEqual(localData.trades);
+  expect(result.current.target).toBe(localData.target);
+  expect(result.current.dividends).toMatchObject(localData.dividends ?? []);
+  expect(saveCloudData).not.toHaveBeenCalled();
+});
+
+test("same updated_at with a changed payload stops resume synchronization", async () => {
+  seedLocal(baseData, {
+    cloudVersion: "version-1",
+    syncedSnapshot: snapshot(baseData),
+  });
+  loadCloudData
+    .mockResolvedValueOnce(cloudData(baseData, "version-1"))
+    .mockResolvedValueOnce(cloudData({ ...baseData, target: 800 }, "version-1"));
+
+  const { result } = renderHook(() => useTrackerData({ userId: TEST_USER_ID }));
+  await flushAsync();
+  act(() => window.dispatchEvent(new Event("focus")));
+  await flushAsync();
+
+  expect(result.current.syncStatus).toBe("invariant_error");
+  expect(result.current.hasConflict).toBe(true);
+  expect(result.current.target).toBe(baseData.target);
+  expect(saveCloudData).not.toHaveBeenCalled();
+});
+
+test("intentional deletion of all dividends downloads normally with a new updated_at", async () => {
+  const localData = { ...baseData, dividends: [{ ...safeDividend, id: "delete-me" }] };
+  const remoteData = { ...baseData, dividends: [] };
+  seedLocal(localData, {
+    cloudVersion: "version-1",
+    syncedSnapshot: snapshot(localData),
+  });
+  loadCloudData.mockResolvedValue(cloudData(remoteData, "version-2"));
+
+  const { result } = renderHook(() => useTrackerData({ userId: TEST_USER_ID }));
+  await flushAsync();
+
+  expect(result.current.dividends).toEqual([]);
+  expect(result.current.syncStatus).toBe("saved");
+  expect(result.current.hasConflict).toBe(false);
+  expect(saveCloudData).not.toHaveBeenCalled();
+});
+
+test("an upload response that does not advance updated_at stops synchronization", async () => {
+  seedLocal(baseData, {
+    cloudVersion: "version-1",
+    syncedSnapshot: snapshot(baseData),
+  });
+  loadCloudData.mockResolvedValue(cloudData(baseData, "version-1"));
+  saveCloudData.mockResolvedValue({ updatedAt: "version-1" });
+
+  const { result } = renderHook(() => useTrackerData({ userId: TEST_USER_ID }));
+  await flushAsync();
+  act(() => result.current.setTarget(650));
+  await advanceDebounce();
+
+  expect(result.current.target).toBe(650);
+  expect(result.current.syncStatus).toBe("invariant_error");
+  expect(result.current.hasConflict).toBe(true);
+  expect(result.current.syncConflict.type).toBe("version_invariant");
 });
 
 test("preserves dirty local data when a pageshow check finds newer cloud data", async () => {

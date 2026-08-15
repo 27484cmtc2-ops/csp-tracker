@@ -108,10 +108,12 @@ export default function useTrackerData({ userId, mode = "authenticated", storage
   const [syncStatus, setSyncStatus] = useState(cloudEnabled ? "initializing" : "guest");
   const [syncReady, setSyncReady] = useState(false);
   const [hasConflict, setHasConflict] = useState(false);
+  const [syncConflict, setSyncConflict] = useState(null);
 
   const mountedRef = useRef(false);
   const initializedRef = useRef(false);
   const conflictRef = useRef(false);
+  const invariantViolationRef = useRef(false);
   const applyingCloudRef = useRef(false);
   const cloudVersionRef = useRef(null);
   const lastSyncedSnapshotRef = useRef(null);
@@ -128,11 +130,30 @@ export default function useTrackerData({ userId, mode = "authenticated", storage
 
   latestDataRef.current = { trades, target, dividends };
 
-  const markConflict = useCallback(() => {
+  const markConflict = useCallback((details = { type: "concurrent_change" }) => {
     conflictRef.current = true;
+    invariantViolationRef.current = details.type === "version_invariant";
     setHasConflict(true);
-    setSyncStatus("conflict");
+    setSyncConflict(details);
+    setSyncStatus(details.type === "version_invariant" ? "invariant_error" : "conflict");
   }, []);
+
+  const clearConflict = useCallback(() => {
+    conflictRef.current = false;
+    invariantViolationRef.current = false;
+    setHasConflict(false);
+    setSyncConflict(null);
+  }, []);
+
+  const markInvariantViolation = useCallback((cloudData, localSnapshot, remoteSnapshot) => {
+    clearTimeout(debounceTimerRef.current);
+    markConflict({
+      type: "version_invariant",
+      cloudVersion: cloudData.updatedAt,
+      localSnapshot,
+      remoteSnapshot,
+    });
+  }, [markConflict]);
 
   const markSynchronized = useCallback((version, snapshot) => {
     cloudVersionRef.current = version;
@@ -224,9 +245,20 @@ export default function useTrackerData({ userId, mode = "authenticated", storage
       );
 
       if (!mountedRef.current) return;
+      if (
+        !force &&
+        cloudVersionRef.current != null &&
+        result.updatedAt === cloudVersionRef.current
+      ) {
+        markInvariantViolation(
+          { updatedAt: result.updatedAt },
+          uploadedSnapshot,
+          lastSyncedSnapshotRef.current
+        );
+        return;
+      }
       markSynchronized(result.updatedAt, uploadedSnapshot);
-      conflictRef.current = false;
-      setHasConflict(false);
+      clearConflict();
 
       const latestSnapshot = serializeData(
         latestDataRef.current.trades,
@@ -252,7 +284,7 @@ export default function useTrackerData({ userId, mode = "authenticated", storage
         checkCloudVersionRef.current?.();
       }
     }
-  }, [cloudEnabled, markConflict, markSynchronized]);
+  }, [clearConflict, cloudEnabled, markConflict, markInvariantViolation, markSynchronized]);
   performUploadRef.current = performUpload;
 
   const initializeSync = useCallback(async () => {
@@ -275,8 +307,7 @@ export default function useTrackerData({ userId, mode = "authenticated", storage
       if (!cloudData) {
         cloudVersionRef.current = null;
         lastSyncedSnapshotRef.current = null;
-        conflictRef.current = false;
-        setHasConflict(false);
+        clearConflict();
         initializedRef.current = true;
         setSyncReady(true);
         if (localSnapshot === lastSyncedSnapshotRef.current) {
@@ -298,6 +329,16 @@ export default function useTrackerData({ userId, mode = "authenticated", storage
         }
         applyCloudData(cloudData);
       } else {
+        if (
+          cloudData.updatedAt === metadata.cloudVersion &&
+          cloudSnapshot !== metadata.syncedSnapshot
+        ) {
+          initializedRef.current = true;
+          setSyncReady(true);
+          markInvariantViolation(cloudData, localSnapshot, cloudSnapshot);
+          return;
+        }
+
         const localChanged = localSnapshot !== metadata.syncedSnapshot;
         const cloudChanged = cloudData.updatedAt !== metadata.cloudVersion;
 
@@ -317,8 +358,7 @@ export default function useTrackerData({ userId, mode = "authenticated", storage
         }
       }
 
-      conflictRef.current = false;
-      setHasConflict(false);
+      clearConflict();
       initializedRef.current = true;
       setSyncReady(true);
 
@@ -342,7 +382,7 @@ export default function useTrackerData({ userId, mode = "authenticated", storage
         initializationInFlightRef.current = false;
       }
     }
-  }, [applyCloudData, cloudEnabled, markConflict, storage, storageKeys]);
+  }, [applyCloudData, clearConflict, cloudEnabled, markConflict, markInvariantViolation, storage, storageKeys]);
 
   const checkCloudVersion = useCallback(async () => {
     if (
@@ -378,6 +418,10 @@ export default function useTrackerData({ userId, mode = "authenticated", storage
       );
       const versionUnchanged = cloudData.updatedAt === cloudVersionRef.current;
       const payloadUnchanged = cloudSnapshot === lastSyncedSnapshotRef.current;
+      if (versionUnchanged && !payloadUnchanged) {
+        markInvariantViolation(cloudData, localSnapshot, cloudSnapshot);
+        return;
+      }
       if (versionUnchanged && payloadUnchanged) {
         if (localSnapshot === lastSyncedSnapshotRef.current) {
           setSyncStatus("saved");
@@ -426,7 +470,7 @@ export default function useTrackerData({ userId, mode = "authenticated", storage
         checkCloudVersionRef.current?.();
       }
     }
-  }, [applyCloudData, cloudEnabled, markConflict]);
+  }, [applyCloudData, cloudEnabled, markConflict, markInvariantViolation]);
   checkCloudVersionRef.current = checkCloudVersion;
 
   useEffect(() => {
@@ -535,7 +579,7 @@ export default function useTrackerData({ userId, mode = "authenticated", storage
   }, [cloudEnabled, initializeSync]);
 
   const useCloudData = useCallback(async () => {
-    if (!cloudEnabled) return;
+    if (!cloudEnabled || invariantViolationRef.current) return;
     clearTimeout(debounceTimerRef.current);
     setSyncStatus("syncing");
     try {
@@ -546,18 +590,17 @@ export default function useTrackerData({ userId, mode = "authenticated", storage
         return;
       }
       applyCloudData(cloudData);
-      conflictRef.current = false;
-      setHasConflict(false);
+      clearConflict();
       initializedRef.current = true;
       setSyncReady(true);
       setSyncStatus("saved");
     } catch {
       if (mountedRef.current) setSyncStatus(failureStatus());
     }
-  }, [applyCloudData, cloudEnabled]);
+  }, [applyCloudData, clearConflict, cloudEnabled]);
 
   const keepLocalData = useCallback(async () => {
-    if (!cloudEnabled) return;
+    if (!cloudEnabled || invariantViolationRef.current) return;
     clearTimeout(debounceTimerRef.current);
     initializedRef.current = true;
     setSyncReady(true);
@@ -575,6 +618,7 @@ export default function useTrackerData({ userId, mode = "authenticated", storage
     syncStatus,
     syncReady,
     hasConflict,
+    syncConflict,
     syncNow,
     useCloudData,
     keepLocalData,

@@ -7,6 +7,7 @@ const STATUS_LABELS = {
   offline: "Offline/local only",
   error: "Sync failed",
   conflict: "Cloud changed on another device",
+  invariant_error: "Sync stopped: cloud version mismatch",
 };
 
 export default function CloudSyncControls({
@@ -20,6 +21,7 @@ export default function CloudSyncControls({
 }) {
   const [showConflictChoices, setShowConflictChoices] = useState(false);
   const busy = status === "initializing" || status === "syncing";
+  const invariantViolation = status === "invariant_error";
 
   const syncNow = () => {
     if (hasConflict) {
@@ -46,12 +48,18 @@ export default function CloudSyncControls({
           {STATUS_LABELS[status] ?? "Sync failed"}
         </span>
         <div className="sync-control-buttons">
-          <button className="sync-now-button" onClick={syncNow} disabled={busy}>Sync now</button>
+          <button className="sync-now-button" onClick={syncNow} disabled={busy || invariantViolation}>Sync now</button>
           <button className="feedback-entry-button" onClick={onFeedback}>Feedback</button>
         </div>
       </div>
 
-      {showConflictChoices && (
+      {invariantViolation && (
+        <p className="sync-invariant-message" role="alert">
+          Synchronization was stopped because cloud data changed without its version changing. Your local data has not been overwritten.
+        </p>
+      )}
+
+      {showConflictChoices && !invariantViolation && (
         <div className="sync-conflict-actions" role="group" aria-label="Resolve cloud conflict">
           <button onClick={() => { setShowConflictChoices(false); onUseCloud(); }}>
             Use cloud data
