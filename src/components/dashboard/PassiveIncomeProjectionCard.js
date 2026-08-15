@@ -17,7 +17,7 @@ export default function PassiveIncomeProjectionCard({ projection, settings, onSe
         <div><span className="dashboard-eyebrow">PASSIVE INCOME PLANNING</span><h2>Projection preview</h2></div>
         <p>{settings.displayMode === "today" ? "Values shown in today’s purchasing power." : "Nominal values with an inflation-adjusted goal path."}</p>
       </header>
-      {!goalIsSet && <div className="dashboard-goal-empty"><span aria-hidden="true">🎯</span><div><strong>Set your monthly passive-income goal</strong><p>Add a goal below to reveal the projection chart, milestones, and estimated goal dates.</p></div></div>}
+      {!goalIsSet && <div className="dashboard-goal-empty"><span aria-hidden="true">🎯</span><div><strong>Set a passive-income goal</strong><p>Enter a monthly goal to see Safe, Base and Aggressive projections.</p></div></div>}
       {goalIsSet && (
         <>
           <div className="projection-goal-summary"><span aria-hidden="true">🎯</span><div><small>MONTHLY PASSIVE-INCOME GOAL</small><strong>{fmtCad(projection.goal)}</strong></div><p>{projection.goalProgress.toFixed(0)}% complete · {fmtCad(Math.max(0, projection.goal - projection.currentMonthlyIncome))} remaining</p></div>

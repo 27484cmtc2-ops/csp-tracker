@@ -23,7 +23,11 @@ test("renders the read-only Dashboard foundation and honest income definitions",
   expect(screen.getByText(/gross collected premium, not realized P&L/i)).toBeInTheDocument();
   expect(screen.getByText(/no confirmed dividend-payment history/i)).toBeInTheDocument();
   expect(screen.getByText("Set your goal")).toBeInTheDocument();
+  expect(screen.getByText("Set a passive-income goal")).toBeInTheDocument();
+  expect(screen.getByText("Enter a monthly goal to see Safe, Base and Aggressive projections.")).toBeInTheDocument();
   expect(screen.queryByText("VIEW ACCESSIBLE PROJECTION DATA")).not.toBeInTheDocument();
+  expect(document.querySelector(".projection-chart")).not.toBeInTheDocument();
+  expect(document.querySelector(".dashboard-summary-grid").children).toHaveLength(3);
   expect(screen.getByText("PLTR")).toBeInTheDocument();
   expect(screen.getAllByText("TFSA").length).toBeGreaterThan(0);
   expect(screen.getAllByText("2026-09-01").length).toBeGreaterThan(0);
