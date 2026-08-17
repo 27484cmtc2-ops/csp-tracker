@@ -127,7 +127,8 @@ test("Snowball annualized dividend values require review and clear after correct
   render(<DividendImportDialog holdings={[]} onConfirm={jest.fn()} onClose={jest.fn()} />);
   fireEvent.change(screen.getByLabelText("Import format"), { target: { value: "snowball_analytics_holdings" } });
   upload("Holding,Shares,Dividends per share,Frequency,Currency,Next payment date,Next payment,Annual dividend,Dividend amount,Dividend yield,Portfolio income\nMSTY,10,9.4068,Monthly,USD,2026-09-01,1.809,99,88,77,66");
-  expect(await screen.findByText("Snowball's ‘Dividends per share’ may be annualized. Enter the dividend per payment before importing.")).toBeInTheDocument();
+  expect(await screen.findByText("Snowball's ‘Dividends per share’ value (9.4068) may be annualized. Enter the dividend per payment before importing.")).toBeInTheDocument();
+  expect(screen.getByLabelText("Dividend per share row 2")).toHaveValue(null);
   expect(screen.getByRole("button", { name: /IMPORT 1 HOLDING/ })).toBeDisabled();
   fireEvent.change(screen.getByLabelText("Dividend per share row 2"), { target: { value: "0.1809" } });
   expect(screen.getByText("Ready")).toBeInTheDocument();

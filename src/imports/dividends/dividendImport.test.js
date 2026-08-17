@@ -196,7 +196,7 @@ describe("Snowball Analytics adapter", () => {
     expect(importedRow.candidate).toMatchObject({
       ticker: "MSTY",
       shares: "29.2486",
-      dividendPerShare: "10.8316",
+      dividendPerShare: "",
       currency: "USD",
       account: "Unknown",
       nextPaymentDate: "2026-08-07",
@@ -214,9 +214,9 @@ describe("Snowball Analytics adapter", () => {
       ["ENB", "10", "0.25", "3.00", "Monthly", "CAD", "2026-09-01"]
     );
     const importedRow = createDividendImportRows(parsed, [], snowballDividendAdapter.id)[0];
-    expect(importedRow.candidate.dividendPerShare).toBe("3.00");
+    expect(importedRow.candidate.dividendPerShare).toBe("");
     expect(importedRow.issues).toEqual(expect.arrayContaining([
-      expect.objectContaining({ code: "snowball_annualized_dividend_review", sourceValue: "3.00" }),
+      expect.objectContaining({ code: "snowball_annualized_dividend_review", sourceValue: "" }),
     ]));
   });
 
