@@ -28,6 +28,15 @@ function serializeData(trades, target, dividends) {
   });
 }
 
+function normalizePayloadVersion(value) {
+  const version = Number(value);
+  return Number.isInteger(version) && version > 0 ? version : 1;
+}
+
+function isControlledPayloadUpgrade(fromVersion, toVersion) {
+  return fromVersion === 2 && toVersion === TRACKER_PAYLOAD_VERSION;
+}
+
 function loadLocalData(storage, storageKeys) {
   try {
     const savedTrades = storage.getItem(storageKeys.trades);
@@ -72,6 +81,9 @@ function loadSyncMetadata(storage, storageKeys) {
     const snapshot = JSON.parse(metadata.syncedSnapshot);
     return {
       ...metadata,
+      payloadVersion: normalizePayloadVersion(
+        metadata.payloadVersion ?? snapshot.payloadVersion
+      ),
       syncedSnapshot: serializeData(
         snapshot.trades ?? [],
         snapshot.target ?? 500,
@@ -83,11 +95,21 @@ function loadSyncMetadata(storage, storageKeys) {
   }
 }
 
-function saveSyncMetadata(cloudVersion, syncedSnapshot, storage, storageKeys) {
+function saveSyncMetadata(
+  cloudVersion,
+  syncedSnapshot,
+  payloadVersion,
+  storage,
+  storageKeys
+) {
   try {
     storage.setItem(
       storageKeys.syncMeta,
-      JSON.stringify({ cloudVersion, syncedSnapshot })
+      JSON.stringify({
+        cloudVersion,
+        syncedSnapshot,
+        payloadVersion: normalizePayloadVersion(payloadVersion),
+      })
     );
   } catch {}
 }
@@ -116,6 +138,7 @@ export default function useTrackerData({ userId, mode = "authenticated", storage
   const invariantViolationRef = useRef(false);
   const applyingCloudRef = useRef(false);
   const cloudVersionRef = useRef(null);
+  const lastSyncedPayloadVersionRef = useRef(null);
   const lastSyncedSnapshotRef = useRef(null);
   const latestDataRef = useRef(initialData);
   const hadLocalDataRef = useRef(initialData.hasLocalData);
@@ -155,17 +178,24 @@ export default function useTrackerData({ userId, mode = "authenticated", storage
     });
   }, [markConflict]);
 
-  const markSynchronized = useCallback((version, snapshot) => {
+  const markSynchronized = useCallback((version, snapshot, payloadVersion) => {
     cloudVersionRef.current = version;
+    lastSyncedPayloadVersionRef.current = normalizePayloadVersion(payloadVersion);
     lastSyncedSnapshotRef.current = snapshot;
-    saveSyncMetadata(version, snapshot, storage, storageKeys);
+    saveSyncMetadata(
+      version,
+      snapshot,
+      lastSyncedPayloadVersionRef.current,
+      storage,
+      storageKeys
+    );
   }, [storage, storageKeys]);
 
   const applyCloudData = useCallback((cloudData) => {
     const cloudDividends = normalizeDividendHoldings(cloudData.dividends);
     const snapshot = serializeData(cloudData.trades, cloudData.target, cloudDividends);
     applyingCloudRef.current = true;
-    markSynchronized(cloudData.updatedAt, snapshot);
+    markSynchronized(cloudData.updatedAt, snapshot, cloudData.payloadVersion);
     latestDataRef.current = {
       trades: cloudData.trades,
       target: cloudData.target,
@@ -257,7 +287,7 @@ export default function useTrackerData({ userId, mode = "authenticated", storage
         );
         return;
       }
-      markSynchronized(result.updatedAt, uploadedSnapshot);
+      markSynchronized(result.updatedAt, uploadedSnapshot, TRACKER_PAYLOAD_VERSION);
       clearConflict();
 
       const latestSnapshot = serializeData(
@@ -306,6 +336,7 @@ export default function useTrackerData({ userId, mode = "authenticated", storage
 
       if (!cloudData) {
         cloudVersionRef.current = null;
+        lastSyncedPayloadVersionRef.current = null;
         lastSyncedSnapshotRef.current = null;
         clearConflict();
         initializedRef.current = true;
@@ -329,8 +360,15 @@ export default function useTrackerData({ userId, mode = "authenticated", storage
         }
         applyCloudData(cloudData);
       } else {
+        const metadataPayloadVersion = normalizePayloadVersion(metadata.payloadVersion);
+        const cloudPayloadVersion = normalizePayloadVersion(cloudData.payloadVersion);
+        const timestampUnchanged = cloudData.updatedAt === metadata.cloudVersion;
+        const controlledSchemaUpgrade =
+          timestampUnchanged &&
+          isControlledPayloadUpgrade(metadataPayloadVersion, cloudPayloadVersion);
         if (
-          cloudData.updatedAt === metadata.cloudVersion &&
+          timestampUnchanged &&
+          !controlledSchemaUpgrade &&
           cloudSnapshot !== metadata.syncedSnapshot
         ) {
           initializedRef.current = true;
@@ -340,7 +378,7 @@ export default function useTrackerData({ userId, mode = "authenticated", storage
         }
 
         const localChanged = localSnapshot !== metadata.syncedSnapshot;
-        const cloudChanged = cloudData.updatedAt !== metadata.cloudVersion;
+        const cloudChanged = !timestampUnchanged || controlledSchemaUpgrade;
 
         if (localChanged && cloudChanged) {
           cloudVersionRef.current = cloudData.updatedAt;
@@ -354,6 +392,7 @@ export default function useTrackerData({ userId, mode = "authenticated", storage
           applyCloudData(cloudData);
         } else {
           cloudVersionRef.current = cloudData.updatedAt;
+          lastSyncedPayloadVersionRef.current = metadataPayloadVersion;
           lastSyncedSnapshotRef.current = metadata.syncedSnapshot;
         }
       }
@@ -417,12 +456,19 @@ export default function useTrackerData({ userId, mode = "authenticated", storage
         latestDataRef.current.dividends
       );
       const versionUnchanged = cloudData.updatedAt === cloudVersionRef.current;
+      const cloudPayloadVersion = normalizePayloadVersion(cloudData.payloadVersion);
+      const controlledSchemaUpgrade =
+        versionUnchanged &&
+        isControlledPayloadUpgrade(
+          normalizePayloadVersion(lastSyncedPayloadVersionRef.current),
+          cloudPayloadVersion
+        );
       const payloadUnchanged = cloudSnapshot === lastSyncedSnapshotRef.current;
-      if (versionUnchanged && !payloadUnchanged) {
+      if (versionUnchanged && !controlledSchemaUpgrade && !payloadUnchanged) {
         markInvariantViolation(cloudData, localSnapshot, cloudSnapshot);
         return;
       }
-      if (versionUnchanged && payloadUnchanged) {
+      if (versionUnchanged && !controlledSchemaUpgrade && payloadUnchanged) {
         if (localSnapshot === lastSyncedSnapshotRef.current) {
           setSyncStatus("saved");
         } else {

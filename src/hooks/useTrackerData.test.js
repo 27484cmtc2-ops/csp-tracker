@@ -55,6 +55,13 @@ const snapshot = (data) => JSON.stringify({
   payloadVersion: 3,
 });
 
+const versionedSnapshot = (data, payloadVersion) => JSON.stringify({
+  trades: data.trades,
+  target: data.target,
+  dividends: data.dividends ?? [],
+  payloadVersion,
+});
+
 function seedLocal(data, metadata = null) {
   localStorage.setItem(TEST_KEYS.trades, JSON.stringify(data.trades));
   localStorage.setItem(TEST_KEYS.target, String(data.target));
@@ -149,6 +156,132 @@ test("upgrades payloadVersion 2 dividend holdings to version 3 without changing 
       dividends: [expect.objectContaining({ dividendBasis: "per_payment", dividendPerShare: 1 })],
     })
   );
+});
+
+test("treats a same-timestamp payloadVersion 2 to 3 migration as a controlled cloud update", async () => {
+  const legacyHolding = { ...safeDividend, dividendPerShare: 1 };
+  const legacyData = { ...baseData, dividends: [legacyHolding] };
+  const migratedData = {
+    ...baseData,
+    payloadVersion: 3,
+    dividends: [{
+      ...legacyHolding,
+      dividendPerShare: null,
+      annualDividendPerShare: 4,
+      dividendBasis: "annual",
+    }],
+  };
+  const storage = createDeviceStorage(legacyData, {
+    cloudVersion: "same-timestamp",
+    syncedSnapshot: versionedSnapshot(legacyData, 2),
+  });
+  loadCloudData.mockResolvedValue(cloudData(migratedData, "same-timestamp"));
+
+  const firstMount = renderHook(() => useTrackerData({ userId: TEST_USER_ID, storage }));
+  await flushAsync();
+
+  expect(firstMount.result.current.hasConflict).toBe(false);
+  expect(firstMount.result.current.syncStatus).toBe("saved");
+  expect(firstMount.result.current.dividends[0]).toMatchObject({
+    dividendBasis: "annual",
+    annualDividendPerShare: 4,
+    dividendPerShare: null,
+  });
+  expect(JSON.parse(storage.getItem(TEST_KEYS.syncMeta))).toMatchObject({
+    cloudVersion: "same-timestamp",
+    payloadVersion: 3,
+  });
+  expect(saveCloudData).not.toHaveBeenCalled();
+
+  firstMount.unmount();
+  const refreshed = renderHook(() => useTrackerData({ userId: TEST_USER_ID, storage }));
+  await flushAsync();
+
+  expect(refreshed.result.current.hasConflict).toBe(false);
+  expect(refreshed.result.current.syncStatus).toBe("saved");
+  expect(refreshed.result.current.dividends[0]).toMatchObject({
+    dividendBasis: "annual",
+    annualDividendPerShare: 4,
+  });
+  expect(saveCloudData).not.toHaveBeenCalled();
+});
+
+test("uploads normally after controlled payloadVersion 2 to 3 metadata migration", async () => {
+  const legacyData = { ...baseData, dividends: [safeDividend] };
+  const migratedData = {
+    ...legacyData,
+    payloadVersion: 3,
+    dividends: normalizeDividendHoldings(legacyData.dividends),
+  };
+  const storage = createDeviceStorage(legacyData, {
+    cloudVersion: "same-timestamp",
+    syncedSnapshot: versionedSnapshot(legacyData, 2),
+  });
+  loadCloudData.mockResolvedValue(cloudData(migratedData, "same-timestamp"));
+  saveCloudData.mockResolvedValue({ updatedAt: "new-timestamp" });
+
+  const { result } = renderHook(() => useTrackerData({ userId: TEST_USER_ID, storage }));
+  await flushAsync();
+  act(() => result.current.setTarget(625));
+  await advanceDebounce();
+
+  expect(result.current.hasConflict).toBe(false);
+  expect(result.current.syncStatus).toBe("saved");
+  expect(saveCloudData).toHaveBeenCalledWith(
+    baseData.trades,
+    625,
+    expect.objectContaining({
+      payloadVersion: 3,
+      expectedUpdatedAt: "same-timestamp",
+    })
+  );
+  expect(JSON.parse(storage.getItem(TEST_KEYS.syncMeta))).toMatchObject({
+    cloudVersion: "new-timestamp",
+    payloadVersion: 3,
+  });
+});
+
+test("preserves dirty v2 local data when the same-timestamp cloud payload advances to v3", async () => {
+  const legacyData = { ...baseData, dividends: [safeDividend] };
+  const dirtyLocalData = { ...legacyData, target: 725 };
+  const migratedData = {
+    ...legacyData,
+    payloadVersion: 3,
+    dividends: normalizeDividendHoldings(legacyData.dividends),
+  };
+  const storage = createDeviceStorage(dirtyLocalData, {
+    cloudVersion: "same-timestamp",
+    syncedSnapshot: versionedSnapshot(legacyData, 2),
+  });
+  loadCloudData.mockResolvedValue(cloudData(migratedData, "same-timestamp"));
+
+  const { result } = renderHook(() => useTrackerData({ userId: TEST_USER_ID, storage }));
+  await flushAsync();
+
+  expect(result.current.target).toBe(725);
+  expect(result.current.hasConflict).toBe(true);
+  expect(result.current.syncStatus).toBe("conflict");
+  expect(saveCloudData).not.toHaveBeenCalled();
+});
+
+test("does not let the v3 client treat an unknown future payload version as a controlled migration", async () => {
+  seedLocal(baseData, {
+    cloudVersion: "same-timestamp",
+    payloadVersion: 3,
+    syncedSnapshot: snapshot(baseData),
+  });
+  loadCloudData.mockResolvedValue(cloudData({
+    ...changedData,
+    payloadVersion: 4,
+  }, "same-timestamp"));
+
+  const { result } = renderHook(() => useTrackerData({ userId: TEST_USER_ID }));
+  await flushAsync();
+
+  expect(result.current.trades).toEqual(baseData.trades);
+  expect(result.current.hasConflict).toBe(true);
+  expect(result.current.syncStatus).toBe("invariant_error");
+  expect(saveCloudData).not.toHaveBeenCalled();
 });
 
 test("loads and persists account-specific dividend holdings locally", async () => {
