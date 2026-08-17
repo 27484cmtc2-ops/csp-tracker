@@ -58,6 +58,23 @@ test("combines monthly dividends with TTM Wheel premium only when enabled", () =
   expect(withoutWheel.annualProjectedIncome).toBe(640);
 });
 
+test("uses annual-basis dividends consistently in Dashboard income", () => {
+  const annualHolding = [{
+    id: 9, ticker: "MSTY", shares: 10, dividendBasis: "annual",
+    dividendPerShare: null, annualDividendPerShare: 12, frequency: "monthly",
+    currency: "CAD", account: "TFSA", nextPaymentDate: "2026-09-01",
+  }];
+  const summary = getDashboardIncomeSummary({
+    trades: [], holdings: annualHolding, usdCad: 1, includeWheelIncome: false, asOf,
+  });
+  expect(summary).toMatchObject({
+    annualDividendIncome: 120,
+    averageMonthlyDividendIncome: 10,
+    estimatedMonthlyIncome: 10,
+    annualProjectedIncome: 120,
+  });
+});
+
 test("summarizes account income, four upcoming payments, and open Wheel positions", () => {
   expect(getDashboardAccountBreakdown(holdings, 2)).toEqual([
     { account: "RRSP", annualIncome: 240, monthlyIncome: 20 },

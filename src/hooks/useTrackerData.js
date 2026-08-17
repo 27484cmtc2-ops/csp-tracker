@@ -7,7 +7,7 @@ import {
 import { normalizeDividendHoldings } from "../utils/dividends";
 import { GUEST_STORAGE_KEYS, normalizePortfolioSnapshot } from "../guestStorage";
 const UPLOAD_DEBOUNCE_MS = 1000;
-export const TRACKER_PAYLOAD_VERSION = 2;
+export const TRACKER_PAYLOAD_VERSION = 3;
 
 export function getTrackerStorageKeys(userId) {
   if (!userId) throw new Error("An authenticated user ID is required.");
@@ -75,7 +75,7 @@ function loadSyncMetadata(storage, storageKeys) {
       syncedSnapshot: serializeData(
         snapshot.trades ?? [],
         snapshot.target ?? 500,
-        snapshot.dividends ?? []
+        normalizeDividendHoldings(snapshot.dividends)
       ),
     };
   } catch {
@@ -162,7 +162,7 @@ export default function useTrackerData({ userId, mode = "authenticated", storage
   }, [storage, storageKeys]);
 
   const applyCloudData = useCallback((cloudData) => {
-    const cloudDividends = cloudData.dividends ?? [];
+    const cloudDividends = normalizeDividendHoldings(cloudData.dividends);
     const snapshot = serializeData(cloudData.trades, cloudData.target, cloudDividends);
     applyingCloudRef.current = true;
     markSynchronized(cloudData.updatedAt, snapshot);
@@ -318,7 +318,7 @@ export default function useTrackerData({ userId, mode = "authenticated", storage
         return;
       }
 
-      const cloudSnapshot = serializeData(cloudData.trades, cloudData.target, cloudData.dividends ?? []);
+      const cloudSnapshot = serializeData(cloudData.trades, cloudData.target, normalizeDividendHoldings(cloudData.dividends));
       if (!metadata) {
         if (hadLocalDataRef.current && localSnapshot !== cloudSnapshot) {
           cloudVersionRef.current = cloudData.updatedAt;
@@ -410,7 +410,7 @@ export default function useTrackerData({ userId, mode = "authenticated", storage
         return;
       }
 
-      const cloudSnapshot = serializeData(cloudData.trades, cloudData.target, cloudData.dividends ?? []);
+      const cloudSnapshot = serializeData(cloudData.trades, cloudData.target, normalizeDividendHoldings(cloudData.dividends));
       const localSnapshot = serializeData(
         latestDataRef.current.trades,
         latestDataRef.current.target,

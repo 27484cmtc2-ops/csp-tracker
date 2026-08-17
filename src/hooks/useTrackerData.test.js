@@ -5,6 +5,7 @@ import {
   loadCloudData,
   saveCloudData,
 } from "../cloudStorage";
+import { normalizeDividendHoldings } from "../utils/dividends";
 
 jest.mock("../cloudStorage", () => ({
   CloudConflictError: class CloudConflictError extends Error {
@@ -50,8 +51,8 @@ const cloudData = (data, updatedAt = "version-1") => ({
 const snapshot = (data) => JSON.stringify({
   trades: data.trades,
   target: data.target,
-  dividends: data.dividends ?? [],
-  payloadVersion: 2,
+  dividends: normalizeDividendHoldings(data.dividends),
+  payloadVersion: 3,
 });
 
 function seedLocal(data, metadata = null) {
@@ -122,6 +123,32 @@ test("downloads cloud data during initialization without uploading it back", asy
   expect(result.current.syncStatus).toBe("saved");
   expect(saveCloudData).not.toHaveBeenCalled();
   expect(JSON.parse(localStorage.getItem(TEST_KEYS.trades))).toEqual(changedData.trades);
+});
+
+test("upgrades payloadVersion 2 dividend holdings to version 3 without changing their meaning", async () => {
+  loadCloudData.mockResolvedValue(cloudData({
+    ...baseData,
+    dividends: normalizeDividendHoldings([safeDividend]),
+    payloadVersion: 2,
+  }, "version-1"));
+  const { result } = renderHook(() => useTrackerData({ userId: TEST_USER_ID }));
+  await flushAsync();
+  expect(result.current.dividends[0]).toMatchObject({
+    ticker: "ENB",
+    dividendBasis: "per_payment",
+    dividendPerShare: 1,
+    annualDividendPerShare: null,
+  });
+  act(() => result.current.setTarget(525));
+  await advanceDebounce();
+  expect(saveCloudData).toHaveBeenCalledWith(
+    baseData.trades,
+    525,
+    expect.objectContaining({
+      payloadVersion: 3,
+      dividends: [expect.objectContaining({ dividendBasis: "per_payment", dividendPerShare: 1 })],
+    })
+  );
 });
 
 test("loads and persists account-specific dividend holdings locally", async () => {
@@ -197,7 +224,7 @@ test("replacePortfolio applies guest migration as one complete local snapshot", 
   expect(saveCloudData).toHaveBeenCalledTimes(1);
   expect(saveCloudData).toHaveBeenCalledWith(guestPortfolio.trades, 1400, expect.objectContaining({
     dividends: expect.arrayContaining([expect.objectContaining({ ticker: "BCE" })]),
-    payloadVersion: 2,
+    payloadVersion: 3,
   }));
 });
 
@@ -244,7 +271,7 @@ test("debounces dividend changes and uploads the complete versioned payload", as
   expect(saveCloudData).toHaveBeenCalledTimes(1);
   expect(saveCloudData).toHaveBeenCalledWith(baseData.trades, baseData.target, {
     dividends: latest,
-    payloadVersion: 2,
+    payloadVersion: 3,
     expectedUpdatedAt: "version-1",
     force: false,
   });
@@ -252,6 +279,7 @@ test("debounces dividend changes and uploads the complete versioned payload", as
 
 test("a second device downloads the exact newer dividend collection on resume", async () => {
   const dividend = { id: "div-1", ticker: "ENB", shares: 25 };
+  const normalizedDividend = normalizeDividendHoldings([dividend])[0];
   seedLocal(baseData, { cloudVersion: "version-1", syncedSnapshot: snapshot(baseData) });
   loadCloudData
     .mockResolvedValueOnce(cloudData(baseData, "version-1"))
@@ -262,8 +290,8 @@ test("a second device downloads the exact newer dividend collection on resume", 
   act(() => window.dispatchEvent(new Event("focus")));
   await flushAsync();
 
-  expect(result.current.dividends).toEqual([dividend]);
-  expect(JSON.parse(localStorage.getItem(TEST_KEYS.dividends))).toEqual([dividend]);
+  expect(result.current.dividends).toEqual([normalizedDividend]);
+  expect(JSON.parse(localStorage.getItem(TEST_KEYS.dividends))).toEqual([normalizedDividend]);
   expect(result.current.hasConflict).toBe(false);
 });
 
@@ -294,7 +322,7 @@ test("a brand-new account starts with zero trades and creates an empty cloud row
 
   expect(saveCloudData).toHaveBeenCalledWith([], 500, {
     dividends: [],
-    payloadVersion: 2,
+    payloadVersion: 3,
     expectedUpdatedAt: null,
     force: false,
   });
@@ -360,7 +388,7 @@ test("missing cloud data never falls back to legacy sample trades", async () => 
   expect(result.current.target).toBe(500);
   expect(saveCloudData).toHaveBeenCalledWith([], 500, {
     dividends: [],
-    payloadVersion: 2,
+    payloadVersion: 3,
     expectedUpdatedAt: null,
     force: false,
   });
@@ -379,7 +407,7 @@ test("creates cloud data after a successful missing-row initialization", async (
   expect(saveCloudData).toHaveBeenCalledWith(
     baseData.trades,
     baseData.target,
-    { dividends: [], payloadVersion: 2, expectedUpdatedAt: null, force: false }
+    { dividends: [], payloadVersion: 3, expectedUpdatedAt: null, force: false }
   );
   expect(result.current.syncStatus).toBe("saved");
 });
@@ -399,7 +427,7 @@ test("keeps offline local changes and uploads them against the known cloud versi
   expect(saveCloudData).toHaveBeenCalledWith(
     changedData.trades,
     changedData.target,
-    { dividends: [], payloadVersion: 2, expectedUpdatedAt: "version-1", force: false }
+    { dividends: [], payloadVersion: 3, expectedUpdatedAt: "version-1", force: false }
   );
 });
 
@@ -484,7 +512,7 @@ test("mobile retries failed initialization, uploads its local trade, and desktop
     .mockImplementation(() => Promise.resolve(cloudRow));
   saveCloudData.mockImplementation(async (trades, target, options) => {
     expect(options).toEqual({
-      dividends: [], payloadVersion: 2, expectedUpdatedAt: "version-1", force: false,
+      dividends: [], payloadVersion: 3, expectedUpdatedAt: "version-1", force: false,
     });
     cloudRow = cloudData({ trades, target }, "version-2");
     return { updatedAt: cloudRow.updatedAt };
@@ -558,7 +586,7 @@ test("repeated resume events deduplicate initialization retries and the resultin
   expect(saveCloudData).toHaveBeenCalledTimes(1);
   expect(saveCloudData).toHaveBeenCalledWith(changedData.trades, changedData.target, {
     dividends: [],
-    payloadVersion: 2,
+    payloadVersion: 3,
     expectedUpdatedAt: "version-1",
     force: false,
   });
@@ -702,7 +730,7 @@ test("manual conflict resolution can explicitly keep local data", async () => {
   expect(saveCloudData).toHaveBeenCalledWith(
     changedData.trades,
     changedData.target,
-    { dividends: [], payloadVersion: 2, expectedUpdatedAt: "version-2", force: true }
+    { dividends: [], payloadVersion: 3, expectedUpdatedAt: "version-2", force: true }
   );
   expect(result.current.hasConflict).toBe(false);
 });
@@ -828,7 +856,7 @@ test("switching accounts does not leak dividend holdings", async () => {
 });
 
 test("a failed offline dividend upload retries on resume after connectivity returns", async () => {
-  const dividend = { id: "offline-div", ticker: "BCE", shares: 40 };
+  const dividend = normalizeDividendHoldings([{ ...safeDividend, id: "offline-div", ticker: "BCE", shares: 40 }])[0];
   let cloudRow = cloudData(baseData, "version-1");
   seedLocal(baseData, {
     cloudVersion: "version-1",

@@ -1,4 +1,4 @@
-import { createDividendHolding, validateDividendHolding } from "../../utils/dividends";
+import { createDividendHolding, getAnnualDividendIncome, validateDividendHolding } from "../../utils/dividends";
 import { wheelAppDividendAdapter } from "./wheelAppAdapter";
 import { snowballDividendAdapter } from "./snowballAdapter";
 
@@ -32,7 +32,7 @@ function exactHoldingMatch(first, second) {
     && comparable(first.account) === comparable(second.account)
     && comparable(first.currency) === comparable(second.currency)
     && Number(first.shares) === Number(second.shares)
-    && Number(first.dividendPerShare) === Number(second.dividendPerShare)
+    && getAnnualDividendIncome(first, 1) === getAnnualDividendIncome(second, 1)
     && first.frequency === second.frequency
     && first.nextPaymentDate === second.nextPaymentDate;
 }

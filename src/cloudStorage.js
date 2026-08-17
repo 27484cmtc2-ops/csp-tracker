@@ -44,7 +44,7 @@ export async function saveCloudData(
   target,
   {
     dividends = [],
-    payloadVersion = 2,
+    payloadVersion = 3,
     expectedUpdatedAt = null,
     force = false,
   } = {}

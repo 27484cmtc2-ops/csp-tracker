@@ -179,7 +179,14 @@ export default function DividendImportDialog({ holdings, onConfirm, onClose }) {
                       </td>
                       <td><input aria-label={`Ticker row ${row.sourceRowNumber}`} value={row.candidate.ticker} onChange={(event) => updateCandidate(row.importRowId, "ticker", event.target.value)} /></td>
                       <td><input aria-label={`Shares row ${row.sourceRowNumber}`} type="number" min="0" step="any" value={row.candidate.shares} onChange={(event) => updateCandidate(row.importRowId, "shares", event.target.value)} /></td>
-                      <td><input aria-label={`Dividend per share row ${row.sourceRowNumber}`} type="number" min="0" step="any" value={row.candidate.dividendPerShare} onChange={(event) => updateCandidate(row.importRowId, "dividendPerShare", event.target.value)} /></td>
+                      <td><input
+                        aria-label={`${row.candidate.dividendBasis === "annual" ? "Annual dividend" : "Dividend"} per share row ${row.sourceRowNumber}`}
+                        type="number"
+                        min="0"
+                        step="any"
+                        value={row.candidate.dividendBasis === "annual" ? row.candidate.annualDividendPerShare : row.candidate.dividendPerShare}
+                        onChange={(event) => updateCandidate(row.importRowId, row.candidate.dividendBasis === "annual" ? "annualDividendPerShare" : "dividendPerShare", event.target.value)}
+                      /></td>
                       <td><select aria-label={`Frequency row ${row.sourceRowNumber}`} value={row.candidate.frequency} onChange={(event) => updateCandidate(row.importRowId, "frequency", event.target.value)}>
                         {!DIVIDEND_FREQUENCIES[row.candidate.frequency] && <option value={row.candidate.frequency}>{row.candidate.frequency || "Select"}</option>}
                         {Object.keys(DIVIDEND_FREQUENCIES).map((frequency) => <option key={frequency} value={frequency}>{FREQUENCY_LABELS[frequency]}</option>)}

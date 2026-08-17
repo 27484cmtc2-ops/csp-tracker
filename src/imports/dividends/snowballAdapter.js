@@ -88,6 +88,8 @@ export const snowballDividendAdapter = {
         ticker: mapped.ticker.value,
         shares: mapped.shares.value,
         dividendPerShare: annualizedDividendSource ? "" : mapped.dividendPerShare.value,
+        annualDividendPerShare: annualizedDividendSource ? mapped.dividendPerShare.value : "",
+        dividendBasis: annualizedDividendSource ? "annual" : "per_payment",
         frequency: FREQUENCY_VALUES[normalizeDividendImportHeader(frequencyInput)] ?? frequencyInput,
         currency: mapped.currency.value.toUpperCase(),
         account: "Unknown",
@@ -100,14 +102,7 @@ export const snowballDividendAdapter = {
           : formulaIssue(result.value, field)
       );
       const dividendValue = Number(candidate.dividendPerShare);
-      if (annualizedDividendSource) {
-        issues.push({
-          field: "dividendPerShare",
-          code: "snowball_annualized_dividend_review",
-          sourceValue: "",
-          message: `Snowball's ‘Dividends per share’ value (${mapped.dividendPerShare.value || "blank"}) may be annualized. Enter the dividend per payment before importing.`,
-        });
-      } else if (Number.isFinite(dividendValue) && dividendValue > 5) {
+      if (!annualizedDividendSource && Number.isFinite(dividendValue) && dividendValue > 5) {
         issues.push({
           field: "dividendPerShare",
           code: "unreasonable_dividend_per_share",

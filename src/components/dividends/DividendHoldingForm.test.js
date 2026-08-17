@@ -6,6 +6,8 @@ const holding = (account = "") => ({
   ticker: "ENB",
   shares: "10",
   dividendPerShare: "1",
+  annualDividendPerShare: "",
+  dividendBasis: "per_payment",
   frequency: "quarterly",
   currency: "CAD",
   account,
@@ -49,4 +51,13 @@ test("an existing custom account remains intact and is shown as Other", () => {
   renderForm("Family Trust");
   expect(screen.getByLabelText("Account")).toHaveValue("Other");
   expect(screen.getByLabelText("Custom account name")).toHaveValue("Family Trust");
+});
+
+test("supports entering an annual dividend per share basis", () => {
+  const onChange = renderForm();
+  fireEvent.change(screen.getByLabelText("Dividend amount basis"), { target: { value: "annual" } });
+  expect(onChange).toHaveBeenLastCalledWith(expect.objectContaining({
+    dividendBasis: "annual",
+    dividendPerShare: "",
+  }));
 });

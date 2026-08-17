@@ -36,3 +36,18 @@ test("keeps detailed scenario assumptions collapsed and editable", () => {
   fireEvent.change(within(assumptions).getByLabelText("Base dividend growth"), { target: { value: "5" } });
   expect(within(assumptions).getByLabelText("Base dividend growth")).toHaveValue(5);
 });
+
+test("uses annual-basis dividend income in goal progress", () => {
+  const annualDividends = [{
+    id: 2, ticker: "MSTY", shares: 10, dividendBasis: "annual",
+    dividendPerShare: null, annualDividendPerShare: 12, frequency: "monthly",
+    currency: "CAD", account: "TFSA", nextPaymentDate: "2026-09-01",
+  }];
+  function AnnualGoals() {
+    const [settings, setSettings] = useState(DEFAULT_PROJECTION_SETTINGS);
+    return <GoalsPage trades={[]} dividends={annualDividends} usdCad={1} asOf={asOf} settings={settings} onSettingsChange={setSettings} />;
+  }
+  render(<AnnualGoals />);
+  fireEvent.change(screen.getByLabelText("Monthly passive-income goal"), { target: { value: "100" } });
+  expect(screen.getByText("10%")).toBeInTheDocument();
+});

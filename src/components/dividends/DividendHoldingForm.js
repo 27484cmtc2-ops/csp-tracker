@@ -28,6 +28,15 @@ export default function DividendHoldingForm({ value, error, editing, onChange, o
       onChange({ ...value, account: "" });
     }
   };
+  const updateDividendBasis = (event) => {
+    const dividendBasis = event.target.value;
+    onChange({
+      ...value,
+      dividendBasis,
+      dividendPerShare: dividendBasis === "per_payment" ? value.dividendPerShare : "",
+      annualDividendPerShare: dividendBasis === "annual" ? value.annualDividendPerShare : "",
+    });
+  };
 
   return (
     <div className="dividend-modal-layer" role="dialog" aria-modal="true" aria-labelledby="dividend-form-title">
@@ -51,8 +60,22 @@ export default function DividendHoldingForm({ value, error, editing, onChange, o
             <input type="number" inputMode="decimal" min="0" step="any" value={value.shares} onChange={update("shares")} />
           </label>
           <label>
-            <span>Dividend amount per share</span>
-            <input type="number" inputMode="decimal" min="0" step="any" value={value.dividendPerShare} onChange={update("dividendPerShare")} />
+            <span>Dividend amount basis</span>
+            <select value={value.dividendBasis || "per_payment"} onChange={updateDividendBasis}>
+              <option value="per_payment">Per payment</option>
+              <option value="annual">Annual per share</option>
+            </select>
+          </label>
+          <label>
+            <span>{value.dividendBasis === "annual" ? "Annual dividend per share" : "Dividend amount per share"}</span>
+            <input
+              type="number"
+              inputMode="decimal"
+              min="0"
+              step="any"
+              value={value.dividendBasis === "annual" ? value.annualDividendPerShare : value.dividendPerShare}
+              onChange={update(value.dividendBasis === "annual" ? "annualDividendPerShare" : "dividendPerShare")}
+            />
           </label>
           <label>
             <span>Payment frequency</span>

@@ -276,7 +276,7 @@ test("imports dividend holdings with one persisted collection update and preserv
   fireEvent.click(screen.getByRole("button", { name: "IMPORT 1 HOLDING" }));
   expect(persistedWrites).toHaveLength(1);
   expect(persistedWrites[0]).toEqual([
-    existing[0],
+    expect.objectContaining({ ...existing[0], dividendBasis: "per_payment" }),
     expect.objectContaining({ ticker: "ENB", shares: 10, account: "TFSA" }),
   ]);
 
@@ -779,7 +779,7 @@ test("deleting completed history is uploaded through cloud synchronization", asy
     .toEqual([300, 302, 303, 304, 305]);
   expect(saveCloudData.mock.calls[0][2]).toEqual({
     dividends: [],
-    payloadVersion: 2,
+    payloadVersion: 3,
     expectedUpdatedAt: "version-1",
     force: false,
   });

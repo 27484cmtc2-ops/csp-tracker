@@ -46,6 +46,19 @@ test("shows one account's existing CAD annual income and annual divided by 12", 
   expect(accountRows(container)).toHaveLength(1);
 });
 
+test("shows annual-basis holdings with normalized payment and annual totals", () => {
+  renderDashboard([holding({
+    shares: 10,
+    dividendBasis: "annual",
+    dividendPerShare: null,
+    annualDividendPerShare: 12,
+    frequency: "quarterly",
+  })], 1);
+  expect(screen.getByText("ANNUAL DIVIDEND / SHARE").nextSibling).toHaveTextContent("CAD $12.0000");
+  expect(screen.getByText("PAYMENT").nextSibling).toHaveTextContent("CAD $30.00");
+  expect(screen.getByText("ANNUAL CAD").nextSibling).toHaveTextContent("$120.00");
+});
+
 test("keeps account types and custom names separate while converting USD income to CAD", () => {
   const { container } = renderDashboard([
     holding({ id: 1, account: "TFSA", shares: 100, dividendPerShare: 1 }),

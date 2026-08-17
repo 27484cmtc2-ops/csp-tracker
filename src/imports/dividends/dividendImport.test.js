@@ -180,7 +180,7 @@ describe("Snowball Analytics adapter", () => {
     );
     const rows = createDividendImportRows(parsed, [], snowballDividendAdapter.id);
     expect(rows[0].candidate).toEqual({
-      ticker: "ENB", shares: "100", dividendPerShare: "0.9425", frequency: "quarterly",
+      ticker: "ENB", shares: "100", dividendPerShare: "0.9425", annualDividendPerShare: "", dividendBasis: "per_payment", frequency: "quarterly",
       currency: "CAD", account: "Unknown", nextPaymentDate: "2026-09-01", notes: "Enbridge · Energy",
     });
     expect(rows[0]).not.toHaveProperty("estimatedPaymentAmount");
@@ -197,15 +197,14 @@ describe("Snowball Analytics adapter", () => {
       ticker: "MSTY",
       shares: "29.2486",
       dividendPerShare: "",
+      annualDividendPerShare: "10.8316",
+      dividendBasis: "annual",
       currency: "USD",
       account: "Unknown",
       nextPaymentDate: "2026-08-07",
       notes: "Yieldmax MSTR Option Income Strategy ETF · Funds · Income",
     });
     expect(importedRow.status).toBe("needs_review");
-    expect(importedRow.issues).toEqual(expect.arrayContaining([
-      expect.objectContaining({ code: "snowball_annualized_dividend_review" }),
-    ]));
   });
 
   test("prioritizes only the exact Snowball dividend headers", () => {
@@ -215,9 +214,7 @@ describe("Snowball Analytics adapter", () => {
     );
     const importedRow = createDividendImportRows(parsed, [], snowballDividendAdapter.id)[0];
     expect(importedRow.candidate.dividendPerShare).toBe("");
-    expect(importedRow.issues).toEqual(expect.arrayContaining([
-      expect.objectContaining({ code: "snowball_annualized_dividend_review", sourceValue: "" }),
-    ]));
+    expect(importedRow.candidate).toMatchObject({ annualDividendPerShare: "3.00", dividendBasis: "annual" });
   });
 
   test("ignores annual, payment, amount, yield, and portfolio-income columns", () => {
@@ -309,6 +306,7 @@ describe("Snowball Analytics adapter", () => {
     const imported = createImportedDividendHoldings(rows, [], 50);
     expect(imported).toEqual([{
       id: 50, ticker: "ENB", shares: 10, dividendPerShare: 1, frequency: "monthly",
+      annualDividendPerShare: null, dividendBasis: "per_payment",
       currency: "CAD", account: "Unknown", nextPaymentDate: "2026-09-01", notes: "",
     }]);
     expect(imported[0]).not.toHaveProperty("estimatedPaymentAmount");

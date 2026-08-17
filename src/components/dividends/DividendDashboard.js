@@ -118,7 +118,10 @@ export default function DividendDashboard({ holdings, usdCad, onAdd, onImport, o
                   <span>{holding.account} · {holding.currency}</span>
                 </div>
                 <div><span>SHARES</span><strong>{holding.shares}</strong></div>
-                <div><span>DIVIDEND / SHARE</span><strong>{holding.currency} ${holding.dividendPerShare.toFixed(4)}</strong></div>
+                <div>
+                  <span>{holding.dividendBasis === "annual" ? "ANNUAL DIVIDEND / SHARE" : "DIVIDEND / SHARE"}</span>
+                  <strong>{holding.currency} ${(holding.dividendBasis === "annual" ? holding.annualDividendPerShare : holding.dividendPerShare).toFixed(4)}</strong>
+                </div>
                 <div><span>FREQUENCY</span><strong>{FREQUENCY_LABELS[holding.frequency]}</strong></div>
                 <div><span>NEXT PAYMENT</span><strong>{holding.nextPaymentDate}</strong></div>
                 <div><span>PAYMENT</span><strong>{holding.currency} ${getDividendPaymentAmount(holding).toFixed(2)}</strong></div>

@@ -1,4 +1,5 @@
 import {
+  DIVIDEND_FREQUENCIES,
   createDividendHolding,
   getAnnualDividendIncome,
   getDividendSummary,
@@ -50,6 +51,8 @@ test("normalizes legacy or malformed dividend collections safely", () => {
     ticker: "ENB",
     shares: 12,
     dividendPerShare: 0.5,
+    annualDividendPerShare: null,
+    dividendBasis: "per_payment",
     frequency: "quarterly",
     currency: "USD",
     account: "",
@@ -68,8 +71,41 @@ test("normalizes a dividend holding for storage", () => {
   expect(createDividendHolding({
     ...holding(), ticker: " enb ", shares: "25", dividendPerShare: "0.75", notes: " DRIP ",
   }, 99)).toEqual({
-    ...holding(), id: 99, shares: 25, dividendPerShare: 0.75, notes: "DRIP",
+    ...holding(), id: 99, shares: 25, dividendPerShare: 0.75,
+    annualDividendPerShare: null, dividendBasis: "per_payment", notes: "DRIP",
   });
+});
+
+test.each([
+  ["weekly", 52, 12 / 52],
+  ["semi_monthly", 24, 12 / 24],
+  ["monthly", 12, 1],
+  ["quarterly", 4, 3],
+  ["annual", 1, 12],
+])("normalizes a $12 annual dividend for %s payments", (frequency, paymentsPerYear, expectedPaymentPerShare) => {
+  const annualHolding = holding({
+    shares: 10,
+    dividendBasis: "annual",
+    dividendPerShare: null,
+    annualDividendPerShare: 12,
+    frequency,
+  });
+  expect(getAnnualDividendIncome(annualHolding, 1)).toBe(120);
+  const projected = getUpcomingDividendPayments(
+    [annualHolding], 1, new Date("2026-01-01T12:00:00"), 1
+  );
+  if (projected.length) expect(projected[0].originalAmount).toBeCloseTo(expectedPaymentPerShare * 10);
+  expect(DIVIDEND_FREQUENCIES[frequency]).toBe(paymentsPerYear);
+});
+
+test("normalizes payloadVersion 2-style holdings as per-payment without changing income", () => {
+  const [normalized] = normalizeDividendHoldings([holding({ dividendPerShare: 0.5, frequency: "quarterly" })]);
+  expect(normalized).toMatchObject({
+    dividendBasis: "per_payment",
+    dividendPerShare: 0.5,
+    annualDividendPerShare: null,
+  });
+  expect(getAnnualDividendIncome(normalized, 1)).toBe(200);
 });
 
 test.each([

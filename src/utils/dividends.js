@@ -22,6 +22,8 @@ export const EMPTY_DIVIDEND_HOLDING = {
   ticker: "",
   shares: "",
   dividendPerShare: "",
+  annualDividendPerShare: "",
+  dividendBasis: "per_payment",
   frequency: "quarterly",
   currency: "CAD",
   account: "",
@@ -34,8 +36,12 @@ export function validateDividendHolding(value) {
   if (!Number.isFinite(Number(value.shares)) || Number(value.shares) <= 0) {
     return "Shares must be greater than zero.";
   }
-  if (!Number.isFinite(Number(value.dividendPerShare)) || Number(value.dividendPerShare) <= 0) {
-    return "Dividend per share must be greater than zero.";
+  const dividendBasis = value.dividendBasis === "annual" ? "annual" : "per_payment";
+  const dividendAmount = dividendBasis === "annual" ? value.annualDividendPerShare : value.dividendPerShare;
+  if (!Number.isFinite(Number(dividendAmount)) || Number(dividendAmount) <= 0) {
+    return dividendBasis === "annual"
+      ? "Annual dividend per share must be greater than zero."
+      : "Dividend per share must be greater than zero.";
   }
   if (!DIVIDEND_FREQUENCIES[value.frequency]) return "Select a payment frequency.";
   if (!['CAD', 'USD'].includes(value.currency)) return "Select CAD or USD.";
@@ -55,25 +61,33 @@ export function validateDividendHolding(value) {
 
 export function normalizeDividendHoldings(value) {
   if (!Array.isArray(value)) return [];
-  return value.filter((holding) => holding && typeof holding === "object").map((holding) => ({
-    id: holding.id,
-    ticker: String(holding.ticker ?? "").trim().toUpperCase(),
-    shares: Number(holding.shares) || 0,
-    dividendPerShare: Number(holding.dividendPerShare) || 0,
-    frequency: DIVIDEND_FREQUENCIES[holding.frequency] ? holding.frequency : "quarterly",
-    currency: holding.currency === "USD" ? "USD" : "CAD",
-    account: String(holding.account ?? "").trim(),
-    nextPaymentDate: String(holding.nextPaymentDate ?? ""),
-    notes: String(holding.notes ?? "").trim(),
-  }));
+  return value.filter((holding) => holding && typeof holding === "object").map((holding) => {
+    const dividendBasis = holding.dividendBasis === "annual" ? "annual" : "per_payment";
+    return {
+      id: holding.id,
+      ticker: String(holding.ticker ?? "").trim().toUpperCase(),
+      shares: Number(holding.shares) || 0,
+      dividendPerShare: dividendBasis === "per_payment" ? Number(holding.dividendPerShare) || 0 : null,
+      annualDividendPerShare: dividendBasis === "annual" ? Number(holding.annualDividendPerShare) || 0 : null,
+      dividendBasis,
+      frequency: DIVIDEND_FREQUENCIES[holding.frequency] ? holding.frequency : "quarterly",
+      currency: holding.currency === "USD" ? "USD" : "CAD",
+      account: String(holding.account ?? "").trim(),
+      nextPaymentDate: String(holding.nextPaymentDate ?? ""),
+      notes: String(holding.notes ?? "").trim(),
+    };
+  });
 }
 
 export function createDividendHolding(value, id = Date.now()) {
+  const dividendBasis = value.dividendBasis === "annual" ? "annual" : "per_payment";
   return {
     id,
     ticker: value.ticker.trim().toUpperCase(),
     shares: Number(value.shares),
-    dividendPerShare: Number(value.dividendPerShare),
+    dividendPerShare: dividendBasis === "per_payment" ? Number(value.dividendPerShare) : null,
+    annualDividendPerShare: dividendBasis === "annual" ? Number(value.annualDividendPerShare) : null,
+    dividendBasis,
     frequency: value.frequency,
     currency: value.currency,
     account: value.account.trim(),
@@ -87,12 +101,19 @@ export function toCad(amount, currency, usdCad) {
 }
 
 export function getDividendPaymentAmount(holding) {
-  return holding.shares * holding.dividendPerShare;
+  const payments = DIVIDEND_FREQUENCIES[holding.frequency] || 0;
+  if (holding.dividendBasis === "annual") {
+    return payments ? holding.shares * Number(holding.annualDividendPerShare || 0) / payments : 0;
+  }
+  return holding.shares * Number(holding.dividendPerShare || 0);
 }
 
 export function getAnnualDividendIncome(holding, usdCad) {
   const payments = DIVIDEND_FREQUENCIES[holding.frequency] || 0;
-  return toCad(getDividendPaymentAmount(holding) * payments, holding.currency, usdCad);
+  const annualAmount = holding.dividendBasis === "annual"
+    ? holding.shares * Number(holding.annualDividendPerShare || 0)
+    : getDividendPaymentAmount(holding) * payments;
+  return toCad(annualAmount, holding.currency, usdCad);
 }
 
 export function getDividendSummary(holdings, usdCad) {

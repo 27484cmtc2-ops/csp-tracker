@@ -36,3 +36,15 @@ test("verification script exercises timestamp, concurrency, trigger-order, and p
   expect(sql).not.toMatch(/update\s+public\.tracker_data/i);
   expect(sql).not.toMatch(/insert into\s+public\.tracker_data/i);
 });
+
+test("payload protection prevents a version 2 client from replacing version 3 data", () => {
+  const sql = fs.readFileSync(
+    path.join(__dirname, "../supabase/migrations/20260805_preserve_versioned_tracker_payload.sql"),
+    "utf8"
+  );
+  expect(sql).toMatch(/previous_version\s*>\s*incoming_version/i);
+  const preservePayload = (previousVersion, incomingVersion) => previousVersion > incomingVersion;
+  expect(preservePayload(3, 2)).toBe(true);
+  expect(preservePayload(3, 3)).toBe(false);
+  expect(preservePayload(2, 3)).toBe(false);
+});

@@ -149,7 +149,9 @@ export default function App({ userId, userEmail, onLogOut, logoutError, mode = "
       value: {
         ...holding,
         shares: String(holding.shares),
-        dividendPerShare: String(holding.dividendPerShare),
+        dividendPerShare: holding.dividendBasis === "annual" ? "" : String(holding.dividendPerShare),
+        annualDividendPerShare: holding.dividendBasis === "annual" ? String(holding.annualDividendPerShare) : "",
+        dividendBasis: holding.dividendBasis || "per_payment",
       },
     });
   };
