@@ -2,6 +2,7 @@ import {
   getDashboardAccountBreakdown,
   getDashboardIncomeSummary,
   getDashboardOpenWheelPositions,
+  getDashboardRecentActivity,
   getDashboardUpcomingPayments,
   getTrailingTwelveMonthWheelPremium,
 } from "./dashboard";
@@ -23,6 +24,26 @@ const trades = [
 
 test("calculates trailing-12-month Wheel premium without stock sales or old records", () => {
   expect(getTrailingTwelveMonthWheelPremium(trades, asOf)).toBe(345);
+});
+
+test("summarizes the five most recent dated portfolio activities", () => {
+  const activity = getDashboardRecentActivity([
+    { id: 1, ticker: "PUT", type: "CSP", status: "open", opened: "2026-08-01" },
+    { id: 2, ticker: "CALL", kind: "covered_call", status: "closed", opened: "2026-08-02", closeDate: "2026-08-12" },
+    { id: 3, ticker: "SALE", kind: "stock_sale", status: "completed", saleDate: "2026-08-15" },
+    { id: 4, ticker: "ASSIGN", type: "CSP", status: "assigned", assignmentDate: "2026-08-10" },
+    { id: 5, ticker: "ROLL", type: "CSP", status: "open", opened: "2026-08-11", rolledFromId: 1 },
+    { id: 6, ticker: "OLD", type: "CSP", status: "open", opened: "2026-07-01" },
+  ]);
+  expect(activity).toHaveLength(5);
+  expect(activity[0]).toEqual({ id: 3, ticker: "SALE", date: "2026-08-15", label: "Shares sold" });
+  expect(activity.map((item) => item.label)).toEqual([
+    "Shares sold",
+    "Covered call closed",
+    "Position rolled",
+    "Shares assigned",
+    "Put opened",
+  ]);
 });
 
 test("combines monthly dividends with TTM Wheel premium only when enabled", () => {

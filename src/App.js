@@ -19,6 +19,7 @@ import DividendDashboard from "./components/dividends/DividendDashboard";
 import DividendHoldingForm from "./components/dividends/DividendHoldingForm";
 import DividendImportDialog from "./components/dividends/DividendImportDialog";
 import DashboardPage from "./components/dashboard/DashboardPage";
+import GoalsPage from "./components/dashboard/GoalsPage";
 import { DEFAULT_PROJECTION_SETTINGS } from "./utils/passiveIncomeProjection";
 import { EMPTY_NEW_TRADE, USD_CAD } from "./data/trackerData";
 import useTrackerData from "./hooks/useTrackerData";
@@ -575,6 +576,7 @@ export default function App({ userId, userEmail, onLogOut, logoutError, mode = "
 
         <nav className="desktop-section-nav" aria-label="Investing Dashboard sections">
           <button className={`desktop-nav-dashboard${tab === "dashboard" ? " active" : ""}`} onClick={() => setTab("dashboard")}>DASHBOARD</button>
+          <button className={`desktop-nav-goals${tab === "goals" ? " active" : ""}`} onClick={() => setTab("goals")}>GOALS</button>
           <button className={`desktop-nav-tracker${tab === "tracker" ? " active" : ""}`} onClick={() => setTab("tracker")}>WHEEL TRACKER</button>
           <button className={`desktop-nav-dividends${tab === "dividends" ? " active" : ""}`} onClick={() => setTab("dividends")}>DIVIDENDS</button>
         </nav>
@@ -585,6 +587,15 @@ export default function App({ userId, userEmail, onLogOut, logoutError, mode = "
             dividends={dividends}
             usdCad={USD_CAD}
             onNavigate={setTab}
+            settings={dashboardSettings}
+          />
+        )}
+
+        {tab === "goals" && (
+          <GoalsPage
+            trades={trades}
+            dividends={dividends}
+            usdCad={USD_CAD}
             settings={dashboardSettings}
             onSettingsChange={setDashboardSettings}
           />

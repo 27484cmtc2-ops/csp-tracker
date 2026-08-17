@@ -147,12 +147,15 @@ test("opens the new Dashboard by default on desktop without changing the mobile 
   const desktop = container.querySelector(".desktop-interface");
   const mobile = container.querySelector(".mobile-interface");
   expect(within(desktop).getByRole("button", { name: "DASHBOARD" })).toHaveClass("active");
+  expect(within(desktop).getByRole("button", { name: "GOALS" })).toBeInTheDocument();
   expect(within(desktop).getByRole("heading", { name: "Investing Dashboard" })).toBeInTheDocument();
   expect(within(mobile).queryByRole("button", { name: "DASHBOARD" })).not.toBeInTheDocument();
+  expect(within(mobile).queryByRole("button", { name: "GOALS" })).not.toBeInTheDocument();
   expect(within(mobile).getByRole("button", { name: "Open add trade form" })).toBeInTheDocument();
+  fireEvent.click(within(desktop).getByRole("button", { name: "GOALS" }));
   fireEvent.change(within(desktop).getByLabelText("Monthly passive-income goal"), { target: { value: "3500" } });
   fireEvent.click(within(desktop).getByRole("button", { name: "WHEEL TRACKER" }));
-  fireEvent.click(within(desktop).getByRole("button", { name: "DASHBOARD" }));
+  fireEvent.click(within(desktop).getByRole("button", { name: "GOALS" }));
   expect(within(desktop).getByLabelText("Monthly passive-income goal")).toHaveValue(3500);
 });
 

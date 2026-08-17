@@ -637,6 +637,9 @@ input, button { font-family: inherit; }
   .desktop-nav-dashboard {
     --desktop-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='4' y='4' width='6' height='6' rx='1'/%3E%3Crect x='14' y='4' width='6' height='6' rx='1'/%3E%3Crect x='4' y='14' width='6' height='6' rx='1'/%3E%3Cpath d='M14 17h6M17 14v6'/%3E%3C/svg%3E");
   }
+  .desktop-nav-goals {
+    --desktop-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='8'/%3E%3Ccircle cx='12' cy='12' r='4'/%3E%3Ccircle cx='12' cy='12' r='1' fill='black'/%3E%3Cpath d='M18 6l2-2'/%3E%3C/svg%3E");
+  }
   .desktop-nav-dividends,
   .dividend-holdings-panel > header {
     --desktop-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round'%3E%3Ccircle cx='12' cy='12' r='8'/%3E%3Cpath d='M14.5 8.5h-3a2 2 0 000 4h1a2 2 0 010 4h-3M12 6.5v2M12 16.5v2'/%3E%3C/svg%3E");
@@ -749,6 +752,7 @@ input, button { font-family: inherit; }
   .dashboard-page-heading h1 { margin: 8px 0 6px; color: var(--desktop-text); font-size: 30px; line-height: 1.15; }
   .dashboard-page-heading p { margin: 0; color: var(--desktop-text-muted); font-size: 13px; line-height: 1.55; }
   .dashboard-kpi-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--desktop-space-4); }
+  .dashboard-income-kpi-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .dashboard-kpi-card { min-width: 0; padding: var(--desktop-space-5); border: 1px solid var(--desktop-border); border-radius: var(--desktop-radius-lg); background: var(--desktop-surface); box-shadow: var(--desktop-shadow); }
   .dashboard-kpi-label { display: flex; gap: 7px; min-height: 30px; color: var(--desktop-text-muted); font-size: 10px; font-weight: 600; letter-spacing: .07em; line-height: 1.4; }
   .dashboard-kpi-label i, .projection-legend i, .projection-goal-dates i, .projection-progress-copy > span { font-style: normal; }
@@ -762,6 +766,17 @@ input, button { font-family: inherit; }
   .dashboard-goal-values { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
   .dashboard-goal-values > span { color: var(--desktop-text); font-size: 10px; white-space: nowrap; }
   .dashboard-goal-values small { display: block; margin-bottom: 3px; color: var(--desktop-text-subtle); font-size: 8px; letter-spacing: .06em; }
+  .dashboard-goal-summary-card { display: grid; grid-template-columns: auto minmax(160px, 1fr) auto; gap: var(--desktop-space-5); align-items: center; padding: var(--desktop-space-5); border: 1px solid var(--desktop-border); border-radius: var(--desktop-radius-lg); background: var(--desktop-surface); box-shadow: var(--desktop-shadow); }
+  .dashboard-goal-summary-copy { display: flex; align-items: center; gap: 12px; }
+  .dashboard-goal-summary-copy > span { font-size: 24px; }
+  .dashboard-goal-summary-copy small { display: block; color: var(--desktop-text-muted); font-size: 9px; font-weight: 600; letter-spacing: .08em; }
+  .dashboard-goal-summary-copy strong { display: block; margin-top: 5px; color: var(--desktop-text); font-size: 16px; }
+  .dashboard-goal-summary-copy strong i { color: var(--desktop-text-muted); font-size: 12px; font-style: normal; font-weight: 500; }
+  .dashboard-goal-summary-copy p { margin: 3px 0 0; color: var(--desktop-text-subtle); font-size: 10px; }
+  .dashboard-goal-summary-meter { height: 7px; overflow: hidden; border-radius: 999px; background: rgba(96,165,250,.12); }
+  .dashboard-goal-summary-meter span { display: block; height: 100%; border-radius: inherit; background: var(--desktop-accent); }
+  .dashboard-goal-summary-card > button { min-height: 34px; padding: 0 12px; border: 1px solid var(--desktop-border-strong); border-radius: var(--desktop-radius-sm); background: transparent; color: var(--desktop-accent); font: inherit; font-size: 9px; cursor: pointer; }
+  .goals-progress-card { width: min(100%, 420px); box-sizing: border-box; }
   .dashboard-income-disclaimer { margin: -8px 2px 0; color: var(--desktop-text-subtle); font-size: 11px; line-height: 1.5; }
   .dashboard-projection-card { overflow: hidden; border: 1px solid var(--desktop-border); border-radius: var(--desktop-radius-lg); background: var(--desktop-surface); box-shadow: var(--desktop-shadow); }
   .dashboard-section-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; padding: var(--desktop-space-6) var(--desktop-space-7); border-bottom: 1px solid var(--desktop-border); }
@@ -852,12 +867,17 @@ input, button { font-family: inherit; }
   .dashboard-wheel-row strong { color: var(--desktop-accent); font-size: 13px; }
   .dashboard-wheel-row b { color: var(--desktop-text); font-weight: 500; }
   .dashboard-summary-grid .dashboard-wheel-row b { grid-column: 2; }
+  .dashboard-activity-row { display: grid; grid-template-columns: 82px 55px 1fr; gap: 8px; align-items: center; padding: 11px var(--desktop-space-5); border-bottom: 1px solid var(--desktop-border); color: var(--desktop-text-muted); font-size: 10px; }
+  .dashboard-activity-row strong { color: var(--desktop-accent); }
   .dashboard-summary-card > footer { padding: 10px var(--desktop-space-5); color: var(--desktop-text-subtle); font-size: 9px; line-height: 1.4; }
   .dashboard-empty { margin: 0; padding: var(--desktop-space-7); color: var(--desktop-text-subtle); font-size: 11px; text-align: center; }
 }
 
 @media (min-width: 641px) and (max-width: 900px) {
   .dashboard-kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .dashboard-income-kpi-grid { grid-template-columns: 1fr; }
+  .dashboard-goal-summary-card { grid-template-columns: 1fr auto; }
+  .dashboard-goal-summary-meter { grid-column: 1 / -1; grid-row: 2; }
   .projection-primary-controls { grid-template-columns: repeat(2, 1fr); }
   .projection-scenario-controls, .dashboard-summary-grid { grid-template-columns: 1fr; }
   .projection-milestone-summary { grid-template-columns: repeat(2, 1fr); }

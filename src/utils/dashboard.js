@@ -96,3 +96,25 @@ export function getDashboardOpenWheelPositions(trades, asOf = new Date()) {
       return first.daysRemaining - second.daysRemaining;
     });
 }
+
+function recentActivityDetails(trade) {
+  if (isStockSale(trade)) return { date: trade.saleDate, label: "Shares sold" };
+  if (isCoveredCall(trade)) {
+    return trade.status === "closed"
+      ? { date: trade.closeDate || trade.closedDate, label: "Covered call closed" }
+      : { date: trade.opened, label: "Covered call sold" };
+  }
+  if (trade.status === "assigned") return { date: trade.assignmentDate, label: "Shares assigned" };
+  if (trade.status === "sold") return { date: trade.soldDate, label: "Assignment completed" };
+  if (trade.status === "closed") return { date: trade.closedDate, label: trade.type?.includes("Spread") ? "Spread closed" : "Put closed" };
+  if (trade.rolledFromId) return { date: trade.opened, label: "Position rolled" };
+  return { date: trade.opened, label: trade.type?.includes("Spread") ? "Spread opened" : "Put opened" };
+}
+
+export function getDashboardRecentActivity(trades, limit = 5) {
+  return trades
+    .map((trade) => ({ id: trade.id, ticker: trade.ticker, ...recentActivityDetails(trade) }))
+    .filter((activity) => parseDate(activity.date))
+    .sort((first, second) => second.date.localeCompare(first.date))
+    .slice(0, limit);
+}
