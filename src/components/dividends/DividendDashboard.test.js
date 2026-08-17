@@ -46,17 +46,26 @@ test("shows one account's existing CAD annual income and annual divided by 12", 
   expect(accountRows(container)).toHaveLength(1);
 });
 
-test("shows annual-basis holdings with normalized payment and annual totals", () => {
-  renderDashboard([holding({
+test("shows income-oriented metrics without changing an annual-basis holding", () => {
+  const annualHolding = holding({
     shares: 10,
     dividendBasis: "annual",
     dividendPerShare: null,
     annualDividendPerShare: 12,
     frequency: "quarterly",
-  })], 1);
-  expect(screen.getByText("ANNUAL DIVIDEND / SHARE").nextSibling).toHaveTextContent("CAD $12.0000");
-  expect(screen.getByText("PAYMENT").nextSibling).toHaveTextContent("CAD $30.00");
+  });
+  const storedValueBeforeRender = JSON.stringify(annualHolding);
+
+  renderDashboard([annualHolding], 1);
+
+  expect(screen.queryByText("ANNUAL DIVIDEND / SHARE")).not.toBeInTheDocument();
+  expect(screen.getByText("NEXT PAYMENT DATE").nextSibling).toHaveTextContent("2027-01-01");
+  expect(screen.getByText("EST. NEXT PAYMENT").nextSibling).toHaveTextContent("CAD $30.00");
+  expect(screen.getByText("FREQUENCY").nextSibling).toHaveTextContent("Quarterly");
+  expect(screen.getByText("MONTHLY CAD").nextSibling).toHaveTextContent("$10.00");
   expect(screen.getByText("ANNUAL CAD").nextSibling).toHaveTextContent("$120.00");
+  expect(screen.getByText("ANNUAL DIVIDENDS").nextSibling).toHaveTextContent("$120.00");
+  expect(JSON.stringify(annualHolding)).toBe(storedValueBeforeRender);
 });
 
 test("keeps account types and custom names separate while converting USD income to CAD", () => {

@@ -111,28 +111,28 @@ export default function DividendDashboard({ holdings, usdCad, onAdd, onImport, o
           </div>
         ) : (
           <div className="dividend-holding-list">
-            {holdings.map((holding) => (
+            {holdings.map((holding) => {
+              const annualIncomeCad = getAnnualDividendIncome(holding, usdCad);
+              return (
               <article key={holding.id} className="dividend-holding-row">
                 <div className="dividend-holding-title">
                   <strong>{holding.ticker}</strong>
                   <span>{holding.account} · {holding.currency}</span>
                 </div>
                 <div><span>SHARES</span><strong>{holding.shares}</strong></div>
-                <div>
-                  <span>{holding.dividendBasis === "annual" ? "ANNUAL DIVIDEND / SHARE" : "DIVIDEND / SHARE"}</span>
-                  <strong>{holding.currency} ${(holding.dividendBasis === "annual" ? holding.annualDividendPerShare : holding.dividendPerShare).toFixed(4)}</strong>
-                </div>
+                <div><span>NEXT PAYMENT DATE</span><strong>{holding.nextPaymentDate}</strong></div>
+                <div><span>EST. NEXT PAYMENT</span><strong>{holding.currency} ${getDividendPaymentAmount(holding).toFixed(2)}</strong></div>
                 <div><span>FREQUENCY</span><strong>{FREQUENCY_LABELS[holding.frequency]}</strong></div>
-                <div><span>NEXT PAYMENT</span><strong>{holding.nextPaymentDate}</strong></div>
-                <div><span>PAYMENT</span><strong>{holding.currency} ${getDividendPaymentAmount(holding).toFixed(2)}</strong></div>
-                <div><span>ANNUAL CAD</span><strong className="dividend-positive">{fmtCad(getAnnualDividendIncome(holding, usdCad))}</strong></div>
+                <div><span>MONTHLY CAD</span><strong className="dividend-positive">{fmtCad(annualIncomeCad / 12)}</strong></div>
+                <div><span>ANNUAL CAD</span><strong className="dividend-positive">{fmtCad(annualIncomeCad)}</strong></div>
                 <div className="dividend-row-actions">
                   <button className="csp-btn-sm csp-btn-blue" onClick={() => onEdit(holding)}>EDIT</button>
                   <button className="csp-btn-sm csp-btn-danger" onClick={() => onDelete(holding.id)}>DELETE</button>
                 </div>
                 {holding.notes && <p className="dividend-holding-notes">{holding.notes}</p>}
               </article>
-            ))}
+              );
+            })}
           </div>
         )}
       </section>
