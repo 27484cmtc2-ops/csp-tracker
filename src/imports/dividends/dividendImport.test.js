@@ -1,4 +1,4 @@
-import { parseCsvText } from "../csv/parseCsv";
+import { parseCsvMatrixText, parseCsvText } from "../csv/parseCsv";
 import {
   createDividendImportRows,
   createImportedDividendHoldings,
@@ -9,6 +9,7 @@ import {
   normalizeDividendImportHeader,
   WHEEL_APP_DIVIDEND_HEADERS,
 } from "./wheelAppAdapter";
+import { inspectSnowballHeaders, snowballDividendAdapter } from "./snowballAdapter";
 
 const csv = (rows, headers = WHEEL_APP_DIVIDEND_HEADERS) =>
   parseCsvText(`${headers.join(",")}\n${rows.join("\n")}`);
@@ -161,4 +162,117 @@ test("creates normalized holdings while preserving the existing collection", () 
   const imported = createImportedDividendHoldings([row({ ticker: " enb ", shares: "12" })], existing, 10);
   expect(imported).toEqual([expect.objectContaining({ id: 11, ticker: "ENB", shares: 12 })]);
   expect(existing).toEqual([{ id: 10, ticker: "BCE" }]);
+});
+
+describe("Snowball Analytics adapter", () => {
+  const snowballCsv = (headers, values) => parseCsvMatrixText(`${headers.join(",")}\n${values.join(",")}`);
+
+  test("detects Snowball holdings headers", () => {
+    expect(snowballDividendAdapter.recognizes(["Holding", "Shares", "Capital gain", "Total profit"])).toBe(true);
+    expect(snowballDividendAdapter.recognizes(["Symbol name", "Market value"])).toBe(false);
+    expect(inspectSnowballHeaders(["Holding", "Shares"]).missing).toEqual([]);
+  });
+
+  test("maps supported columns, preserves currency, and ignores analytics fields", () => {
+    const parsed = snowballCsv(
+      ["Holding", "Shares", "Dividend per share", "Frequency", "Currency", "Next payment date", "Next payment", "Holding name", "Category", "Capital gain", "Weighting"],
+      ["ENB", "100", "0.9425", "Quarterly", "CAD", "2026-09-01", "94.25", "Enbridge", "Energy", "1234", "5%"]
+    );
+    const rows = createDividendImportRows(parsed, [], snowballDividendAdapter.id);
+    expect(rows[0].candidate).toEqual({
+      ticker: "ENB", shares: "100", dividendPerShare: "0.9425", frequency: "quarterly",
+      currency: "CAD", account: "Unknown", nextPaymentDate: "2026-09-01", notes: "Enbridge · Energy",
+    });
+    expect(rows[0].estimatedPaymentAmount).toBe("94.25");
+    expect(rows[0]).not.toHaveProperty("capitalGain");
+  });
+
+  test("maps the exact headers and date format used by a Snowball Holdings export", () => {
+    const parsed = snowballCsv(
+      ["Holding", "Holdings' name", "Note", "Shares", "Currency", "Dividends per share", "Date of the next payment", "Next payment", "Capital gain", "Capital gain", "Total profit", "Total profit", "Category"],
+      ["MSTY", "Yieldmax MSTR Option Income Strategy ETF", "Income", "29.2486", "USD", "10.8316", "Fri Aug 07 2026 00:00:00 GMT-0700 (Pacific Daylight Time)", "6.09248338", "-2444", "-86", "-1334", "-21", "Funds"]
+    );
+    const importedRow = createDividendImportRows(parsed, [], snowballDividendAdapter.id)[0];
+    expect(importedRow.candidate).toMatchObject({
+      ticker: "MSTY",
+      shares: "29.2486",
+      dividendPerShare: "10.8316",
+      currency: "USD",
+      account: "Unknown",
+      nextPaymentDate: "2026-08-07",
+      notes: "Yieldmax MSTR Option Income Strategy ETF · Funds · Income",
+    });
+    expect(importedRow.estimatedPaymentAmount).toBe("6.09248338");
+    expect(importedRow.status).toBe("needs_review");
+  });
+
+  test.each(["CAD", "USD"])("preserves %s without conversion", (currency) => {
+    const parsed = snowballCsv(
+      ["Holding", "Shares", "Dividend per share", "Frequency", "Currency", "Next payment date"],
+      ["SCHD", "10", "0.25", "Quarterly", currency, "2026-09-01"]
+    );
+    expect(createDividendImportRows(parsed, [], snowballDividendAdapter.id)[0].candidate.currency).toBe(currency);
+  });
+
+  test("handles duplicate Snowball headers positionally and ignores unrelated duplicates", () => {
+    const parsed = snowballCsv(
+      ["Holding", "Shares", "Dividend per share", "Frequency", "Currency", "Next payment date", "Total profit", "Total profit"],
+      ["ENB", "10", "1", "Monthly", "CAD", "2026-09-01", "10", "20"]
+    );
+    const rows = createDividendImportRows(parsed, [], snowballDividendAdapter.id);
+    expect(rows[0].candidate.ticker).toBe("ENB");
+    expect(rows[0].status).toBe("ready");
+  });
+
+  test("flags conflicting values in duplicate mapped Snowball columns", () => {
+    const parsed = snowballCsv(
+      ["Holding", "Holding", "Shares", "Dividend per share", "Frequency", "Currency", "Next payment date"],
+      ["ENB", "RY", "10", "1", "Monthly", "CAD", "2026-09-01"]
+    );
+    const rows = createDividendImportRows(parsed, [], snowballDividendAdapter.id);
+    expect(rows[0].status).toBe("unsupported");
+    expect(rows[0].issues).toEqual(expect.arrayContaining([expect.objectContaining({ code: "conflicting_duplicate_values" })]));
+  });
+
+  test("leaves missing account and frequency in an explicit review state", () => {
+    const parsed = snowballCsv(
+      ["Holding", "Shares", "Dividend per share", "Currency", "Next payment date"],
+      ["ENB", "10", "1", "CAD", "2026-09-01"]
+    );
+    const rowUnderReview = createDividendImportRows(parsed, [], snowballDividendAdapter.id)[0];
+    expect(rowUnderReview.candidate).toMatchObject({ account: "Unknown", frequency: "" });
+    expect(rowUnderReview.status).toBe("needs_review");
+  });
+
+  test("uses the existing duplicate detection against current holdings", () => {
+    const parsed = snowballCsv(
+      ["Holding", "Shares", "Dividend per share", "Frequency", "Currency", "Next payment date"],
+      ["ENB", "10", "1", "Monthly", "CAD", "2026-09-01"]
+    );
+    const existing = [{ id: 5, ticker: "ENB", shares: 10, dividendPerShare: 1, frequency: "monthly", currency: "CAD", account: "Unknown", nextPaymentDate: "2026-09-01" }];
+    const rows = createDividendImportRows(parsed, existing, snowballDividendAdapter.id);
+    expect(rows[0].status).toBe("duplicate");
+    expect(rows[0].duplicates[0]).toMatchObject({ kind: "exact", source: "existing" });
+  });
+
+  test("confirmed Snowball rows become ordinary normalized dividend holdings", () => {
+    const parsed = snowballCsv(
+      ["Holding", "Shares", "Dividend per share", "Frequency", "Currency", "Next payment date", "Next payment"],
+      [" enb ", "10", "1", "Monthly", "CAD", "2026-09-01", "10"]
+    );
+    const rows = createDividendImportRows(parsed, [], snowballDividendAdapter.id);
+    const imported = createImportedDividendHoldings(rows, [], 50);
+    expect(imported).toEqual([{
+      id: 50, ticker: "ENB", shares: 10, dividendPerShare: 1, frequency: "monthly",
+      currency: "CAD", account: "Unknown", nextPaymentDate: "2026-09-01", notes: "",
+    }]);
+    expect(imported[0]).not.toHaveProperty("estimatedPaymentAmount");
+  });
+
+  test("does not loosen duplicate-header rejection for the Investing Dashboard adapter", () => {
+    const warning = jest.spyOn(console, "warn").mockImplementation(() => {});
+    const parsed = parseCsvText(`${WHEEL_APP_DIVIDEND_HEADERS.join(",")},Ticker\nENB,10,1,Monthly,CAD,TFSA,2026-09-01,,ENB`);
+    expect(() => createDividendImportRows(parsed, [])).toThrow("Duplicate CSV headers are not supported");
+    warning.mockRestore();
+  });
 });

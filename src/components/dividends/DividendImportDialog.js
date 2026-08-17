@@ -5,6 +5,7 @@ import {
   createDividendImportRows,
   getDividendImportSummary,
   reviewDividendImportRows,
+  DIVIDEND_IMPORT_ADAPTERS,
 } from "../../imports/dividends/dividendImport";
 import { WHEEL_APP_DIVIDEND_TEMPLATE } from "../../imports/dividends/wheelAppAdapter";
 
@@ -30,6 +31,7 @@ export default function DividendImportDialog({ holdings, onConfirm, onClose }) {
   const [fileName, setFileName] = useState("");
   const [error, setError] = useState("");
   const [parsing, setParsing] = useState(false);
+  const [adapterId, setAdapterId] = useState("wheel_app_dividend_holdings");
   const summary = useMemo(() => getDividendImportSummary(rows), [rows]);
 
   useEffect(() => {
@@ -48,8 +50,9 @@ export default function DividendImportDialog({ holdings, onConfirm, onClose }) {
     setRows([]);
     setFileName("");
     try {
-      const parsed = await parseCsvFile(file);
-      setRows(createDividendImportRows(parsed, holdings));
+      const adapter = DIVIDEND_IMPORT_ADAPTERS.find((item) => item.id === adapterId);
+      const parsed = await parseCsvFile(file, { positional: adapter?.positional });
+      setRows(createDividendImportRows(parsed, holdings, adapterId));
       setFileName(file.name);
     } catch (parseError) {
       setError(parseError.message || "The CSV could not be read.");
@@ -110,8 +113,13 @@ export default function DividendImportDialog({ holdings, onConfirm, onClose }) {
         <div className="dividend-import-source">
           <label>
             <span>Import format</span>
-            <select aria-label="Import format" value="wheel_app_dividend_holdings" disabled>
-              <option value="wheel_app_dividend_holdings">Investing Dashboard dividend holdings</option>
+            <select aria-label="Import format" value={adapterId} onChange={(event) => {
+              setAdapterId(event.target.value);
+              setRows([]);
+              setFileName("");
+              setError("");
+            }}>
+              {DIVIDEND_IMPORT_ADAPTERS.map((adapter) => <option key={adapter.id} value={adapter.id}>{adapter.label}</option>)}
             </select>
           </label>
           <label className="dividend-import-file">
@@ -123,7 +131,9 @@ export default function DividendImportDialog({ holdings, onConfirm, onClose }) {
           </a>
         </div>
         <p className="dividend-import-columns">
-          Required columns: Ticker, Shares, Dividend Per Share, Frequency, Currency, Account, Next Payment Date, Notes
+          {adapterId === "snowball_analytics_holdings"
+            ? "Snowball requires Holding and Shares. Missing dividend details remain in review until completed. Account defaults to Unknown."
+            : "Required columns: Ticker, Shares, Dividend Per Share, Frequency, Currency, Account, Next Payment Date, Notes"}
         </p>
 
         {parsing && <p className="dividend-import-message" role="status">Reading CSV…</p>}
@@ -143,7 +153,7 @@ export default function DividendImportDialog({ holdings, onConfirm, onClose }) {
 
             <div className="dividend-import-table-wrap">
               <table className="dividend-import-table">
-                <thead><tr><th>Include</th><th>Status</th><th>Ticker</th><th>Shares</th><th>Dividend / Share</th><th>Frequency</th><th>Currency</th><th>Account</th><th>Next Payment</th><th>Notes</th></tr></thead>
+                <thead><tr><th>Include</th><th>Status</th><th>Ticker</th><th>Shares</th><th>Dividend / Share</th><th>Frequency</th><th>Currency</th><th>Account</th><th>Next Payment</th>{adapterId === "snowball_analytics_holdings" && <th>Est. Payment</th>}<th>Notes</th></tr></thead>
                 <tbody>
                   {rows.map((row) => (
                     <tr key={row.importRowId} className={`dividend-import-row status-${row.status}`}>
@@ -180,6 +190,7 @@ export default function DividendImportDialog({ holdings, onConfirm, onClose }) {
                       </select></td>
                       <td><input aria-label={`Account row ${row.sourceRowNumber}`} value={row.candidate.account} onChange={(event) => updateCandidate(row.importRowId, "account", event.target.value)} /></td>
                       <td><input aria-label={`Next payment date row ${row.sourceRowNumber}`} type="date" value={row.candidate.nextPaymentDate} onChange={(event) => updateCandidate(row.importRowId, "nextPaymentDate", event.target.value)} /></td>
+                      {adapterId === "snowball_analytics_holdings" && <td><span aria-label={`Estimated payment row ${row.sourceRowNumber}`}>{row.estimatedPaymentAmount || "—"}</span></td>}
                       <td><input aria-label={`Notes row ${row.sourceRowNumber}`} value={row.candidate.notes} onChange={(event) => updateCandidate(row.importRowId, "notes", event.target.value)} /></td>
                     </tr>
                   ))}

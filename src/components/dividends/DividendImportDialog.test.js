@@ -83,3 +83,43 @@ test("unmounting clears temporary preview state for an account switch", async ()
   expect(screen.queryByText("Review holdings")).not.toBeInTheDocument();
   expect(within(screen.getByRole("dialog")).getByLabelText("CSV file")).toBeInTheDocument();
 });
+
+test("selects Snowball format, previews mapped rows, and confirms only on request", async () => {
+  const onConfirm = jest.fn();
+  render(<DividendImportDialog holdings={[]} onConfirm={onConfirm} onClose={jest.fn()} />);
+  fireEvent.change(screen.getByLabelText("Import format"), { target: { value: "snowball_analytics_holdings" } });
+  upload("Holding,Shares,Dividend per share,Frequency,Currency,Next payment date,Next payment,Holding name,Capital gain,Total profit,Total profit\nENB,10,1,Monthly,CAD,2026-09-01,10,Enbridge,100,200,300");
+
+  expect(await screen.findByText("Review holdings")).toBeInTheDocument();
+  expect(screen.getByLabelText("Ticker row 2")).toHaveValue("ENB");
+  expect(screen.getByLabelText("Account row 2")).toHaveValue("Unknown");
+  expect(screen.getByLabelText("Notes row 2")).toHaveValue("Enbridge");
+  expect(screen.getByLabelText("Estimated payment row 2")).toHaveTextContent("10");
+  expect(onConfirm).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("button", { name: "IMPORT 1 HOLDING" }));
+  expect(onConfirm).toHaveBeenCalledTimes(1);
+  expect(onConfirm.mock.calls[0][0][0].candidate).toMatchObject({ ticker: "ENB", currency: "CAD", account: "Unknown" });
+});
+
+test("Snowball cancel remains non-destructive", async () => {
+  const onConfirm = jest.fn();
+  const onClose = jest.fn();
+  render(<DividendImportDialog holdings={[]} onConfirm={onConfirm} onClose={onClose} />);
+  fireEvent.change(screen.getByLabelText("Import format"), { target: { value: "snowball_analytics_holdings" } });
+  upload("Holding,Shares,Dividend per share,Frequency,Currency,Next payment date\nENB,10,1,Monthly,CAD,2026-09-01");
+  expect(await screen.findByText("Review holdings")).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "CANCEL" }));
+  expect(onClose).toHaveBeenCalledTimes(1);
+  expect(onConfirm).not.toHaveBeenCalled();
+});
+
+test("Snowball rows missing frequency stay in review until edited", async () => {
+  render(<DividendImportDialog holdings={[]} onConfirm={jest.fn()} onClose={jest.fn()} />);
+  fireEvent.change(screen.getByLabelText("Import format"), { target: { value: "snowball_analytics_holdings" } });
+  upload("Holding,Shares,Dividend per share,Currency,Next payment date\nENB,10,1,CAD,2026-09-01");
+  expect(await screen.findByText("Needs Review")).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: /IMPORT 1 HOLDING/ })).toBeDisabled();
+  fireEvent.change(screen.getByLabelText("Frequency row 2"), { target: { value: "monthly" } });
+  expect(screen.getByText("Ready")).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: /IMPORT 1 HOLDING/ })).toBeEnabled();
+});

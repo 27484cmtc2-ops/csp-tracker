@@ -1,14 +1,15 @@
 import { createDividendHolding, validateDividendHolding } from "../../utils/dividends";
 import { wheelAppDividendAdapter } from "./wheelAppAdapter";
+import { snowballDividendAdapter } from "./snowballAdapter";
 
-export const DIVIDEND_IMPORT_ADAPTERS = [wheelAppDividendAdapter];
+export const DIVIDEND_IMPORT_ADAPTERS = [wheelAppDividendAdapter, snowballDividendAdapter];
 
 export function createDividendImportRows(parsedCsv, existingHoldings, adapterId = wheelAppDividendAdapter.id) {
   if (parsedCsv.errors.length) throw new Error(parsedCsv.errors[0].message);
   const adapter = DIVIDEND_IMPORT_ADAPTERS.find((item) => item.id === adapterId);
   if (!adapter) throw new Error("Select a supported import format.");
   const renamedHeaders = Object.values(parsedCsv.renamedHeaders ?? {});
-  if (renamedHeaders.length) {
+  if (!adapter.positional && renamedHeaders.length) {
     throw new Error(`Duplicate CSV headers are not supported: ${[...new Set(renamedHeaders)].join(", ")}.`);
   }
   const inspection = adapter.inspectHeaders(parsedCsv.headers);

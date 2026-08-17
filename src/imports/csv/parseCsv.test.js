@@ -1,4 +1,4 @@
-import { MAX_CSV_ROWS, parseCsvFile, parseCsvText } from "./parseCsv";
+import { MAX_CSV_ROWS, parseCsvFile, parseCsvMatrixText, parseCsvText } from "./parseCsv";
 
 const header = "Ticker,Shares,Dividend Per Share,Frequency,Currency,Account,Next Payment Date,Notes";
 
@@ -27,6 +27,13 @@ test("reports Papa Parse duplicate-header renaming", () => {
   const parsed = parseCsvText(`${header},Ticker\nENB,10,1,Monthly,CAD,TFSA,2026-09-01,Income,ENB`);
   expect(parsed.renamedHeaders).toEqual({ Ticker_1: "Ticker" });
   warning.mockRestore();
+});
+
+test("positional parsing preserves duplicate headers and quoted Snowball values", () => {
+  const parsed = parseCsvMatrixText('\uFEFFHolding,Total profit,Total profit,Name\r\nENB,10,20,"Enbridge, Inc."\r\n');
+  expect(parsed.errors).toEqual([]);
+  expect(parsed.headers).toEqual(["Holding", "Total profit", "Total profit", "Name"]);
+  expect(parsed.rows).toEqual([["ENB", "10", "20", "Enbridge, Inc."]]);
 });
 
 test("reports malformed CSV without exposing row contents", () => {

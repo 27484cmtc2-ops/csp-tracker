@@ -39,7 +39,40 @@ export function parseCsvText(text) {
   };
 }
 
-export async function parseCsvFile(file) {
+export function parseCsvMatrixText(text) {
+  const result = Papa.parse(text, {
+    header: false,
+    skipEmptyLines: "greedy",
+  });
+  const [headerRow = [], ...dataRows] = result.data;
+  const headers = headerRow.map((header) =>
+    String(header ?? "").replace(/^\uFEFF/, "").trim()
+  );
+  const errors = result.errors
+    .filter((error) => error.code !== "UndetectableDelimiter")
+    .map((error) => ({
+      code: error.code,
+      row: Number.isInteger(error.row) ? error.row + 1 : null,
+      message: "The CSV could not be read. Check its formatting and try again.",
+    }));
+
+  if (dataRows.length > MAX_CSV_ROWS) {
+    errors.push({
+      code: "TooManyRows",
+      row: null,
+      message: `CSV files are limited to ${MAX_CSV_ROWS.toLocaleString()} data rows.`,
+    });
+  }
+
+  return {
+    headers,
+    rows: dataRows.slice(0, MAX_CSV_ROWS),
+    errors,
+    positional: true,
+  };
+}
+
+export async function parseCsvFile(file, { positional = false } = {}) {
   if (!file) throw new Error("Choose a CSV file to continue.");
   if (file.size > MAX_CSV_FILE_SIZE) {
     throw new Error("CSV files must be 5 MB or smaller.");
@@ -47,5 +80,6 @@ export async function parseCsvFile(file) {
   if (!file.name.toLowerCase().endsWith(".csv")) {
     throw new Error("Choose a .csv file.");
   }
-  return parseCsvText(await file.text());
+  const text = await file.text();
+  return positional ? parseCsvMatrixText(text) : parseCsvText(text);
 }
