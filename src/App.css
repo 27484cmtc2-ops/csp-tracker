@@ -127,47 +127,6 @@ input, button { font-family: inherit; }
 .dividend-notes-field { grid-column: 1 / -1; }
 .dividend-form-error { margin-top: 12px; color: #ff7b7b; font-size: 10px; }
 .dividend-form-card > footer { display: flex; align-items: center; gap: 8px; margin-top: 18px; }
-.dividend-import-dialog { position: relative; width: min(1120px,100%); max-height: 92vh; overflow-y: auto; padding: 20px; border: 1px solid #30445b; border-radius: 8px; background: #111821; }
-.dividend-import-dialog > header { display: flex; justify-content: space-between; gap: 20px; margin-bottom: 18px; }
-.dividend-import-dialog h2 { margin: 5px 0 4px; color: #d7e0ea; font-size: 21px; }
-.dividend-import-dialog > header p { margin: 0; color: #8796aa; font-size: 11px; }
-.dividend-import-source { display: grid; grid-template-columns: minmax(220px,1fr) minmax(260px,1.3fr) auto; gap: 12px; align-items: end; }
-.dividend-import-source label > span { display: block; margin-bottom: 6px; color: #a6b3c2; font-size: 10px; }
-.dividend-import-source select, .dividend-import-source input { box-sizing: border-box; width: 100%; min-height: 42px; padding: 9px 11px; border: 1px solid #30445b; border-radius: 5px; background: #0b0f14; color: #d7e0ea; font: inherit; font-size: 11px; }
-.dividend-template-link { display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; min-height: 42px; text-decoration: none; }
-.dividend-import-columns { margin: 10px 0 0; color: #607086; font-size: 9px; line-height: 1.5; }
-.dividend-import-message { color: #8796aa; font-size: 11px; }
-.dividend-import-review-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-top: 20px; padding: 13px 0 10px; border-top: 1px solid #223044; }
-.dividend-import-review-heading > div:first-child strong, .dividend-import-review-heading > div:first-child span { display: block; }
-.dividend-import-review-heading strong { color: #d7e0ea; font-size: 13px; }
-.dividend-import-review-heading > div:first-child span { margin-top: 3px; color: #71839a; font-size: 10px; }
-.dividend-import-review-heading > div:last-child { display: flex; flex-wrap: wrap; gap: 6px; }
-.dividend-import-review-heading > div:last-child span { padding: 4px 7px; border: 1px solid #223044; border-radius: 999px; color: #8796aa; font-size: 9px; }
-.dividend-import-table-wrap { overflow-x: auto; border: 1px solid #223044; border-radius: 7px; }
-.dividend-import-table { width: 100%; min-width: 1050px; border-collapse: collapse; }
-.dividend-import-table th { padding: 9px 8px; border-bottom: 1px solid #223044; color: #71839a; font-size: 8px; font-weight: 500; letter-spacing: .06em; text-align: left; white-space: nowrap; }
-.dividend-import-table td { padding: 8px; border-bottom: 1px solid #1c2735; vertical-align: top; }
-.dividend-import-table tbody tr:last-child td { border-bottom: 0; }
-.dividend-import-table input:not([type="checkbox"]), .dividend-import-table select { box-sizing: border-box; width: 100%; min-width: 78px; min-height: 36px; padding: 6px 7px; border: 1px solid #30445b; border-radius: 4px; outline: none; background: #0b0f14; color: #d7e0ea; font: inherit; font-size: 10px; }
-.dividend-import-table td:nth-child(2) { width: 175px; }
-.dividend-import-table td:nth-child(3) { width: 85px; }
-.dividend-import-table td:nth-child(8), .dividend-import-table td:nth-child(10) { width: 130px; }
-.dividend-import-table input:focus, .dividend-import-table select:focus { border-color: #4d82b8; }
-.dividend-import-table input[type="checkbox"] { width: 17px; height: 17px; accent-color: #60a5fa; }
-.dividend-import-row.status-excluded { opacity: .58; }
-.dividend-import-status { display: inline-block; padding: 3px 6px; border: 1px solid #30445b; border-radius: 999px; color: #a6b3c2; font-size: 8px; white-space: nowrap; }
-.dividend-import-status.status-ready { border-color: rgba(111,220,140,.32); color: #6fdc8c; }
-.dividend-import-status.status-duplicate { border-color: rgba(245,158,11,.32); color: #e9bd73; }
-.dividend-import-status.status-needs_review, .dividend-import-status.status-unsupported { border-color: rgba(255,123,123,.32); color: #ff9a9a; }
-.dividend-import-table td > small { display: block; margin-top: 5px; color: #ff9a9a; font-size: 8px; line-height: 1.35; }
-.dividend-duplicate-actions { margin-top: 6px; }
-.dividend-duplicate-actions small { display: block; margin-bottom: 4px; color: #e9bd73; font-size: 8px; }
-.dividend-duplicate-actions button { margin: 0 4px 4px 0; padding: 3px 5px; border: 1px solid #30445b; border-radius: 3px; background: transparent; color: #8796aa; font: inherit; font-size: 8px; cursor: pointer; }
-.dividend-duplicate-actions button.selected { border-color: #4d82b8; background: #17283d; color: #8fc1ff; }
-.dividend-import-confirm-summary { display: flex; justify-content: space-between; gap: 16px; margin-top: 12px; color: #71839a; font-size: 10px; }
-.dividend-import-confirm-summary strong { color: #d7e0ea; }
-.dividend-import-dialog > footer { display: flex; align-items: center; gap: 8px; margin-top: 18px; }
-
 @media (min-width: 641px) {
   .dividend-dashboard, .dividend-modal-layer {
     --dividend-type-caption: 10px;
@@ -181,7 +140,6 @@ input, button { font-family: inherit; }
   .dividend-page-heading h1 { font-size: var(--dividend-type-title); }
   .dividend-page-heading p { font-size: var(--dividend-type-body); line-height: 1.5; }
   .dividend-add-button { min-height: 40px; font-size: var(--dividend-type-label); }
-  .dividend-import-button { min-height: 40px; font-size: var(--dividend-type-label); }
   .dividend-summary-grid > div { padding: 18px; }
   .dividend-summary-grid span { min-height: 24px; font-size: var(--dividend-type-label); }
   .dividend-summary-grid strong { font-size: var(--dividend-type-metric); line-height: 1.2; }
@@ -211,7 +169,6 @@ input, button { font-family: inherit; }
   .dividend-account-row { font-size: var(--dividend-type-body); }
   .dividend-account-row b { font-size: 14px; }
   .dividend-form-card { width: min(680px, 100%); padding: 24px; }
-  .dividend-import-dialog { padding: 24px; }
   .dividend-form-card h2 { font-size: 22px; }
   .dividend-form-grid { gap: 15px; }
   .dividend-form-grid label > span { font-size: var(--dividend-type-label); }
@@ -569,7 +526,7 @@ input, button { font-family: inherit; }
   .dividend-summary-grid strong { font-size: 30px; letter-spacing: -.03em; }
   .dividend-holding-row { padding: 17px 18px; border-color: var(--desktop-border); }
   .dividend-upcoming-panel > div, .dividend-breakdown > div { border-color: var(--desktop-border); }
-  .dividend-form-card, .dividend-import-dialog, .covered-call-dialog {
+  .dividend-form-card, .covered-call-dialog {
     border-color: var(--desktop-border-strong);
     border-radius: 12px;
     background: var(--desktop-surface-raised);
@@ -577,8 +534,6 @@ input, button { font-family: inherit; }
     font-family: var(--desktop-font-sans);
   }
   .dividend-form-grid input, .dividend-form-grid select, .dividend-form-grid textarea,
-  .dividend-import-source input, .dividend-import-source select,
-  .dividend-import-table input:not([type="checkbox"]), .dividend-import-table select,
   .covered-call-fields input {
     border-color: var(--desktop-border-strong);
     border-radius: 8px;
@@ -712,10 +667,6 @@ input, button { font-family: inherit; }
   .desktop-interface select:focus-visible,
   .desktop-interface textarea:focus-visible,
   .dividend-form-card button:focus-visible,
-  .dividend-import-dialog button:focus-visible,
-  .dividend-import-dialog a:focus-visible,
-  .dividend-import-dialog input:focus-visible,
-  .dividend-import-dialog select:focus-visible,
   .dividend-form-card input:focus-visible,
   .dividend-form-card select:focus-visible,
   .dividend-form-card textarea:focus-visible,
@@ -726,11 +677,9 @@ input, button { font-family: inherit; }
   }
   .desktop-interface button:active:not(:disabled),
   .dividend-form-card button:active:not(:disabled),
-  .dividend-import-dialog button:active:not(:disabled),
   .covered-call-dialog button:active:not(:disabled) { transform: translateY(0) scale(.985); }
   .desktop-interface button:disabled,
   .dividend-form-card button:disabled,
-  .dividend-import-dialog button:disabled,
   .covered-call-dialog button:disabled { opacity: .48; cursor: not-allowed; }
   .active-wheel-card,
   .stock-sale-summary,

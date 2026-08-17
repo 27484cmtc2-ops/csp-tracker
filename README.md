@@ -7,7 +7,6 @@ Personal investing dashboard for tracking wheel-strategy trades, assigned shares
 - Wheel/CSP and spread tracking
 - Assignment, covered-call, and share-sale workflows
 - Dividend holdings, income projections, and account breakdowns
-- CSV dividend imports
 - Account-specific local persistence and Supabase synchronization
 - Responsive desktop and mobile interfaces
 

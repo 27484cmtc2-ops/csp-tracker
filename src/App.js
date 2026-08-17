@@ -7,7 +7,6 @@ import MobileTrackerShell from "./components/mobile/MobileTrackerShell";
 import ActiveWheelCard from "./components/ActiveWheelCard";
 import AccountMenu from "./components/AccountMenu";
 import GuestModeControls from "./components/GuestModeControls";
-import GuestAccountGate from "./components/GuestAccountGate";
 import GuestMigrationDialog from "./components/GuestMigrationDialog";
 import CoveredCallForm, {
   CloseCoveredCallForm,
@@ -17,7 +16,6 @@ import StockSaleForm, { StockSaleSummary } from "./components/StockSaleForm";
 import UndoToast from "./components/UndoToast";
 import DividendDashboard from "./components/dividends/DividendDashboard";
 import DividendHoldingForm from "./components/dividends/DividendHoldingForm";
-import DividendImportDialog from "./components/dividends/DividendImportDialog";
 import DashboardPage from "./components/dashboard/DashboardPage";
 import GoalsPage from "./components/dashboard/GoalsPage";
 import { DEFAULT_PROJECTION_SETTINGS } from "./utils/passiveIncomeProjection";
@@ -32,7 +30,6 @@ import {
   createDividendHolding,
   validateDividendHolding,
 } from "./utils/dividends";
-import { createImportedDividendHoldings } from "./imports/dividends/dividendImport";
 import {
   EMPTY_COVERED_CALL,
   EMPTY_COVERED_CALL_CLOSE,
@@ -87,8 +84,6 @@ export default function App({ userId, userEmail, onLogOut, logoutError, mode = "
   const [stockSaleError, setStockSaleError] = useState("");
   const [dividendModal, setDividendModal] = useState(null);
   const [dividendError, setDividendError] = useState("");
-  const [dividendImportOpen, setDividendImportOpen] = useState(false);
-  const [guestGateOpen, setGuestGateOpen] = useState(false);
   const [migrationOpen, setMigrationOpen] = useState(Boolean(guestMigration));
   const [migrationBusy, setMigrationBusy] = useState(false);
   const [migrationSawSync, setMigrationSawSync] = useState(false);
@@ -179,12 +174,6 @@ export default function App({ userId, userEmail, onLogOut, logoutError, mode = "
   const deleteDividendHolding = (id) => {
     if (!window.confirm("Delete this dividend holding? This cannot be undone.")) return;
     setDividends(dividends.filter((holding) => holding.id !== id));
-  };
-
-  const confirmDividendImport = (importRows) => {
-    const importedHoldings = createImportedDividendHoldings(importRows, dividends);
-    setDividends([...dividends, ...importedHoldings]);
-    setDividendImportOpen(false);
   };
 
   const realized = useMemo(() => trades.filter(t=>t.status==="closed" && !isCoveredCall(t)).reduce((s,t)=>s+(t.pnl??0),0), [trades]);
@@ -839,7 +828,6 @@ export default function App({ userId, userEmail, onLogOut, logoutError, mode = "
             holdings={dividends}
             usdCad={USD_CAD}
             onAdd={openDividendModal}
-            onImport={() => isGuest ? setGuestGateOpen(true) : setDividendImportOpen(true)}
             onEdit={editDividendHolding}
             onDelete={deleteDividendHolding}
           />
@@ -889,8 +877,6 @@ export default function App({ userId, userEmail, onLogOut, logoutError, mode = "
           />
         </div>
 
-        {guestGateOpen && <GuestAccountGate onClose={() => setGuestGateOpen(false)} onSignIn={onSignIn} onCreateAccount={onCreateAccount} />}
-
         {migrationOpen && guestMigration && syncReady && !hasConflict && (
           <GuestMigrationDialog
             accountEmpty={accountEmpty}
@@ -923,14 +909,6 @@ export default function App({ userId, userEmail, onLogOut, logoutError, mode = "
               setDividendModal(null);
               setDividendError("");
             }}
-          />
-        )}
-
-        {dividendImportOpen && (
-          <DividendImportDialog
-            holdings={dividends}
-            onConfirm={confirmDividendImport}
-            onClose={() => setDividendImportOpen(false)}
           />
         )}
 

@@ -22,7 +22,6 @@ function renderDashboard(holdings = [], usdCad = 1.4) {
       holdings={holdings}
       usdCad={usdCad}
       onAdd={jest.fn()}
-      onImport={jest.fn()}
       onEdit={jest.fn()}
       onDelete={jest.fn()}
     />

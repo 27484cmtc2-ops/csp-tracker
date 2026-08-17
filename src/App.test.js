@@ -175,15 +175,13 @@ test("renders the tracker with an empty portfolio by default", () => {
   expect(screen.getByRole("button", { name: /closed positions/i })).toHaveAttribute("aria-expanded", "false");
 });
 
-test("guest mode shows local-only status, hides cloud controls, and gates CSV import", () => {
+test("guest mode shows local-only status and hides cloud controls", () => {
   render(<App mode="guest" onSignIn={jest.fn()} onCreateAccount={jest.fn()} onExitGuest={jest.fn()} />);
 
   expect(screen.getAllByText("Guest mode — data is stored only on this device.").length).toBeGreaterThan(0);
   expect(screen.queryByRole("button", { name: "SYNC NOW" })).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "DIVIDENDS" }));
-  fireEvent.click(screen.getByRole("button", { name: "IMPORT" }));
-  expect(screen.getByRole("dialog", { name: "Import needs a free account" })).toBeInTheDocument();
-  expect(screen.queryByLabelText(/CSV file/i)).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "IMPORT" })).not.toBeInTheDocument();
 });
 
 test("guest trade and dividend changes persist only to guest keys", () => {
@@ -250,44 +248,6 @@ test("shows dividend validation errors without saving invalid data", () => {
   expect(localStorage.getItem(TEST_KEYS.dividends)).toBeNull();
 });
 
-test("imports dividend holdings with one persisted collection update and preserves them across refresh", async () => {
-  const existing = [{
-    id: 1, ticker: "BCE", shares: 5, dividendPerShare: 1, frequency: "annual",
-    currency: "CAD", account: "RRSP", nextPaymentDate: "2026-10-01", notes: "",
-  }];
-  localStorage.setItem(TEST_KEYS.dividends, JSON.stringify(existing));
-  const persistedWrites = [];
-  const originalSetItem = Storage.prototype.setItem;
-  jest.spyOn(Storage.prototype, "setItem").mockImplementation(function (key, value) {
-    if (key === TEST_KEYS.dividends) persistedWrites.push(JSON.parse(value));
-    return originalSetItem.call(this, key, value);
-  });
-
-  const view = render(<App userId={TEST_USER_ID} />);
-  const desktop = view.container.querySelector(".desktop-interface");
-  fireEvent.click(within(desktop).getByRole("button", { name: "DIVIDENDS" }));
-  fireEvent.click(within(desktop).getByRole("button", { name: "IMPORT" }));
-  const content = "Ticker,Shares,Dividend Per Share,Frequency,Currency,Account,Next Payment Date,Notes\nENB,10,0.9425,Quarterly,CAD,TFSA,2026-09-01,Imported";
-  fireEvent.change(screen.getByLabelText("CSV file"), {
-    target: { files: [{ name: "holdings.csv", size: content.length, text: async () => content }] },
-  });
-
-  expect(await screen.findByText("Review holdings")).toBeInTheDocument();
-  fireEvent.click(screen.getByRole("button", { name: "IMPORT 1 HOLDING" }));
-  expect(persistedWrites).toHaveLength(1);
-  expect(persistedWrites[0]).toEqual([
-    expect.objectContaining({ ...existing[0], dividendBasis: "per_payment" }),
-    expect.objectContaining({ ticker: "ENB", shares: 10, account: "TFSA" }),
-  ]);
-
-  view.unmount();
-  const refreshed = render(<App userId={TEST_USER_ID} />);
-  const refreshedDesktop = refreshed.container.querySelector(".desktop-interface");
-  fireEvent.click(within(refreshedDesktop).getByRole("button", { name: "DIVIDENDS" }));
-  expect(within(refreshedDesktop).getAllByText("ENB").length).toBeGreaterThan(0);
-  expect(within(refreshedDesktop).getAllByText("BCE").length).toBeGreaterThan(0);
-});
-
 test("does not add Dividend Tracker controls to the existing mobile shell", () => {
   const { container } = render(<App userId={TEST_USER_ID} />);
   const mobile = container.querySelector(".mobile-interface");
@@ -314,7 +274,6 @@ test("keeps dividend analytics focused and expands the upcoming payment schedule
       }]}
       usdCad={1.4}
       onAdd={jest.fn()}
-      onImport={jest.fn()}
       onEdit={jest.fn()}
       onDelete={jest.fn()}
     />

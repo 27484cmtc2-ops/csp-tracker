@@ -75,7 +75,7 @@ function AccountIncomeBreakdown({ groups }) {
 
 const UPCOMING_PREVIEW_COUNT = 4;
 
-export default function DividendDashboard({ holdings, usdCad, onAdd, onImport, onEdit, onDelete }) {
+export default function DividendDashboard({ holdings, usdCad, onAdd, onEdit, onDelete }) {
   const [showFullSchedule, setShowFullSchedule] = useState(false);
   const summary = getDividendSummary(holdings, usdCad);
   const upcoming = getUpcomingDividendPayments(holdings, usdCad);
@@ -92,7 +92,6 @@ export default function DividendDashboard({ holdings, usdCad, onAdd, onImport, o
           <p>Estimated income converted to CAD using the app’s current USD/CAD rate.</p>
         </div>
         <div className="dividend-heading-actions">
-          <button className="csp-btn-sm dividend-import-button" onClick={onImport}>IMPORT</button>
           <button className="csp-btn dividend-add-button" onClick={onAdd}>+ ADD HOLDING</button>
         </div>
       </div>
