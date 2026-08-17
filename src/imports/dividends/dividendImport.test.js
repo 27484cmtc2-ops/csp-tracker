@@ -183,7 +183,7 @@ describe("Snowball Analytics adapter", () => {
       ticker: "ENB", shares: "100", dividendPerShare: "0.9425", frequency: "quarterly",
       currency: "CAD", account: "Unknown", nextPaymentDate: "2026-09-01", notes: "Enbridge · Energy",
     });
-    expect(rows[0].estimatedPaymentAmount).toBe("94.25");
+    expect(rows[0]).not.toHaveProperty("estimatedPaymentAmount");
     expect(rows[0]).not.toHaveProperty("capitalGain");
   });
 
@@ -202,8 +202,53 @@ describe("Snowball Analytics adapter", () => {
       nextPaymentDate: "2026-08-07",
       notes: "Yieldmax MSTR Option Income Strategy ETF · Funds · Income",
     });
-    expect(importedRow.estimatedPaymentAmount).toBe("6.09248338");
     expect(importedRow.status).toBe("needs_review");
+    expect(importedRow.issues).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: "snowball_annualized_dividend_review" }),
+    ]));
+  });
+
+  test("prioritizes only the exact Snowball dividend headers", () => {
+    const parsed = snowballCsv(
+      ["Holding", "Shares", "Dividend per share", "Dividends per share", "Frequency", "Currency", "Next payment date"],
+      ["ENB", "10", "0.25", "3.00", "Monthly", "CAD", "2026-09-01"]
+    );
+    const importedRow = createDividendImportRows(parsed, [], snowballDividendAdapter.id)[0];
+    expect(importedRow.candidate.dividendPerShare).toBe("3.00");
+    expect(importedRow.issues).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: "snowball_annualized_dividend_review", sourceValue: "3.00" }),
+    ]));
+  });
+
+  test("ignores annual, payment, amount, yield, and portfolio-income columns", () => {
+    const parsed = snowballCsv(
+      ["Holding", "Shares", "Dividend per share", "Frequency", "Currency", "Next payment date", "Annual dividend", "Next payment", "Dividend amount", "Dividend yield", "Portfolio income"],
+      ["ENB", "10", "0.25", "Quarterly", "CAD", "2026-09-01", "99", "88", "77", "66", "55"]
+    );
+    const importedRow = createDividendImportRows(parsed, [], snowballDividendAdapter.id)[0];
+    expect(importedRow.candidate.dividendPerShare).toBe("0.25");
+    expect(importedRow).not.toHaveProperty("estimatedPaymentAmount");
+    expect(importedRow.status).toBe("ready");
+  });
+
+  test("flags an unusually high exact per-payment value until the user edits it", () => {
+    const parsed = snowballCsv(
+      ["Holding", "Shares", "Dividend per share", "Frequency", "Currency", "Next payment date"],
+      ["ENB", "10", "9.50", "Quarterly", "CAD", "2026-09-01"]
+    );
+    let importedRow = createDividendImportRows(parsed, [], snowballDividendAdapter.id)[0];
+    expect(importedRow.status).toBe("needs_review");
+    expect(importedRow.issues).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: "unreasonable_dividend_per_share" }),
+    ]));
+    importedRow = reviewDividendImportRows([{
+      ...importedRow,
+      candidate: { ...importedRow.candidate, dividendPerShare: "0.95" },
+    }], [])[0];
+    expect(importedRow.status).toBe("ready");
+    expect(importedRow.issues).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: "unreasonable_dividend_per_share" }),
+    ]));
   });
 
   test.each(["CAD", "USD"])("preserves %s without conversion", (currency) => {

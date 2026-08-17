@@ -94,7 +94,6 @@ test("selects Snowball format, previews mapped rows, and confirms only on reques
   expect(screen.getByLabelText("Ticker row 2")).toHaveValue("ENB");
   expect(screen.getByLabelText("Account row 2")).toHaveValue("Unknown");
   expect(screen.getByLabelText("Notes row 2")).toHaveValue("Enbridge");
-  expect(screen.getByLabelText("Estimated payment row 2")).toHaveTextContent("10");
   expect(onConfirm).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole("button", { name: "IMPORT 1 HOLDING" }));
   expect(onConfirm).toHaveBeenCalledTimes(1);
@@ -120,6 +119,17 @@ test("Snowball rows missing frequency stay in review until edited", async () => 
   expect(await screen.findByText("Needs Review")).toBeInTheDocument();
   expect(screen.getByRole("button", { name: /IMPORT 1 HOLDING/ })).toBeDisabled();
   fireEvent.change(screen.getByLabelText("Frequency row 2"), { target: { value: "monthly" } });
+  expect(screen.getByText("Ready")).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: /IMPORT 1 HOLDING/ })).toBeEnabled();
+});
+
+test("Snowball annualized dividend values require review and clear after correction", async () => {
+  render(<DividendImportDialog holdings={[]} onConfirm={jest.fn()} onClose={jest.fn()} />);
+  fireEvent.change(screen.getByLabelText("Import format"), { target: { value: "snowball_analytics_holdings" } });
+  upload("Holding,Shares,Dividends per share,Frequency,Currency,Next payment date,Next payment,Annual dividend,Dividend amount,Dividend yield,Portfolio income\nMSTY,10,9.4068,Monthly,USD,2026-09-01,1.809,99,88,77,66");
+  expect(await screen.findByText("Snowball's ‘Dividends per share’ may be annualized. Enter the dividend per payment before importing.")).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: /IMPORT 1 HOLDING/ })).toBeDisabled();
+  fireEvent.change(screen.getByLabelText("Dividend per share row 2"), { target: { value: "0.1809" } });
   expect(screen.getByText("Ready")).toBeInTheDocument();
   expect(screen.getByRole("button", { name: /IMPORT 1 HOLDING/ })).toBeEnabled();
 });

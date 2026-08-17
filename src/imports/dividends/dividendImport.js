@@ -20,7 +20,7 @@ export function createDividendImportRows(parsedCsv, existingHoldings, adapterId 
     throw new Error(`Ambiguous CSV columns: ${inspection.ambiguous.join(", ")}. Keep only one column for each required field.`);
   }
   if (parsedCsv.rows.length === 0) throw new Error("The CSV does not contain any holdings.");
-  return reviewDividendImportRows(adapter.parse(parsedCsv.rows, inspection.fieldMap), existingHoldings);
+  return reviewDividendImportRows(adapter.parse(parsedCsv.rows, inspection.fieldMap, inspection), existingHoldings);
 }
 
 function comparable(value) {
@@ -74,17 +74,24 @@ export function reviewDividendImportRows(rows, existingHoldings) {
         : []
     );
     const issues = [
-      ...row.issues.filter((issue) => issue.code !== "formula_like_value" && issue.field !== "frequency"),
+      ...row.issues.filter((issue) =>
+        issue.code !== "formula_like_value"
+        && issue.field !== "frequency"
+        && !(["snowball_annualized_dividend_review", "unreasonable_dividend_per_share"].includes(issue.code)
+          && String(row.candidate.dividendPerShare) !== String(issue.sourceValue))
+      ),
       ...(row.candidate.frequency && !["weekly", "semi_monthly", "monthly", "quarterly", "semi_annual", "annual"].includes(row.candidate.frequency)
         ? [{ field: "frequency", code: "unsupported_frequency", message: "Choose a supported payment frequency." }]
         : []),
       ...formulaIssues,
     ];
-    const hasUnsupportedValue = issues.length > 0;
+    const reviewIssueCodes = ["snowball_annualized_dividend_review", "unreasonable_dividend_per_share"];
+    const hasUnsupportedValue = issues.some((issue) => !reviewIssueCodes.includes(issue.code));
+    const hasReviewIssue = issues.some((issue) => reviewIssueCodes.includes(issue.code));
     let status = "ready";
     if (!row.included && (duplicates.length === 0 || row.duplicateDecision !== null)) status = "excluded";
     else if (hasUnsupportedValue) status = "unsupported";
-    else if (validationError) status = "needs_review";
+    else if (validationError || hasReviewIssue) status = "needs_review";
     else if (duplicates.length > 0) status = "duplicate";
     else if (!row.included) status = "excluded";
 

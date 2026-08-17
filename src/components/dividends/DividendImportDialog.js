@@ -153,7 +153,7 @@ export default function DividendImportDialog({ holdings, onConfirm, onClose }) {
 
             <div className="dividend-import-table-wrap">
               <table className="dividend-import-table">
-                <thead><tr><th>Include</th><th>Status</th><th>Ticker</th><th>Shares</th><th>Dividend / Share</th><th>Frequency</th><th>Currency</th><th>Account</th><th>Next Payment</th>{adapterId === "snowball_analytics_holdings" && <th>Est. Payment</th>}<th>Notes</th></tr></thead>
+                <thead><tr><th>Include</th><th>Status</th><th>Ticker</th><th>Shares</th><th>Dividend / Share</th><th>Frequency</th><th>Currency</th><th>Account</th><th>Next Payment</th><th>Notes</th></tr></thead>
                 <tbody>
                   {rows.map((row) => (
                     <tr key={row.importRowId} className={`dividend-import-row status-${row.status}`}>
@@ -190,7 +190,6 @@ export default function DividendImportDialog({ holdings, onConfirm, onClose }) {
                       </select></td>
                       <td><input aria-label={`Account row ${row.sourceRowNumber}`} value={row.candidate.account} onChange={(event) => updateCandidate(row.importRowId, "account", event.target.value)} /></td>
                       <td><input aria-label={`Next payment date row ${row.sourceRowNumber}`} type="date" value={row.candidate.nextPaymentDate} onChange={(event) => updateCandidate(row.importRowId, "nextPaymentDate", event.target.value)} /></td>
-                      {adapterId === "snowball_analytics_holdings" && <td><span aria-label={`Estimated payment row ${row.sourceRowNumber}`}>{row.estimatedPaymentAmount || "—"}</span></td>}
                       <td><input aria-label={`Notes row ${row.sourceRowNumber}`} value={row.candidate.notes} onChange={(event) => updateCandidate(row.importRowId, "notes", event.target.value)} /></td>
                     </tr>
                   ))}

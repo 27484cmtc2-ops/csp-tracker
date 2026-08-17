@@ -17,12 +17,11 @@ const FIELD_DEFINITIONS = {
   shares: { label: "Shares", aliases: ["shares", "quantity"], required: true },
   dividendPerShare: {
     label: "Dividend per share",
-    aliases: ["dividend per share", "dividends per share", "dividend share", "distribution per share", "distribution share"],
+    priorityAliases: ["dividends per share", "dividend per share"],
   },
   frequency: { label: "Frequency", aliases: ["frequency", "dividend frequency", "payment frequency"] },
   currency: { label: "Currency", aliases: ["currency"] },
   nextPaymentDate: { label: "Next payment date", aliases: ["next payment date", "date of the next payment"] },
-  estimatedPaymentAmount: { label: "Next payment", aliases: ["next payment"] },
   holdingName: { label: "Holding name", aliases: ["holding name", "holdings name", "holding name category", "name"] },
   category: { label: "Category", aliases: ["holding category", "category"] },
   sourceNotes: { label: "Note", aliases: ["note", "notes"] },
@@ -38,16 +37,19 @@ function formulaIssue(value, field) {
 
 export function inspectSnowballHeaders(headers) {
   const fieldMap = {};
+  const fieldSources = {};
   Object.entries(FIELD_DEFINITIONS).forEach(([field, definition]) => {
-    const indexes = headers.flatMap((header, index) =>
-      definition.aliases.includes(normalizeDividendImportHeader(header)) ? [index] : []
-    );
+    const normalizedHeaders = headers.map(normalizeDividendImportHeader);
+    const selectedAlias = definition.priorityAliases?.find((alias) => normalizedHeaders.includes(alias));
+    const acceptedAliases = selectedAlias ? [selectedAlias] : definition.aliases ?? [];
+    const indexes = normalizedHeaders.flatMap((header, index) => acceptedAliases.includes(header) ? [index] : []);
     if (indexes.length) fieldMap[field] = indexes;
+    if (selectedAlias) fieldSources[field] = selectedAlias;
   });
   const missing = Object.entries(FIELD_DEFINITIONS)
     .filter(([field, definition]) => definition.required && !fieldMap[field])
     .map(([, definition]) => definition.label);
-  return { fieldMap, missing, ambiguous: [] };
+  return { fieldMap, fieldSources, missing, ambiguous: [] };
 }
 
 function readMappedValue(row, indexes = []) {
@@ -73,7 +75,7 @@ export const snowballDividendAdapter = {
     return inspectSnowballHeaders(headers).missing.length === 0;
   },
   inspectHeaders: inspectSnowballHeaders,
-  parse(rows, fieldMap) {
+  parse(rows, fieldMap, inspection) {
     return rows.map((row, index) => {
       const mapped = Object.fromEntries(Object.keys(FIELD_DEFINITIONS).map((field) => [
         field,
@@ -96,6 +98,22 @@ export const snowballDividendAdapter = {
           ? [{ field, code: "conflicting_duplicate_values", message: `Conflicting values were found in duplicate ${FIELD_DEFINITIONS[field].label} columns.` }]
           : formulaIssue(result.value, field)
       );
+      const dividendValue = Number(candidate.dividendPerShare);
+      if (inspection.fieldSources.dividendPerShare === "dividends per share") {
+        issues.push({
+          field: "dividendPerShare",
+          code: "snowball_annualized_dividend_review",
+          sourceValue: candidate.dividendPerShare,
+          message: "Snowball's ‘Dividends per share’ may be annualized. Enter the dividend per payment before importing.",
+        });
+      } else if (Number.isFinite(dividendValue) && dividendValue > 5) {
+        issues.push({
+          field: "dividendPerShare",
+          code: "unreasonable_dividend_per_share",
+          sourceValue: candidate.dividendPerShare,
+          message: "This dividend per share looks unusually high. Verify the per-payment amount.",
+        });
+      }
       if (candidate.frequency && !DIVIDEND_FREQUENCIES[candidate.frequency]) {
         issues.push({ field: "frequency", code: "unsupported_frequency", message: "Choose a supported payment frequency." });
       }
@@ -103,7 +121,6 @@ export const snowballDividendAdapter = {
         importRowId: `snowball-${index + 1}`,
         sourceRowNumber: index + 2,
         candidate,
-        estimatedPaymentAmount: mapped.estimatedPaymentAmount.value,
         issues,
         included: true,
         duplicateDecision: null,
